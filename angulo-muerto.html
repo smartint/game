@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}*,*::before,*::after{box-sizing:border-box}</style>
+<title>Ángulo Muerto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: tactical console — board on the left, squad/orders rail on the right; stacks on phones. Single dark world by choice. */
+:root {
+  --bg: #0d181c;
+  --panel: #13232a;
+  --panel-2: #182c34;
+  --line: #2a4652;
+  --ink: #e4ece6;
+  --muted: #8ea6a9;
+  --amber: #f0a43a;
+  --danger: #e4513b;
+  --safe: #5fd08a;
+  --sol-a: #7fd0e6;
+  --sol-b: #c2a8f5;
+  --f-display: 'Saira Stencil One', 'Arial Narrow', Impact, sans-serif;
+  --f-body: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 32px; display: grid; gap: 16px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 20px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 6vw, 46px); letter-spacing: 0.02em; margin: 0; line-height: 1; color: var(--amber); }
+.brand .sub { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.levels { display: flex; flex-wrap: wrap; gap: 6px; }
+.lvl { font-family: var(--f-mono); font-size: 12px; background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.lvl:hover { color: var(--ink); border-color: var(--muted); }
+.lvl[aria-current="true"] { color: var(--bg); background: var(--amber); border-color: var(--amber); }
+.lvl:disabled { opacity: 0.35; cursor: not-allowed; }
+.lvl .st { letter-spacing: -1px; }
+
+.game { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+@media (max-width: 820px) { .game { grid-template-columns: minmax(0, 1fr); } }
+
+.board-col { min-width: 0; display: grid; gap: 10px; }
+.mission { display: grid; gap: 4px; }
+.mission .code { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--amber); text-transform: uppercase; }
+.mission h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0; line-height: 1.05; text-wrap: balance; }
+.mission p { margin: 0; color: var(--muted); max-width: 62ch; }
+.board-frame { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+canvas#board { display: block; margin: 0 auto; width: 100%; height: auto; touch-action: manipulation; cursor: crosshair; border-radius: 2px; }
+.hint { font-family: var(--f-mono); font-size: 12px; color: var(--muted); min-height: 1.5em; }
+.hint b { color: var(--ink); font-weight: 700; }
+.hint .bad { color: var(--danger); }
+.hint .ok { color: var(--safe); }
+
+.overlay { position: absolute; inset: 8px; display: grid; place-items: center; background: rgba(9, 16, 19, 0.78); border-radius: 2px; }
+.overlay .card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 20px 22px; max-width: 330px; display: grid; gap: 10px; text-align: left; }
+.overlay h3 { font-family: var(--f-display); font-weight: 400; font-size: 28px; margin: 0; line-height: 1; }
+.overlay p { margin: 0; color: var(--muted); }
+.overlay .stars { font-size: 26px; letter-spacing: 4px; color: var(--amber); }
+.overlay .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+aside.rail { display: grid; gap: 14px; min-width: 0; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; display: grid; gap: 10px; }
+.box h4 { margin: 0; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.turnline { display: flex; justify-content: space-between; align-items: baseline; }
+.turnline .big { font-family: var(--f-display); font-size: 34px; line-height: 1; }
+.turnline .par { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.squad { display: grid; gap: 8px; }
+.trooper { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; background: var(--panel-2); border: 1px solid transparent; border-radius: 3px; padding: 7px 9px; cursor: pointer; color: var(--ink); font: inherit; text-align: left; }
+.trooper[aria-pressed="true"] { border-color: var(--amber); }
+.trooper .chip { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 700; font-size: 12px; color: var(--bg); }
+.trooper .nm { font-weight: 600; }
+.trooper .stt { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.pips { display: flex; gap: 3px; }
+.pip { width: 8px; height: 14px; border-radius: 1px; background: var(--line); }
+.pip.on { background: var(--amber); }
+
+.orders { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+button.btn { font-family: var(--f-body); font-weight: 600; font-size: 15px; letter-spacing: 0.02em; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 9px 10px; cursor: pointer; }
+button.btn:hover { border-color: var(--muted); }
+button.btn.primary { background: var(--amber); color: #1a1206; border-color: var(--amber); grid-column: 1 / -1; font-size: 17px; }
+button.btn.primary:hover { filter: brightness(1.08); }
+button.btn[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+button:focus-visible, .lvl:focus-visible, .trooper:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.rules li { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.rules .c { font-family: var(--f-mono); color: var(--amber); font-variant-numeric: tabular-nums; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 13px; color: var(--muted); }
+.legend span { display: flex; gap: 7px; align-items: center; }
+.sw { width: 14px; height: 14px; border-radius: 2px; flex: none; }
+.keys { font-family: var(--f-mono); font-size: 11px; color: var(--muted); line-height: 1.7; }
+.keys kbd { font-family: inherit; border: 1px solid var(--line); border-radius: 2px; padding: 0 4px; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Ángulo Muerto</h1>
+      <span class="sub">Puzles tácticos · líneas de visión · puntos de acción</span>
+    </div>
+    <nav class="levels" id="levels" aria-label="Misiones"></nav>
+  </header>
+
+  <div class="game">
+    <section class="board-col">
+      <div class="mission">
+        <span class="code" id="mCode">OP-01</span>
+        <h2 id="mName">Cobertura</h2>
+        <p id="mBrief"></p>
+      </div>
+      <div class="board-frame" id="frame">
+        <canvas id="board" width="600" height="450" aria-label="Mapa táctico"></canvas>
+        <div class="overlay" id="overlay" hidden>
+          <div class="card">
+            <h3 id="ovTitle">Misión cumplida</h3>
+            <div class="stars" id="ovStars"></div>
+            <p id="ovText"></p>
+            <div class="row" id="ovRow"></div>
+          </div>
+        </div>
+      </div>
+      <div class="hint" id="hint" aria-live="polite"></div>
+    </section>
+
+    <aside class="rail">
+      <div class="box">
+        <div class="turnline">
+          <span class="big" id="turnNo">Turno 1</span>
+          <span class="par" id="parTxt">Récord: 3 turnos</span>
+        </div>
+        <div class="squad" id="squad"></div>
+      </div>
+      <div class="box">
+        <h4>Órdenes</h4>
+        <div class="orders">
+          <button class="btn primary" id="btnEnd" type="button">Fin de turno</button>
+          <button class="btn" id="btnNext" type="button" aria-pressed="false">Próximo turno</button>
+          <button class="btn" id="btnUndo" type="button">Deshacer</button>
+          <button class="btn" id="btnReset" type="button">Reiniciar</button>
+          <button class="btn" id="btnSwap" type="button">Cambiar soldado</button>
+        </div>
+      </div>
+      <div class="box">
+        <h4>Coste en PA (6 por turno)</h4>
+        <ul class="rules">
+          <li><span>Mover una casilla</span><span class="c">1</span></li>
+          <li><span>Abrir puerta adyacente</span><span class="c">1</span></li>
+          <li><span>Usar terminal adyacente</span><span class="c">2</span></li>
+          <li><span>Disparar (alcance 7, por detrás)</span><span class="c">3</span></li>
+        </ul>
+        <div class="legend">
+          <span><i class="sw" style="background: rgba(228,81,59,0.55)"></i>Campo de tiro</span>
+          <span><i class="sw" style="background: repeating-linear-gradient(45deg, #f0a43a 0 2px, transparent 2px 5px)"></i>Próximo turno</span>
+          <span><i class="sw" style="background: #b9a68a"></i>Muro</span>
+          <span><i class="sw" style="background: #7d5f3d"></i>Caja</span>
+          <span><i class="sw" style="background: rgba(120,190,220,0.45)"></i>Cristal</span>
+          <span><i class="sw" style="background: #2f8f5a"></i>Evacuación</span>
+        </div>
+        <div class="keys">
+          Toca un destino para ver la ruta y toca otra vez para moverte.
+          Teclado: <kbd>←↑→↓</kbd> mover · <kbd>Tab</kbd> soldado · <kbd>Enter</kbd> fin de turno · <kbd>Z</kbd> deshacer · <kbd>V</kbd> próximo turno
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script>
+const AM = (function () {
+  'use strict';
+  const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  const AP_MAX = 6;
+  const COST = { move: 1, door: 1, shoot: 3, term: 2 };
+  const SHOOT_RANGE = 7;
+
+  function parse(def) {
+    const rows = def.map;
+    const h = rows.length;
+    const w = rows[0].length;
+    const grid = [];
+    const starts = [];
+    const doors = [];
+    const terms = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let c = rows[y][x] || '#';
+        if (c === 'A' || c === 'B' || c === 'C2') { starts.push({ x: x, y: y, id: c }); c = '.'; }
+        if (c === 'D') doors.push({ x: x, y: y });
+        if (c === 'T') terms.push({ x: x, y: y });
+        grid.push(c);
+      }
+    }
+    starts.sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+    const turrets = def.turrets.map(function (t, i) {
+      return {
+        x: t.x, y: t.y, pattern: t.pattern, range: t.range || 8, arc: t.arc || 90,
+        armored: !!t.armored, id: i
+      };
+    });
+    const links = (def.links || []).map(function (l) { return l.slice(); });
+    return { w: w, h: h, grid: grid, starts: starts, doors: doors, terms: terms, turrets: turrets, links: links, def: def };
+  }
+
+  function initState(L) {
+    return {
+      sol: L.starts.map(function (s) { return { x: s.x, y: s.y, ap: AP_MAX, alive: true, out: false }; }),
+      tur: L.turrets.map(function () { return { alive: true, off: false }; }),
+      doors: L.doors.map(function () { return false; }),
+      turn: 0
+    };
+  }
+
+  function clone(st) {
+    return {
+      sol: st.sol.map(function (s) { return { x: s.x, y: s.y, ap: s.ap, alive: s.alive, out: s.out }; }),
+      tur: st.tur.map(function (t) { return { alive: t.alive, off: t.off }; }),
+      doors: st.doors.slice(),
+      turn: st.turn
+    };
+  }
+
+  function cell(L, st, x, y) {
+    if (x < 0 || y < 0 || x >= L.w || y >= L.h) return '#';
+    const c = L.grid[y * L.w + x];
+    if (c === 'D') {
+      for (let i = 0; i < L.doors.length; i++) {
+        if (L.doors[i].x === x && L.doors[i].y === y) return st.doors[i] ? 'd' : 'D';
+      }
+    }
+    return c;
+  }
+
+  function blocksLOS(c) { return c === '#' || c === 'C' || c === 'D'; }
+
+  function turretAt(L, x, y) {
+    for (let i = 0; i < L.turrets.length; i++) if (L.turrets[i].x === x && L.turrets[i].y === y) return i;
+    return -1;
+  }
+
+  function blocksMove(L, st, x, y) {
+    const c = cell(L, st, x, y);
+    if (c === '#' || c === 'C' || c === 'D' || c === 'T' || c === '=') return true;
+    if (turretAt(L, x, y) >= 0) return true;
+    return false;
+  }
+
+  function doorKey(st) { return st.doors.map(function (d) { return d ? 1 : 0; }).join(''); }
+
+  const losCache = new Map();
+  function los(L, st, x0, y0, x1, y1) {
+    const key = L.def.name + '|' + doorKey(st) + '|' + x0 + ',' + y0 + ',' + x1 + ',' + y1;
+    const hit = losCache.get(key);
+    if (hit !== undefined) return hit;
+    const ax = x0 + 0.5, ay = y0 + 0.5, bx = x1 + 0.5, by = y1 + 0.5;
+    const len = Math.hypot(bx - ax, by - ay);
+    const n = Math.max(1, Math.ceil(len / 0.05));
+    const E = 0.002;
+    let ok = true;
+    for (let i = 1; i < n && ok; i++) {
+      const t = i / n;
+      const px = ax + (bx - ax) * t, py = ay + (by - ay) * t;
+      for (let k = 0; k < 4; k++) {
+        const cx = Math.floor(px + (k & 1 ? E : -E));
+        const cy = Math.floor(py + (k & 2 ? E : -E));
+        if ((cx === x0 && cy === y0) || (cx === x1 && cy === y1)) continue;
+        if (blocksLOS(cell(L, st, cx, cy))) { ok = false; break; }
+      }
+    }
+    losCache.set(key, ok);
+    return ok;
+  }
+
+  function facing(L, ti, turn) {
+    const p = L.turrets[ti].pattern;
+    return p[turn % p.length];
+  }
+
+  function angDiff(a, b) {
+    let d = Math.abs(a - b) % 360;
+    return d > 180 ? 360 - d : d;
+  }
+
+  function inArc(L, ti, dir, x, y) {
+    const t = L.turrets[ti];
+    const dx = x - t.x, dy = y - t.y;
+    if (dx === 0 && dy === 0) return false;
+    if (Math.hypot(dx, dy) > t.range + 1e-9) return false;
+    const a = Math.atan2(dy, dx) * 180 / Math.PI;
+    return angDiff(a, dir * 45) <= t.arc / 2 + 1e-9;
+  }
+
+  // Set of tile indices watched by turret ti at given turn
+  const fieldCache = new Map();
+  function field(L, st, ti, turn) {
+    const dir = facing(L, ti, turn);
+    const key = L.def.name + '|' + ti + '|' + dir + '|' + doorKey(st);
+    const hit = fieldCache.get(key);
+    if (hit) return hit;
+    const t = L.turrets[ti];
+    const set = new Set();
+    for (let y = 0; y < L.h; y++) {
+      for (let x = 0; x < L.w; x++) {
+        if (!inArc(L, ti, dir, x, y)) continue;
+        const c = cell(L, st, x, y);
+        if (c === '#' || c === 'C' || c === 'D') continue;
+        if (los(L, st, t.x, t.y, x, y)) set.add(y * L.w + x);
+      }
+    }
+    fieldCache.set(key, set);
+    return set;
+  }
+
+  // Which turret (index) watches tile at the given turn, or -1
+  function watcher(L, st, x, y, turn) {
+    for (let i = 0; i < L.turrets.length; i++) {
+      if (!st.tur[i].alive || st.tur[i].off) continue;
+      if (field(L, st, i, turn).has(y * L.w + x)) return i;
+    }
+    return -1;
+  }
+
+  function occupied(st, x, y, except) {
+    for (let i = 0; i < st.sol.length; i++) {
+      const s = st.sol[i];
+      if (i !== except && s.alive && !s.out && s.x === x && s.y === y) return true;
+    }
+    return false;
+  }
+
+  // Result: {ok, st, event}
+  function move(L, st, si, dx, dy) {
+    const s = st.sol[si];
+    if (!s.alive || s.out || s.ap < COST.move) return { ok: false, why: 'Sin PA' };
+    const nx = s.x + dx, ny = s.y + dy;
+    if (blocksMove(L, st, nx, ny) || occupied(st, nx, ny, si)) return { ok: false, why: 'Bloqueado' };
+    const n = clone(st);
+    const ns = n.sol[si];
+    ns.x = nx; ns.y = ny; ns.ap -= COST.move;
+    if (cell(L, n, nx, ny) === 'E') { ns.out = true; return { ok: true, st: n, event: 'out' }; }
+    const w = watcher(L, n, nx, ny, n.turn);
+    if (w >= 0) { ns.alive = false; return { ok: true, st: n, event: 'killed', by: w }; }
+    return { ok: true, st: n };
+  }
+
+  function adjacent(ax, ay, bx, by) { return Math.abs(ax - bx) + Math.abs(ay - by) === 1; }
+
+  function canDoor(L, st, si, di) {
+    const s = st.sol[si];
+    const d = L.doors[di];
+    return s.alive && !s.out && !st.doors[di] && s.ap >= COST.door && adjacent(s.x, s.y, d.x, d.y);
+  }
+  function openDoor(L, st, si, di) {
+    if (!canDoor(L, st, si, di)) return { ok: false, why: 'No alcanzas la puerta' };
+    const n = clone(st);
+    n.doors[di] = true;
+    n.sol[si].ap -= COST.door;
+    // newly opened lines of sight may expose soldiers
+    for (let i = 0; i < n.sol.length; i++) {
+      const s = n.sol[i];
+      if (!s.alive || s.out) continue;
+      const w = watcher(L, n, s.x, s.y, n.turn);
+      if (w >= 0) { s.alive = false; return { ok: true, st: n, event: 'killed', by: w, victim: i }; }
+    }
+    return { ok: true, st: n };
+  }
+
+  function shotInfo(L, st, si, ti) {
+    const s = st.sol[si];
+    const t = L.turrets[ti];
+    if (!st.tur[ti].alive) return { ok: false, why: 'Torreta ya destruida' };
+    if (t.armored) return { ok: false, why: 'Blindaje total: solo se apaga desde un terminal' };
+    const dist = Math.hypot(t.x - s.x, t.y - s.y);
+    if (dist > SHOOT_RANGE + 1e-9) return { ok: false, why: 'Fuera de alcance (' + SHOOT_RANGE + ')' };
+    if (!los(L, st, s.x, s.y, t.x, t.y)) return { ok: false, why: 'Sin línea de visión' };
+    const dir = facing(L, ti, st.turn);
+    const a = Math.atan2(s.y - t.y, s.x - t.x) * 180 / Math.PI;
+    if (angDiff(a, dir * 45) <= 90 + 1e-9 && !st.tur[ti].off) return { ok: false, why: 'Blindaje frontal: dispara desde detrás' };
+    if (s.ap < COST.shoot) return { ok: false, why: 'Necesitas ' + COST.shoot + ' PA' };
+    return { ok: true };
+  }
+  function shoot(L, st, si, ti) {
+    const info = shotInfo(L, st, si, ti);
+    if (!info.ok) return info;
+    const n = clone(st);
+    n.tur[ti].alive = false;
+    n.sol[si].ap -= COST.shoot;
+    return { ok: true, st: n, event: 'destroyed' };
+  }
+
+  function canTerm(L, st, si, ki) {
+    const s = st.sol[si];
+    const k = L.terms[ki];
+    return s.alive && !s.out && s.ap >= COST.term && adjacent(s.x, s.y, k.x, k.y);
+  }
+  function useTerm(L, st, si, ki) {
+    if (!canTerm(L, st, si, ki)) return { ok: false, why: 'No alcanzas el terminal' };
+    const n = clone(st);
+    const link = L.links[ki] || [];
+    let changed = false;
+    link.forEach(function (ti) { if (!n.tur[ti].off) { n.tur[ti].off = true; changed = true; } });
+    if (!changed) return { ok: false, why: 'Terminal ya usado' };
+    n.sol[si].ap -= COST.term;
+    return { ok: true, st: n, event: 'term' };
+  }
+
+  function endTurn(L, st) {
+    const n = clone(st);
+    n.turn += 1;
+    n.sol.forEach(function (s) { if (s.alive && !s.out) s.ap = AP_MAX; });
+    for (let i = 0; i < n.sol.length; i++) {
+      const s = n.sol[i];
+      if (!s.alive || s.out) continue;
+      const w = watcher(L, n, s.x, s.y, n.turn);
+      if (w >= 0) { s.alive = false; return { ok: true, st: n, event: 'killed', by: w, victim: i }; }
+    }
+    return { ok: true, st: n };
+  }
+
+  function status(st) {
+    if (st.sol.some(function (s) { return !s.alive; })) return 'lost';
+    if (st.sol.every(function (s) { return s.out; })) return 'won';
+    return 'play';
+  }
+
+  // Dijkstra path for UI: avoids watched tiles when possible
+  function path(L, st, si, tx, ty) {
+    const s = st.sol[si];
+    const W = L.w;
+    const start = s.y * W + s.x, goal = ty * W + tx;
+    if (start === goal) return null;
+    const cost = new Map(); const prev = new Map(); const steps = new Map();
+    cost.set(start, 0); steps.set(start, 0);
+    const open = [start];
+    while (open.length) {
+      open.sort(function (a, b) { return cost.get(a) - cost.get(b); });
+      const cur = open.shift();
+      if (cur === goal) break;
+      const cx = cur % W, cy = (cur - cx) / W;
+      if (cur !== start && cell(L, st, cx, cy) === 'E') continue;
+      const k = steps.get(cur);
+      if (k >= s.ap) continue;
+      for (let d = 0; d < 8; d += 2) {
+        const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+        if (blocksMove(L, st, nx, ny) || occupied(st, nx, ny, si)) continue;
+        const ni = ny * W + nx;
+        const danger = cell(L, st, nx, ny) !== 'E' && watcher(L, st, nx, ny, st.turn) >= 0;
+        const c = cost.get(cur) + 1 + (danger ? 1000 : 0);
+        if (!cost.has(ni) || c < cost.get(ni)) {
+          cost.set(ni, c); prev.set(ni, cur); steps.set(ni, k + 1);
+          if (open.indexOf(ni) < 0) open.push(ni);
+        }
+      }
+    }
+    if (!prev.has(goal)) return null;
+    const out = [];
+    let c = goal;
+    while (c !== start) { out.unshift({ x: c % W, y: Math.floor(c / W) }); c = prev.get(c); }
+    return out;
+  }
+
+  return {
+    DIRS: DIRS, AP_MAX: AP_MAX, COST: COST, SHOOT_RANGE: SHOOT_RANGE,
+    parse: parse, initState: initState, clone: clone, cell: cell, los: los, field: field,
+    facing: facing, watcher: watcher, move: move, openDoor: openDoor, canDoor: canDoor,
+    shotInfo: shotInfo, shoot: shoot, useTerm: useTerm, canTerm: canTerm, endTurn: endTurn,
+    status: status, path: path, turretAt: turretAt, blocksMove: blocksMove, occupied: occupied
+  };
+})();
+if (typeof module !== 'undefined') module.exports = AM;
+const LEVELS = [
+  {
+    name: 'Cobertura',
+    code: 'OP-01',
+    brief: 'Todo lo que la torreta ve dentro de su cono queda bajo fuego. Las cajas cortan la línea de visión: avanza por su sombra hasta la evacuación.',
+    par: 3,
+    map: [
+      '############',
+      '#A.........#',
+      '#..........#',
+      '#..........#',
+      '#..CCC.CC..#',
+      '#..........#',
+      '#.....C....#',
+      '#.........E#',
+      '############'
+    ],
+    turrets: [{ x: 6, y: 1, pattern: [2], range: 10 }]
+  },
+  {
+    name: 'Ángulo muerto',
+    code: 'OP-02',
+    brief: 'La torreta solo mira hacia delante, en un cono de 90°. Rodéala por su ángulo muerto.',
+    par: 3,
+    map: [
+      '############',
+      '#A.........#',
+      '#...C......#',
+      '#..........#',
+      '#......C...#',
+      '#.....CC..E#',
+      '#..........#',
+      '############'
+    ],
+    turrets: [{ x: 9, y: 3, pattern: [4], range: 7 }]
+  },
+  {
+    name: 'Por la espalda',
+    code: 'OP-03',
+    brief: 'La sala de evacuación está cubierta. El blindaje frontal desvía tus disparos: alcanza la espalda de la torreta y destrúyela (3 PA).',
+    par: 5,
+    map: [
+      '############',
+      '#A........##',
+      '#.#######.##',
+      '#.#.....#..#',
+      '#.#.E......#',
+      '#.#.....#..#',
+      '#.###.###..#',
+      '#..........#',
+      '############'
+    ],
+    turrets: [{ x: 8, y: 4, pattern: [4], range: 8 }]
+  },
+  {
+    name: 'Barrido',
+    code: 'OP-04',
+    brief: 'Torreta blindada que gira 90° al final de cada turno. Activa «Próximo turno» para ver hacia dónde mirará y termina siempre a cubierto.',
+    par: 5,
+    map: [
+      '############',
+      '#A...#.....#',
+      '#....#.....#',
+      '#..........#',
+      '#....#.....#',
+      '######.#####',
+      '#..........#',
+      '#.........E#',
+      '############'
+    ],
+    turrets: [{ x: 8, y: 3, pattern: [0, 2, 4, 6], range: 8, armored: true }]
+  },
+  {
+    name: 'Puertas',
+    code: 'OP-05',
+    brief: 'Abrir una puerta (1 PA) también abre líneas de visión, y ya no se cierra. Elige bien el momento.',
+    par: 3,
+    map: [
+      '############',
+      '#A...#.....#',
+      '#....#.....#',
+      '#....D.....#',
+      '#....#.....#',
+      '#....#..C..#',
+      '#....#.....#',
+      '#....#....E#',
+      '############'
+    ],
+    turrets: [{ x: 8, y: 3, pattern: [4, 6, 0, 2], range: 9, armored: true }]
+  },
+  {
+    name: 'Ventanal',
+    code: 'OP-06',
+    brief: 'El cristal no se puede cruzar, pero deja pasar la vista. La torreta oscila 45° por turno: espera tu hueco.',
+    par: 8,
+    map: [
+      '############',
+      '#A.........#',
+      '#...C...C..#',
+      '#=========.#',
+      '#..........#',
+      '#..........#',
+      '#..........#',
+      '#E.........#',
+      '############'
+    ],
+    turrets: [{ x: 5, y: 6, pattern: [0, 7, 6, 5, 4, 5, 6, 7], range: 9, armored: true }]
+  },
+  {
+    name: 'Fuego cruzado',
+    code: 'OP-07',
+    brief: 'Una torreta blindada protege la espalda de la otra. Apágala desde el terminal (2 PA) y después ataca.',
+    par: 4,
+    map: [
+      '############',
+      '#A........T#',
+      '#########.##',
+      '###........#',
+      '###........#',
+      '###........#',
+      '###.E......#',
+      '###........#',
+      '############'
+    ],
+    turrets: [
+      { x: 7, y: 4, pattern: [4], range: 8 },
+      { x: 9, y: 7, pattern: [6], range: 5, armored: true }
+    ],
+    links: [[1]]
+  },
+  {
+    name: 'Relevo',
+    code: 'OP-08',
+    brief: 'Dos soldados, dos alas. Cada uno puede abrir el camino del otro. Los dos deben llegar a la evacuación.',
+    par: 3,
+    map: [
+      '############',
+      '#A...#....B#',
+      '#....#.....#',
+      '#.T..#.....#',
+      '#....#.....#',
+      '##.#####.###',
+      '#..........#',
+      '#..........#',
+      '#.....E....#',
+      '############'
+    ],
+    turrets: [
+      { x: 4, y: 7, pattern: [4], range: 7 },
+      { x: 9, y: 7, pattern: [6], range: 4, armored: true }
+    ],
+    links: [[1]]
+  }
+];
+if (typeof module !== 'undefined') module.exports = LEVELS;
+(function () {
+  'use strict';
+
+  const C = {
+    bg: '#0d181c', floorA: '#182b32', floorB: '#1b3038', grid: 'rgba(120,160,170,0.10)',
+    wallTop: '#cdb999', wallFace: '#8c7a60', wallEdge: '#5e5140',
+    crate: '#7d5f3d', crateDark: '#5a432a', crateLine: '#a8835a',
+    door: '#f0a43a', doorDark: '#6b4a1b', glass: 'rgba(120,190,220,0.30)', glassLine: 'rgba(190,230,245,0.55)',
+    exit: '#2f8f5a', exitLine: '#7ee0a5', term: '#0f2a22', termScreen: '#5fd08a', termOff: '#3e5157',
+    fire: 'rgba(228,81,59,0.30)', fireEdge: 'rgba(228,81,59,0.75)', next: 'rgba(240,164,58,0.85)',
+    amber: '#f0a43a', danger: '#e4513b', safe: '#5fd08a', ink: '#e4ece6', muted: '#8ea6a9',
+    turret: '#2b3b41', turretRing: '#c9d4d0', armored: '#f0a43a', solA: '#7fd0e6', solB: '#c2a8f5'
+  };
+  const SOL_COLORS = [C.solA, C.solB];
+  const SOL_NAMES = ['Soldado A', 'Soldado B'];
+  const STORE_KEY = 'angulo-muerto-progreso';
+
+  const el = function (id) { return document.getElementById(id); };
+  const canvas = el('board');
+  const ctx = canvas.getContext('2d');
+
+  let progress = {};
+  try { progress = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { progress = {}; }
+  function saveProgress() { try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ } }
+
+  const G = {
+    lv: 0, L: null, st: null, stack: [], sel: 0, showNext: false,
+    preview: null, busy: false, effects: [], cell: 40, hover: null
+  };
+
+  // ---------- level control ----------
+  function loadLevel(i, keepStack) {
+    G.lv = i;
+    G.L = AM.parse(LEVELS[i]);
+    if (!keepStack) { G.st = AM.initState(G.L); G.stack = []; }
+    G.sel = 0; G.preview = null; G.effects = []; G.busy = false;
+    el('mCode').textContent = LEVELS[i].code;
+    el('mName').textContent = LEVELS[i].name;
+    el('mBrief').textContent = LEVELS[i].brief;
+    el('parTxt').textContent = 'Objetivo: ' + LEVELS[i].par + ' turnos';
+    el('btnSwap').hidden = G.L.starts.length < 2;
+    el('overlay').hidden = true;
+    renderLevels();
+    resize();
+    refresh();
+    setHint('Selecciona un destino. Las casillas rojas están bajo fuego: si pisas una, la torreta dispara.');
+  }
+
+  function renderLevels() {
+    const nav = el('levels');
+    nav.textContent = '';
+    LEVELS.forEach(function (lv, i) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lvl';
+      const unlocked = i === 0 || progress[i - 1] || progress[i];
+      b.disabled = !unlocked;
+      b.setAttribute('aria-current', i === G.lv ? 'true' : 'false');
+      b.title = lv.name;
+      const s = progress[i] || 0;
+      b.innerHTML = '<span>' + String(i + 1).padStart(2, '0') + '</span><span class="st">' + (s ? '★★★'.slice(0, s) + '☆☆☆'.slice(0, 3 - s) : '') + '</span>';
+      b.addEventListener('click', function () { if (!G.busy) loadLevel(i); });
+      nav.appendChild(b);
+    });
+  }
+
+  function push() { G.stack.push(AM.clone(G.st)); if (G.stack.length > 400) G.stack.shift(); }
+
+  // ---------- UI panels ----------
+  function refresh() {
+    el('turnNo').textContent = 'Turno ' + (G.st.turn + 1);
+    const sq = el('squad');
+    sq.textContent = '';
+    G.st.sol.forEach(function (s, i) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'trooper';
+      b.setAttribute('aria-pressed', i === G.sel ? 'true' : 'false');
+      let state = 'En combate';
+      if (s.out) state = 'Evacuado';
+      else if (!s.alive) state = 'Abatido';
+      let pips = '';
+      for (let k = 0; k < AM.AP_MAX; k++) pips += '<i class="pip' + (k < s.ap && s.alive && !s.out ? ' on' : '') + '"></i>';
+      b.innerHTML = '<span class="chip" style="background:' + SOL_COLORS[i] + '">' + 'AB'[i] + '</span>' +
+        '<span><span class="nm">' + SOL_NAMES[i] + '</span><br><span class="stt">' + state + ' · ' + (s.alive && !s.out ? s.ap : 0) + ' PA</span></span>' +
+        '<span class="pips">' + pips + '</span>';
+      b.addEventListener('click', function () { selectSoldier(i); });
+      sq.appendChild(b);
+    });
+    el('btnNext').setAttribute('aria-pressed', G.showNext ? 'true' : 'false');
+    el('btnUndo').disabled = G.stack.length === 0;
+    draw();
+  }
+
+  function selectSoldier(i) {
+    const s = G.st.sol[i];
+    if (!s || s.out || !s.alive) return;
+    G.sel = i; G.preview = null;
+    refresh();
+    setHint(SOL_NAMES[i] + ' seleccionado · ' + s.ap + ' PA');
+  }
+
+  function setHint(html) { el('hint').innerHTML = html; }
+
+  function selectable() {
+    const s = G.st.sol[G.sel];
+    if (s && s.alive && !s.out) return;
+    for (let i = 0; i < G.st.sol.length; i++) {
+      if (G.st.sol[i].alive && !G.st.sol[i].out) { G.sel = i; return; }
+    }
+  }
+
+  // ---------- geometry ----------
+  function resize() {
+    const frame = el('frame');
+    const avail = Math.max(240, frame.clientWidth - 16);
+    const cell = Math.max(22, Math.min(56, Math.floor(avail / G.L.w)));
+    G.cell = cell;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = G.L.w * cell * dpr;
+    canvas.height = G.L.h * cell * dpr;
+    canvas.style.width = (G.L.w * cell) + 'px';
+    canvas.style.height = (G.L.h * cell) + 'px';
+    canvas.style.maxWidth = '100%';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function tileFromEvent(ev) {
+    const r = canvas.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) / r.width * G.L.w;
+    const sy = (ev.clientY - r.top) / r.height * G.L.h;
+    const x = Math.floor(sx), y = Math.floor(sy);
+    if (x < 0 || y < 0 || x >= G.L.w || y >= G.L.h) return null;
+    return { x: x, y: y };
+  }
+
+  // ---------- previews ----------
+  function soldierAt(x, y) {
+    for (let i = 0; i < G.st.sol.length; i++) {
+      const s = G.st.sol[i];
+      if (s.alive && !s.out && s.x === x && s.y === y) return i;
+    }
+    return -1;
+  }
+  function doorAt(x, y) { for (let i = 0; i < G.L.doors.length; i++) if (G.L.doors[i].x === x && G.L.doors[i].y === y) return i; return -1; }
+  function termAt(x, y) { for (let i = 0; i < G.L.terms.length; i++) if (G.L.terms[i].x === x && G.L.terms[i].y === y) return i; return -1; }
+
+  function buildPreview(t) {
+    const st = G.st, L = G.L;
+    const s = st.sol[G.sel];
+    if (!s || !s.alive || s.out) return null;
+    const ti = AM.turretAt(L, t.x, t.y);
+    if (ti >= 0) {
+      const info = AM.shotInfo(L, st, G.sel, ti);
+      return { kind: 'shoot', x: t.x, y: t.y, ti: ti, ok: info.ok, why: info.why };
+    }
+    const di = doorAt(t.x, t.y);
+    if (di >= 0 && !st.doors[di]) {
+      const ok = AM.canDoor(L, st, G.sel, di);
+      let risk = false;
+      if (ok) { const r = AM.openDoor(L, st, G.sel, di); risk = r.event === 'killed'; }
+      return { kind: 'door', x: t.x, y: t.y, di: di, ok: ok, risk: risk, why: ok ? '' : 'Ponte junto a la puerta (1 PA)' };
+    }
+    const ki = termAt(t.x, t.y);
+    if (ki >= 0) {
+      const r = AM.useTerm(L, st, G.sel, ki);
+      return { kind: 'term', x: t.x, y: t.y, ki: ki, ok: r.ok, why: r.why || '' };
+    }
+    if (AM.blocksMove(L, st, t.x, t.y)) return null;
+    if (t.x === s.x && t.y === s.y) return null;
+    const p = AM.path(L, st, G.sel, t.x, t.y);
+    if (!p) return { kind: 'move', x: t.x, y: t.y, steps: null, ok: false, why: 'Fuera de alcance con ' + s.ap + ' PA' };
+    let deathAt = -1;
+    for (let k = 0; k < p.length; k++) {
+      if (AM.cell(L, st, p[k].x, p[k].y) === 'E') break;
+      if (AM.watcher(L, st, p[k].x, p[k].y, st.turn) >= 0) { deathAt = k; break; }
+    }
+    const last = p[p.length - 1];
+    const exitTile = AM.cell(L, st, last.x, last.y) === 'E';
+    const exposedNext = !exitTile && AM.watcher(L, st, last.x, last.y, st.turn + 1) >= 0;
+    return { kind: 'move', x: t.x, y: t.y, steps: p, ok: true, deathAt: deathAt, exposedNext: exposedNext, exitTile: exitTile };
+  }
+
+  function describePreview(p) {
+    if (!p) return;
+    if (p.kind === 'move') {
+      if (!p.ok) { setHint('<span class="bad">' + p.why + '</span>'); return; }
+      let t = 'Ruta: <b>' + p.steps.length + ' PA</b>';
+      if (p.deathAt >= 0) t += ' · <span class="bad">atraviesa un campo de tiro en el paso ' + (p.deathAt + 1) + '</span>';
+      else if (p.exitTile) t += ' · <span class="ok">evacuación</span>';
+      else if (p.exposedNext) t += ' · <span class="bad">esa casilla quedará vigilada el próximo turno</span>';
+      else t += ' · <span class="ok">a cubierto</span>';
+      setHint(t + ' · toca otra vez para mover');
+    } else if (p.kind === 'shoot') {
+      setHint(p.ok ? 'Disparo limpio por la espalda: <b>3 PA</b> · toca otra vez para disparar' : '<span class="bad">' + p.why + '</span>');
+    } else if (p.kind === 'door') {
+      if (!p.ok) setHint('<span class="bad">' + p.why + '</span>');
+      else setHint('Abrir puerta: <b>1 PA</b>' + (p.risk ? ' · <span class="bad">quedarás a la vista de una torreta</span>' : '') + ' · toca otra vez para abrir');
+    } else if (p.kind === 'term') {
+      setHint(p.ok ? 'Terminal: <b>2 PA</b>, apaga la torreta enlazada · toca otra vez para usarlo' : '<span class="bad">' + (p.why || 'Ponte junto al terminal') + '</span>');
+    }
+  }
+
+  // ---------- actions ----------
+  function afterAction(r) {
+    if (r.event === 'killed') {
+      const v = r.victim !== undefined ? r.victim : G.sel;
+      const s = G.st.sol[v];
+      const t = G.L.turrets[r.by];
+      G.effects.push({ type: 'laser', x0: t.x, y0: t.y, x1: s.x, y1: s.y, t: 0, life: 650 });
+    }
+    selectable();
+    G.preview = null;
+    refresh();
+    checkEnd(r);
+  }
+
+  function checkEnd(r) {
+    const status = AM.status(G.st);
+    if (status === 'lost') {
+      showOverlay('Soldado abatido', '', r && r.event === 'killed' ? 'Una torreta tenía línea de visión sobre esa casilla. Deshaz la última orden y busca otro ángulo.' : 'Has perdido a un soldado.', [
+        ['Deshacer', function () { undo(); }, true], ['Reiniciar', function () { loadLevel(G.lv); }]
+      ]);
+    } else if (status === 'won') {
+      const turns = G.st.turn + 1;
+      const par = LEVELS[G.lv].par;
+      const stars = turns <= par ? 3 : turns <= par + 2 ? 2 : 1;
+      progress[G.lv] = Math.max(progress[G.lv] || 0, stars);
+      saveProgress();
+      renderLevels();
+      const btns = [['Repetir', function () { loadLevel(G.lv); }]];
+      if (G.lv < LEVELS.length - 1) btns.unshift(['Siguiente misión', function () { loadLevel(G.lv + 1); }, true]);
+      showOverlay('Escuadra evacuada', '★★★'.slice(0, stars) + '☆☆☆'.slice(0, 3 - stars),
+        'Completada en ' + turns + (turns === 1 ? ' turno' : ' turnos') + ' (objetivo: ' + par + ').' + (G.lv === LEVELS.length - 1 ? ' Has terminado todas las misiones.' : ''), btns);
+    }
+  }
+
+  function showOverlay(title, stars, text, buttons) {
+    el('ovTitle').textContent = title;
+    el('ovStars').textContent = stars;
+    el('ovStars').hidden = !stars;
+    el('ovText').textContent = text;
+    const row = el('ovRow');
+    row.textContent = '';
+    buttons.forEach(function (b) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn' + (b[2] ? ' primary' : '');
+      btn.textContent = b[0];
+      btn.addEventListener('click', b[1]);
+      row.appendChild(btn);
+    });
+    el('overlay').hidden = false;
+    const first = row.querySelector('button');
+    if (first) first.focus();
+  }
+
+  function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  async function runPath(p) {
+    G.busy = true;
+    push();
+    for (let k = 0; k < p.steps.length; k++) {
+      const s = G.st.sol[G.sel];
+      const r = AM.move(G.L, G.st, G.sel, p.steps[k].x - s.x, p.steps[k].y - s.y);
+      if (!r.ok) break;
+      G.st = r.st;
+      G.preview = null;
+      refresh();
+      if (r.event === 'killed' || r.event === 'out') {
+        if (r.event === 'out') setHint('<span class="ok">' + SOL_NAMES[G.sel] + ' evacuado.</span>');
+        G.busy = false;
+        afterAction(r);
+        return;
+      }
+      if (!reduceMotion) await sleep(90);
+    }
+    G.busy = false;
+    afterAction({});
+    const s = G.st.sol[G.sel];
+    if (s && s.alive && !s.out) setHint(SOL_NAMES[G.sel] + ' · ' + s.ap + ' PA restantes');
+  }
+
+  function doAction(p) {
+    if (G.busy || !p || !p.ok) return;
+    if (p.kind === 'move') { runPath(p); return; }
+    let r;
+    if (p.kind === 'shoot') r = AM.shoot(G.L, G.st, G.sel, p.ti);
+    else if (p.kind === 'door') r = AM.openDoor(G.L, G.st, G.sel, p.di);
+    else if (p.kind === 'term') r = AM.useTerm(G.L, G.st, G.sel, p.ki);
+    if (!r || !r.ok) { setHint('<span class="bad">' + ((r && r.why) || 'No es posible') + '</span>'); return; }
+    push();
+    G.st = r.st;
+    if (p.kind === 'shoot') {
+      const s = G.st.sol[G.sel];
+      G.effects.push({ type: 'shot', x0: s.x, y0: s.y, x1: p.x, y1: p.y, t: 0, life: 420 });
+      G.effects.push({ type: 'boom', x: p.x, y: p.y, t: 0, life: 700 });
+      setHint('<span class="ok">Torreta destruida.</span>');
+    } else if (p.kind === 'door') setHint('Puerta abierta.');
+    else setHint('<span class="ok">Torreta apagada desde el terminal.</span>');
+    afterAction(r);
+  }
+
+  function stepKey(dx, dy) {
+    if (G.busy || !el('overlay').hidden) return;
+    const s = G.st.sol[G.sel];
+    if (!s || !s.alive || s.out) return;
+    const tx = s.x + dx, ty = s.y + dy;
+    const ti = AM.turretAt(G.L, tx, ty);
+    const di = doorAt(tx, ty);
+    const ki = termAt(tx, ty);
+    if (ti >= 0 || (di >= 0 && !G.st.doors[di]) || ki >= 0) {
+      const p = buildPreview({ x: tx, y: ty });
+      if (G.preview && G.preview.x === tx && G.preview.y === ty) doAction(p);
+      else { G.preview = p; describePreview(p); draw(); }
+      return;
+    }
+    const r = AM.move(G.L, G.st, G.sel, dx, dy);
+    if (!r.ok) { setHint('<span class="bad">' + r.why + '</span>'); return; }
+    push();
+    G.st = r.st;
+    if (r.event === 'out') setHint('<span class="ok">' + SOL_NAMES[G.sel] + ' evacuado.</span>');
+    else setHint(SOL_NAMES[G.sel] + ' · ' + r.st.sol[G.sel].ap + ' PA restantes');
+    afterAction(r);
+  }
+
+  function endTurn() {
+    if (G.busy || !el('overlay').hidden) return;
+    push();
+    const r = AM.endTurn(G.L, G.st);
+    G.st = r.st;
+    G.sel = G.sel;
+    selectable();
+    if (r.event !== 'killed') setHint('Turno ' + (G.st.turn + 1) + ': las torretas han girado. PA restaurados.');
+    afterAction(r);
+  }
+
+  function undo() {
+    if (G.busy || !G.stack.length) return;
+    G.st = G.stack.pop();
+    el('overlay').hidden = true;
+    G.preview = null;
+    selectable();
+    refresh();
+    setHint('Orden deshecha.');
+  }
+
+  // ---------- drawing ----------
+  function draw() {
+    if (!G.L) return;
+    const L = G.L, st = G.st, cs = G.cell;
+    ctx.clearRect(0, 0, L.w * cs, L.h * cs);
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, L.w * cs, L.h * cs);
+
+    // floor
+    for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+      const c = AM.cell(L, st, x, y);
+      if (c === '#') continue;
+      ctx.fillStyle = (x + y) % 2 ? C.floorA : C.floorB;
+      ctx.fillRect(x * cs, y * cs, cs, cs);
+    }
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+    for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+      if (AM.cell(L, st, x, y) === '#') continue;
+      ctx.strokeRect(x * cs + 0.5, y * cs + 0.5, cs - 1, cs - 1);
+    }
+
+    // fields of fire (current turn)
+    const cur = new Set();
+    L.turrets.forEach(function (t, i) {
+      if (!st.tur[i].alive || st.tur[i].off) return;
+      AM.field(L, st, i, st.turn).forEach(function (k) { cur.add(k); });
+    });
+    cur.forEach(function (k) {
+      const x = k % L.w, y = (k - x) / L.w;
+      ctx.fillStyle = C.fire;
+      ctx.fillRect(x * cs, y * cs, cs, cs);
+    });
+    // borders of field
+    ctx.strokeStyle = C.fireEdge; ctx.lineWidth = 1.5;
+    cur.forEach(function (k) {
+      const x = k % L.w, y = (k - x) / L.w;
+      const edges = [[0, -1, 0, 0, 1, 0], [1, 0, 1, 0, 1, 1], [0, 1, 0, 1, 1, 1], [-1, 0, 0, 0, 0, 1]];
+      edges.forEach(function (e) {
+        const nk = (y + e[1]) * L.w + (x + e[0]);
+        if (cur.has(nk)) return;
+        ctx.beginPath();
+        ctx.moveTo((x + e[2]) * cs, (y + e[3]) * cs);
+        ctx.lineTo((x + e[4]) * cs, (y + e[5]) * cs);
+        ctx.stroke();
+      });
+    });
+
+    // next-turn fields
+    if (G.showNext) {
+      ctx.save();
+      ctx.strokeStyle = C.next; ctx.lineWidth = 1.4;
+      L.turrets.forEach(function (t, i) {
+        if (!st.tur[i].alive || st.tur[i].off) return;
+        AM.field(L, st, i, st.turn + 1).forEach(function (k) {
+          const x = k % L.w, y = (k - x) / L.w;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(x * cs, y * cs, cs, cs); ctx.clip();
+          for (let d = -cs; d < cs; d += 6) {
+            ctx.beginPath();
+            ctx.moveTo(x * cs + d, y * cs + cs);
+            ctx.lineTo(x * cs + d + cs, y * cs);
+            ctx.stroke();
+          }
+          ctx.restore();
+        });
+      });
+      ctx.restore();
+    }
+
+    // tiles
+    for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+      const c = AM.cell(L, st, x, y);
+      const px = x * cs, py = y * cs;
+      if (c === '#') drawWall(px, py, cs, L, st, x, y);
+      else if (c === 'C') drawCrate(px, py, cs);
+      else if (c === 'D' || c === 'd') drawDoor(px, py, cs, c === 'd', L, st, x, y);
+      else if (c === '=') drawGlass(px, py, cs);
+      else if (c === 'E') drawExit(px, py, cs);
+      else if (c === 'T') {
+        const ki = termAt(x, y);
+        const used = (L.links[ki] || []).every(function (ti) { return st.tur[ti].off; });
+        drawTerminal(px, py, cs, used);
+      }
+    }
+
+    // terminal links (dashed)
+    L.terms.forEach(function (k, ki) {
+      (L.links[ki] || []).forEach(function (ti) {
+        if (st.tur[ti].off || !st.tur[ti].alive) return;
+        const t = L.turrets[ti];
+        ctx.save();
+        ctx.setLineDash([3, 5]);
+        ctx.strokeStyle = 'rgba(95,208,138,0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo((k.x + 0.5) * cs, (k.y + 0.5) * cs);
+        ctx.lineTo((t.x + 0.5) * cs, (t.y + 0.5) * cs);
+        ctx.stroke();
+        ctx.restore();
+      });
+    });
+
+    // preview
+    const p = G.preview;
+    if (p) drawPreview(p);
+
+    // turrets
+    L.turrets.forEach(function (t, i) { drawTurret(t, i); });
+
+    // soldiers
+    st.sol.forEach(function (s, i) {
+      if (s.out) return;
+      drawSoldier(s, i);
+    });
+
+    // hover cursor
+    if (G.hover) {
+      ctx.strokeStyle = 'rgba(228,236,230,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(G.hover.x * cs + 2, G.hover.y * cs + 2, cs - 4, cs - 4);
+    }
+
+    drawEffects();
+  }
+
+  function drawWall(px, py, cs, L, st, x, y) {
+    ctx.fillStyle = C.wallEdge;
+    ctx.fillRect(px, py, cs, cs);
+    const below = AM.cell(L, st, x, y + 1);
+    const faceH = below !== '#' && y + 1 < L.h ? Math.round(cs * 0.28) : 0;
+    ctx.fillStyle = C.wallTop;
+    ctx.fillRect(px, py, cs, cs - faceH);
+    if (faceH) { ctx.fillStyle = C.wallFace; ctx.fillRect(px, py + cs - faceH, cs, faceH); }
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, py + (cs - faceH) / 2 + 0.5); ctx.lineTo(px + cs, py + (cs - faceH) / 2 + 0.5);
+    ctx.moveTo(px + ((x + y) % 2 ? cs * 0.3 : cs * 0.7) + 0.5, py); ctx.lineTo(px + ((x + y) % 2 ? cs * 0.3 : cs * 0.7) + 0.5, py + (cs - faceH) / 2);
+    ctx.stroke();
+  }
+
+  function drawCrate(px, py, cs) {
+    const m = cs * 0.1;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(px + m + 3, py + m + 4, cs - 2 * m, cs - 2 * m);
+    ctx.fillStyle = C.crate;
+    ctx.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m);
+    ctx.strokeStyle = C.crateLine; ctx.lineWidth = Math.max(1.5, cs * 0.06);
+    ctx.strokeRect(px + m + 1, py + m + 1, cs - 2 * m - 2, cs - 2 * m - 2);
+    ctx.beginPath();
+    ctx.moveTo(px + m + 2, py + m + 2); ctx.lineTo(px + cs - m - 2, py + cs - m - 2);
+    ctx.moveTo(px + cs - m - 2, py + m + 2); ctx.lineTo(px + m + 2, py + cs - m - 2);
+    ctx.strokeStyle = C.crateDark; ctx.stroke();
+  }
+
+  function drawDoor(px, py, cs, open, L, st, x, y) {
+    const horiz = AM.cell(L, st, x - 1, y) === '#' || AM.cell(L, st, x + 1, y) === '#';
+    ctx.save();
+    if (open) {
+      ctx.fillStyle = C.doorDark;
+      if (horiz) { ctx.fillRect(px, py + cs * 0.42, cs * 0.14, cs * 0.16); ctx.fillRect(px + cs * 0.86, py + cs * 0.42, cs * 0.14, cs * 0.16); }
+      else { ctx.fillRect(px + cs * 0.42, py, cs * 0.16, cs * 0.14); ctx.fillRect(px + cs * 0.42, py + cs * 0.86, cs * 0.16, cs * 0.14); }
+    } else {
+      ctx.fillStyle = C.doorDark;
+      ctx.fillRect(px, py, cs, cs);
+      ctx.beginPath(); ctx.rect(px + 2, py + 2, cs - 4, cs - 4); ctx.clip();
+      ctx.strokeStyle = C.door; ctx.lineWidth = cs * 0.12;
+      for (let d = -cs; d < cs * 2; d += cs * 0.34) {
+        ctx.beginPath(); ctx.moveTo(px + d, py + cs); ctx.lineTo(px + d + cs, py); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawGlass(px, py, cs) {
+    ctx.fillStyle = C.glass;
+    ctx.fillRect(px + 1, py + cs * 0.25, cs - 2, cs * 0.5);
+    ctx.strokeStyle = C.glassLine; ctx.lineWidth = 1;
+    ctx.strokeRect(px + 1.5, py + cs * 0.25 + 0.5, cs - 3, cs * 0.5 - 1);
+    ctx.beginPath();
+    ctx.moveTo(px + cs * 0.2, py + cs * 0.68); ctx.lineTo(px + cs * 0.45, py + cs * 0.32);
+    ctx.moveTo(px + cs * 0.45, py + cs * 0.68); ctx.lineTo(px + cs * 0.6, py + cs * 0.46);
+    ctx.stroke();
+  }
+
+  function drawExit(px, py, cs) {
+    ctx.fillStyle = C.exit;
+    ctx.fillRect(px + 2, py + 2, cs - 4, cs - 4);
+    ctx.strokeStyle = C.exitLine; ctx.lineWidth = 2;
+    ctx.strokeRect(px + 4, py + 4, cs - 8, cs - 8);
+    ctx.fillStyle = C.exitLine;
+    ctx.font = '700 ' + Math.round(cs * 0.3) + 'px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('EVAC', px + cs / 2, py + cs / 2 + 1);
+  }
+
+  function drawTerminal(px, py, cs, used) {
+    ctx.fillStyle = C.term;
+    ctx.fillRect(px + cs * 0.12, py + cs * 0.12, cs * 0.76, cs * 0.76);
+    ctx.strokeStyle = used ? C.termOff : C.termScreen; ctx.lineWidth = 2;
+    ctx.strokeRect(px + cs * 0.12, py + cs * 0.12, cs * 0.76, cs * 0.76);
+    ctx.fillStyle = used ? C.termOff : C.termScreen;
+    ctx.fillRect(px + cs * 0.24, py + cs * 0.24, cs * 0.52, cs * 0.3);
+    ctx.fillRect(px + cs * 0.24, py + cs * 0.62, cs * 0.14, cs * 0.12);
+    ctx.fillRect(px + cs * 0.43, py + cs * 0.62, cs * 0.14, cs * 0.12);
+    ctx.fillRect(px + cs * 0.62, py + cs * 0.62, cs * 0.14, cs * 0.12);
+  }
+
+  function drawTurret(t, i) {
+    const cs = G.cell, st = G.st, L = G.L;
+    const cx = (t.x + 0.5) * cs, cy = (t.y + 0.5) * cs;
+    const tr = st.tur[i];
+    const r = cs * 0.36;
+    if (!tr.alive) {
+      ctx.fillStyle = '#141c1f';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4a3a33'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - r * 0.6, cy - r * 0.6); ctx.lineTo(cx + r * 0.6, cy + r * 0.6);
+      ctx.moveTo(cx + r * 0.6, cy - r * 0.6); ctx.lineTo(cx - r * 0.6, cy + r * 0.6); ctx.stroke();
+      return;
+    }
+    const dir = AM.facing(L, i, st.turn);
+    const a = dir * Math.PI / 4;
+    // cone guide lines
+    if (!tr.off) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(228,81,59,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+      const half = t.arc / 2 * Math.PI / 180;
+      [a - half, a + half].forEach(function (ang) {
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(ang) * cs * 1.4, cy + Math.sin(ang) * cs * 1.4); ctx.stroke();
+      });
+      ctx.restore();
+    }
+    // next facing ghost
+    if (G.showNext && !tr.off && t.pattern.length > 1) {
+      const na = AM.facing(L, i, st.turn + 1) * Math.PI / 4;
+      ctx.save();
+      ctx.strokeStyle = C.next; ctx.lineWidth = cs * 0.1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(na) * cs * 0.62, cy + Math.sin(na) * cs * 0.62); ctx.stroke();
+      ctx.restore();
+    }
+    // base
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.arc(cx + 2, cy + 3, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.turret;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = t.armored ? 3 : 2;
+    ctx.strokeStyle = tr.off ? '#56666b' : (t.armored ? C.armored : C.turretRing);
+    ctx.stroke();
+    if (t.armored) { ctx.beginPath(); ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2); ctx.lineWidth = 1; ctx.stroke(); }
+    // front shield arc
+    if (!t.armored && !tr.off) {
+      ctx.strokeStyle = C.turretRing; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 3, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke();
+    }
+    // barrel
+    ctx.strokeStyle = tr.off ? '#56666b' : C.danger; ctx.lineWidth = cs * 0.12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * cs * 0.55, cy + Math.sin(a) * cs * 0.55); ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = tr.off ? '#56666b' : C.danger;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.28, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawSoldier(s, i) {
+    const cs = G.cell;
+    const cx = (s.x + 0.5) * cs, cy = (s.y + 0.5) * cs;
+    const r = cs * 0.32;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(cx + 2, cy + 3, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = s.alive ? SOL_COLORS[i] : '#4b2e2a';
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    if (i === G.sel && s.alive) {
+      ctx.strokeStyle = C.amber; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = s.alive ? '#0d181c' : C.danger;
+    ctx.font = '700 ' + Math.round(cs * 0.34) + 'px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.alive ? 'AB'[i] : '✕', cx, cy + 1);
+    if (s.alive) {
+      const w = cs * 0.8, pw = w / AM.AP_MAX;
+      for (let k = 0; k < AM.AP_MAX; k++) {
+        ctx.fillStyle = k < s.ap ? C.amber : 'rgba(255,255,255,0.15)';
+        ctx.fillRect(cx - w / 2 + k * pw + 1, (s.y + 1) * cs - cs * 0.1, pw - 2, cs * 0.06);
+      }
+    }
+  }
+
+  function drawPreview(p) {
+    const cs = G.cell, st = G.st;
+    const s = st.sol[G.sel];
+    if (p.kind === 'move' && p.steps) {
+      ctx.save();
+      ctx.strokeStyle = p.deathAt >= 0 ? C.danger : C.ink; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo((s.x + 0.5) * cs, (s.y + 0.5) * cs);
+      p.steps.forEach(function (q) { ctx.lineTo((q.x + 0.5) * cs, (q.y + 0.5) * cs); });
+      ctx.stroke();
+      ctx.restore();
+      p.steps.forEach(function (q, k) {
+        const bad = p.deathAt >= 0 && k >= p.deathAt;
+        ctx.fillStyle = bad ? C.danger : C.ink;
+        ctx.beginPath(); ctx.arc((q.x + 0.5) * cs, (q.y + 0.5) * cs, k === p.steps.length - 1 ? cs * 0.16 : cs * 0.07, 0, Math.PI * 2); ctx.fill();
+      });
+      const last = p.steps[p.steps.length - 1];
+      ctx.fillStyle = C.bg;
+      ctx.font = '700 ' + Math.round(cs * 0.24) + 'px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(p.steps.length), (last.x + 0.5) * cs, (last.y + 0.5) * cs + 1);
+      if (p.exposedNext && p.deathAt < 0) {
+        ctx.strokeStyle = C.amber; ctx.lineWidth = 2;
+        ctx.strokeRect(last.x * cs + 3, last.y * cs + 3, cs - 6, cs - 6);
+      }
+    } else if (p.kind === 'shoot') {
+      ctx.save();
+      ctx.strokeStyle = p.ok ? C.safe : C.danger; ctx.lineWidth = 2; ctx.setLineDash(p.ok ? [] : [4, 4]);
+      ctx.beginPath(); ctx.moveTo((s.x + 0.5) * cs, (s.y + 0.5) * cs); ctx.lineTo((p.x + 0.5) * cs, (p.y + 0.5) * cs); ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = p.ok ? (p.risk ? C.danger : C.safe) : C.danger; ctx.lineWidth = 2.5;
+      ctx.strokeRect(p.x * cs + 2, p.y * cs + 2, cs - 4, cs - 4);
+    }
+  }
+
+  let lastFrame = 0;
+  function drawEffects() {
+    const cs = G.cell;
+    G.effects.forEach(function (e) {
+      const k = e.t / e.life;
+      if (e.type === 'laser' || e.type === 'shot') {
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = e.type === 'laser' ? C.danger : C.solA;
+        ctx.lineWidth = 4 * (1 - k) + 1;
+        ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.moveTo((e.x0 + 0.5) * cs, (e.y0 + 0.5) * cs); ctx.lineTo((e.x1 + 0.5) * cs, (e.y1 + 0.5) * cs); ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'boom') {
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.fillStyle = C.amber;
+        ctx.beginPath(); ctx.arc((e.x + 0.5) * cs, (e.y + 0.5) * cs, cs * (0.2 + k * 0.7), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    });
+  }
+
+  function tick(now) {
+    const dt = lastFrame ? now - lastFrame : 16;
+    lastFrame = now;
+    if (G.effects.length) {
+      G.effects.forEach(function (e) { e.t += dt; });
+      G.effects = G.effects.filter(function (e) { return e.t < e.life; });
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- input ----------
+  function onClick(ev) {
+    if (G.busy || !el('overlay').hidden) return;
+    const t = tileFromEvent(ev);
+    if (!t) return;
+    const si = soldierAt(t.x, t.y);
+    if (si >= 0) { selectSoldier(si); return; }
+    const isMouse = ev.pointerType === 'mouse';
+    const p = buildPreview(t);
+    if (!p) { G.preview = null; draw(); return; }
+    if ((G.preview && G.preview.x === t.x && G.preview.y === t.y) || (isMouse && G.hover && G.hover.x === t.x && G.hover.y === t.y && G.preview && G.preview.x === t.x && G.preview.y === t.y)) {
+      doAction(p);
+    } else {
+      G.preview = p; describePreview(p); draw();
+    }
+  }
+
+  function onMove(ev) {
+    if (ev.pointerType !== 'mouse' || G.busy || !el('overlay').hidden) return;
+    const t = tileFromEvent(ev);
+    if (!t) { G.hover = null; draw(); return; }
+    if (G.hover && G.hover.x === t.x && G.hover.y === t.y) return;
+    G.hover = t;
+    if (soldierAt(t.x, t.y) >= 0) { G.preview = null; draw(); return; }
+    G.preview = buildPreview(t);
+    describePreview(G.preview);
+    draw();
+  }
+
+  function init() {
+    canvas.addEventListener('pointerup', onClick);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerleave', function () { G.hover = null; draw(); });
+    el('btnEnd').addEventListener('click', endTurn);
+    el('btnUndo').addEventListener('click', undo);
+    el('btnReset').addEventListener('click', function () { if (!G.busy) loadLevel(G.lv); });
+    el('btnNext').addEventListener('click', function () { G.showNext = !G.showNext; refresh(); });
+    el('btnSwap').addEventListener('click', cycleSoldier);
+    window.addEventListener('resize', resize);
+    document.addEventListener('keydown', function (e) {
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      const k = e.key;
+      if (k === 'ArrowUp') { e.preventDefault(); stepKey(0, -1); }
+      else if (k === 'ArrowDown') { e.preventDefault(); stepKey(0, 1); }
+      else if (k === 'ArrowLeft') { e.preventDefault(); stepKey(-1, 0); }
+      else if (k === 'ArrowRight') { e.preventDefault(); stepKey(1, 0); }
+      else if (k === 'Enter' && el('overlay').hidden && !(e.target && e.target.tagName === 'BUTTON')) { e.preventDefault(); endTurn(); }
+      else if (k === 'z' || k === 'Z') { undo(); }
+      else if (k === 'v' || k === 'V') { G.showNext = !G.showNext; refresh(); }
+      else if (k === 'Tab' && el('overlay').hidden && G.L.starts.length > 1 && document.activeElement === document.body) { e.preventDefault(); cycleSoldier(); }
+    });
+
+    const hot = window.claude && window.claude.hot;
+    if (hot && hot.snapshot) {
+      hot.snapshot(function () { return { lv: G.lv, st: G.st, stack: G.stack, showNext: G.showNext }; });
+    }
+    const boot = function (data) {
+      let start = 0;
+      for (let i = 0; i < LEVELS.length; i++) { if (progress[i]) start = Math.min(i + 1, LEVELS.length - 1); }
+      if (data && typeof data.lv === 'number' && data.st && LEVELS[data.lv]) {
+        G.st = data.st; G.stack = data.stack || []; G.showNext = !!data.showNext;
+        loadLevel(data.lv, true);
+      } else {
+        loadLevel(start);
+      }
+      requestAnimationFrame(tick);
+    };
+    if (hot && hot.ready) hot.ready(boot); else boot(hot && hot.data ? hot.data : {});
+  }
+
+  function cycleSoldier() {
+    const n = G.st.sol.length;
+    for (let k = 1; k <= n; k++) {
+      const i = (G.sel + k) % n;
+      if (G.st.sol[i].alive && !G.st.sol[i].out) { selectSoldier(i); return; }
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

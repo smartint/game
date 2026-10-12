@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Circuito Coen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: pantalla de texto DOS — barra superior, tablero con borde doble y panel lateral, barra de estado abajo */
+:root {
+  --blue: #0a0f8f;
+  --blue-deep: #050870;
+  --cyan: #55ffff;
+  --gray: #aaaaaa;
+  --white: #ffffff;
+  --yellow: #ffff55;
+  --green: #55ff55;
+  --red: #ff5555;
+  --dim: #4a52c4;
+  --ink: #000000;
+  --shadow: #000033;
+  --font-display: "VT323", "Courier New", monospace;
+  --font-body: "IBM Plex Mono", "Courier New", monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+html, body { min-height: 100%; }
+body {
+  background: var(--blue);
+  color: var(--gray);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.topbar {
+  background: var(--gray);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  align-items: center;
+  padding: 2px 16px;
+  margin-inline: -16px;
+}
+.topbar .brand { color: var(--blue); letter-spacing: 0.08em; }
+.topbar .brand b { color: var(--red); font-weight: normal; }
+.topbar .meta { display: flex; gap: 20px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.topbar .meta span em { font-style: normal; color: var(--blue); }
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 840px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+  border: 4px double var(--cyan);
+  background: var(--blue-deep);
+  box-shadow: 8px 8px 0 var(--shadow);
+  position: relative;
+  min-width: 0;
+}
+.panel > .ttl {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--blue-deep);
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: 22px;
+  padding: 0 10px;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+.board { padding: 18px 10px 10px; }
+.board svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+
+.side { display: flex; flex-direction: column; gap: 22px; }
+.side .panel { padding: 18px 14px 14px; }
+.mission h2 {
+  font-family: var(--font-display);
+  font-weight: normal;
+  font-size: 28px;
+  color: var(--yellow);
+  margin: 0 0 4px;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.mission p { margin: 0; color: var(--white); }
+.status { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
+.status li { display: flex; justify-content: space-between; gap: 8px; }
+.status .ok { color: var(--green); }
+.status .bad { color: var(--red); }
+.status .wait { color: var(--gray); }
+.verdict {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-align: center;
+  padding: 2px 6px;
+  background: var(--ink);
+  color: var(--gray);
+}
+.verdict.ok { color: var(--ink); background: var(--green); }
+.verdict.bad { color: var(--white); background: var(--red); }
+
+.btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  font-family: var(--font-display);
+  font-size: 22px;
+  background: var(--gray);
+  color: var(--ink);
+  border: 0;
+  padding: 0 10px;
+  box-shadow: 4px 4px 0 var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.btn:hover { background: var(--white); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.btn:focus-visible, .lv:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+.btn .k { color: var(--red); }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+
+.levels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.lv {
+  font-family: var(--font-display);
+  font-size: 22px;
+  background: var(--blue);
+  color: var(--cyan);
+  border: 1px solid var(--dim);
+  cursor: pointer;
+  padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.lv.done { color: var(--green); border-color: var(--green); }
+.lv.cur { background: var(--cyan); color: var(--ink); border-color: var(--cyan); }
+.lv small { display: block; font-size: 14px; line-height: 1; }
+
+.statusbar {
+  background: var(--cyan);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 20px;
+  padding: 0 16px;
+  margin-inline: -16px;
+  min-height: 1.4em;
+}
+
+/* SVG */
+.wire { fill: none; stroke: var(--dim); stroke-width: 3; }
+.wire.live { stroke: var(--yellow); stroke-width: 3.5; stroke-dasharray: 10 6; animation: flow 0.7s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -16; } }
+.node rect.body, .node circle.body { fill: var(--blue); stroke: var(--gray); stroke-width: 2; }
+.node text { font-family: var(--font-display); fill: var(--white); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.node .cap { fill: var(--gray); font-size: 15px; }
+.node .tag { fill: var(--cyan); font-size: 16px; text-anchor: start; }
+.node.ctl { cursor: pointer; }
+.node.ctl rect.body { stroke: var(--cyan); }
+.node.ctl:hover rect.body, .node.ctl:focus-visible rect.body { fill: var(--dim); }
+.node:focus { outline: none; }
+.node:focus-visible rect.body { stroke: var(--yellow); stroke-width: 3; }
+.port { fill: var(--dim); }
+.port.live { fill: var(--yellow); }
+.lever { stroke: var(--gray); stroke-width: 4; stroke-linecap: round; }
+.lever.live { stroke: var(--yellow); }
+.node.lit circle.body { fill: var(--green); stroke: var(--white); }
+.node.lit text.big { fill: var(--ink); }
+.node.danger rect.body { fill: var(--red); stroke: var(--white); animation: blink 0.5s steps(1) infinite; }
+@keyframes blink { 50% { fill: var(--blue); } }
+.node.gate-live rect.body { stroke: var(--yellow); }
+.glow { fill: var(--green); opacity: 0.25; }
+.fuseline { stroke: var(--gray); stroke-width: 2; fill: none; }
+.fuseline.live { stroke: var(--yellow); }
+
+/* Diálogos */
+.dialog {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 112, 0.72);
+  padding: 16px;
+}
+.box {
+  background: var(--gray);
+  color: var(--ink);
+  border: 4px double var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+  padding: 14px 18px;
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.box h3 { margin: 0; font-family: var(--font-display); font-weight: normal; font-size: 30px; color: var(--blue); text-align: center; }
+.box p { margin: 0; }
+.box .stars { font-family: var(--font-display); font-size: 34px; text-align: center; color: var(--blue); letter-spacing: 0.2em; }
+.box .btns { justify-content: center; }
+.box .btn { background: var(--blue); color: var(--white); }
+.box .btn .k { color: var(--yellow); }
+
+.help { position: fixed; inset: 0; z-index: 10; overflow-y: auto; display: grid; place-items: center; padding: 16px; background: rgba(5, 8, 112, 0.85); }
+.help .box { max-width: 620px; }
+.help dl { margin: 0; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 12px; }
+.help dt { font-family: var(--font-display); font-size: 20px; color: var(--blue); line-height: 1.2; }
+.help dd { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wire.live, .node.danger rect.body { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="brand">CIRCUITO <b>COEN</b> 1.0</span>
+    <span class="meta">
+      <span>Nivel <em id="mLevel">01/10</em></span>
+      <span>Movimientos <em id="mMoves">0</em></span>
+      <span>Mínimo <em id="mPar">0</em></span>
+    </span>
+  </div>
+
+  <div class="main">
+    <section class="panel" aria-label="Tablero">
+      <span class="ttl" id="boardTitle">[ ENCENDIDO ]</span>
+      <div class="board" id="board"></div>
+      <div class="dialog" id="winDialog" hidden>
+        <div class="box" role="dialog" aria-labelledby="winTitle">
+          <h3 id="winTitle">SISTEMA ESTABLE</h3>
+          <div class="stars" id="winStars">***</div>
+          <p id="winText"></p>
+          <div class="btns">
+            <button class="btn" id="winRetry" type="button">Repetir</button>
+            <button class="btn" id="winNext" type="button">Siguiente <span class="k">[Intro]</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel mission">
+        <span class="ttl">MISIÓN</span>
+        <h2 id="missionTitle"></h2>
+        <p id="missionText"></p>
+      </section>
+
+      <section class="panel">
+        <span class="ttl">ESTADO</span>
+        <ul class="status" id="status"></ul>
+        <div class="verdict" id="verdict">EN ESPERA</div>
+      </section>
+
+      <div class="btns">
+        <button class="btn" id="bReset" type="button">Reiniciar <span class="k">[Esc]</span></button>
+        <button class="btn" id="bHelp" type="button">Ayuda <span class="k">[?]</span></button>
+        <button class="btn" id="bSound" type="button" aria-pressed="true"><span class="k">M</span>: sonido sí</button>
+      </div>
+
+      <section class="panel">
+        <span class="ttl">NIVELES</span>
+        <div class="levels" id="levels"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="statusbar" id="statusbar">Pulsa un interruptor o un relé para cambiarlo.</div>
+</div>
+
+<div class="help" id="help" hidden>
+  <div class="box" role="dialog" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">MANUAL DE COMPONENTES</h3>
+    <p>Lleva la corriente amarilla hasta todas las <b>METAS</b>. Pierdes si hay cortocircuito o sobrecarga.</p>
+    <dl>
+      <dt>+V FUENTE</dt><dd>Da corriente siempre.</dd>
+      <dt>INTERRUPTOR</dt><dd>Púlsalo para cerrarlo (deja pasar) o abrirlo (corta).</dd>
+      <dt>RELÉ</dt><dd>Púlsalo para enviar la corriente por la salida de arriba o la de abajo.</dd>
+      <dt>Y</dt><dd>Da corriente solo si le llegan <b>todas</b> sus entradas.</dd>
+      <dt>O</dt><dd>Da corriente si le llega <b>al menos una</b> entrada.</dd>
+      <dt>O-EX</dt><dd>Da corriente si le llega <b>exactamente una</b> de las dos entradas.</dd>
+      <dt>NO</dt><dd>Inversor: da corriente cuando <b>no</b> le llega nada, y la corta cuando le llega.</dd>
+      <dt>FUSIBLE</dt><dd>Aguanta una corriente. Si le llegan dos a la vez: <b>sobrecarga</b>.</dd>
+      <dt>PELIGRO</dt><dd>Si le llega corriente: <b>cortocircuito</b>. Debe quedar apagado.</dd>
+      <dt>META</dt><dd>Debe encenderse en verde.</dd>
+    </dl>
+    <p>Teclado: pulsa la letra de un interruptor o relé para cambiarlo. Esc reinicia, ? abre la ayuda, Intro pasa de nivel y M quita el sonido.</p>
+    <div class="btns"><button class="btn" id="helpClose" type="button">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+/*ENGINE*/
+function N(id, t, x, y, init) { return { id: id, t: t, x: x, y: y, init: init }; }
+
+const LEVELS = [
+  {
+    name: "Encendido",
+    text: "Enciende la META sin dar corriente a la zona de PELIGRO. Pulsa un interruptor para cerrarlo.",
+    nodes: [N("V", "SRC", 0, 1), N("A", "SW", 1, 0, false), N("B", "SW", 1, 2, true), N("M1", "LAMP", 3, 0), N("P1", "ALARM", 3, 2)],
+    edges: [["V", "A"], ["V", "B"], ["A", "M1"], ["B", "P1"]]
+  },
+  {
+    name: "Puerta Y",
+    text: "La puerta Y solo deja pasar la corriente si le llegan las dos entradas a la vez.",
+    nodes: [N("V", "SRC", 0, 2), N("A", "SW", 1, 0, false), N("B", "SW", 1, 2, false), N("C", "SW", 1, 4, true),
+      N("G", "AND", 2, 1), N("M1", "LAMP", 3, 1), N("P1", "ALARM", 3, 4)],
+    edges: [["V", "A"], ["V", "B"], ["V", "C"], ["A", "G"], ["B", "G"], ["G", "M1"], ["C", "P1"]]
+  },
+  {
+    name: "Fusible",
+    text: "Un FUSIBLE aguanta una sola corriente. Si le llegan dos, se sobrecarga. Enciende las dos metas.",
+    nodes: [N("V", "SRC", 0, 2), N("A", "SW", 1, 0, true), N("B", "SW", 1, 2, false), N("C", "SW", 1, 4, false),
+      N("F", "FUSE", 2, 1), N("G", "AND", 2, 3), N("M1", "LAMP", 3, 1), N("M2", "LAMP", 3, 3)],
+    edges: [["V", "A"], ["V", "B"], ["V", "C"], ["A", "F"], ["B", "F"], ["F", "M1"], ["B", "G"], ["C", "G"], ["G", "M2"]]
+  },
+  {
+    name: "Inversor",
+    text: "¡El sistema empieza en cortocircuito! El inversor NO da corriente cuando no le llega nada. Arréglalo.",
+    nodes: [N("V", "SRC", 0, 2), N("A", "SW", 1, 1, false), N("B", "SW", 1, 3, false),
+      N("I", "NOT", 2, 0), N("G", "AND", 2, 2), N("P1", "ALARM", 3, 0), N("M1", "LAMP", 3, 2)],
+    edges: [["V", "A"], ["V", "B"], ["A", "I"], ["I", "P1"], ["A", "G"], ["B", "G"], ["G", "M1"]]
+  },
+  {
+    name: "Relé",
+    text: "Un RELÉ desvía la corriente hacia arriba o hacia abajo. Hay dos fuentes y un fusible delicado.",
+    nodes: [N("V", "SRC", 0, 1), N("W", "SRC", 0, 3), N("R", "REL", 1, 1, "b"), N("A", "SW", 1, 3, false),
+      N("F", "FUSE", 2, 2), N("M1", "LAMP", 3, 0), N("M2", "LAMP", 3, 2)],
+    edges: [["V", "R"], ["R", "M1", "a"], ["R", "F", "b"], ["W", "A"], ["A", "F"], ["F", "M2"]]
+  },
+  {
+    name: "Paridad",
+    text: "La puerta O-EX da corriente si le llega exactamente UNA entrada, nunca las dos.",
+    nodes: [N("V", "SRC", 0, 2), N("A", "SW", 1, 0, false), N("B", "SW", 1, 2, true), N("C", "SW", 1, 4, false),
+      N("X", "XOR", 2, 1), N("G", "AND", 3, 2), N("H", "AND", 2, 4), N("M1", "LAMP", 4, 2), N("P1", "ALARM", 4, 4)],
+    edges: [["V", "A"], ["V", "B"], ["V", "C"], ["A", "X"], ["B", "X"], ["X", "G"], ["C", "G"], ["G", "M1"],
+      ["B", "H"], ["C", "H"], ["H", "P1"]]
+  },
+  {
+    name: "Doble relé",
+    text: "Dos relés en cadena y un fusible compartido. Piensa por dónde viaja cada corriente.",
+    nodes: [N("V", "SRC", 0, 2), N("R", "REL", 1, 2, "b"), N("A", "SW", 1, 4, false), N("Q", "REL", 2, 1, "b"),
+      N("F", "FUSE", 3, 3), N("M1", "LAMP", 4, 0), N("M2", "LAMP", 4, 3)],
+    edges: [["V", "R"], ["V", "A"], ["R", "Q", "a"], ["R", "F", "b"], ["Q", "M1", "a"], ["Q", "F", "b"], ["A", "F"], ["F", "M2"]]
+  },
+  {
+    name: "Ni uno ni otro",
+    text: "Si la puerta O se apaga, el inversor dispara la alarma. Enciende las dos metas con cuidado.",
+    nodes: [N("V", "SRC", 0, 2), N("A", "SW", 1, 0, true), N("B", "SW", 1, 2, false), N("C", "SW", 1, 4, false),
+      N("O", "OR", 2, 1), N("I", "NOT", 3, 0), N("P1", "ALARM", 4, 0), N("G", "AND", 3, 2), N("M2", "LAMP", 4, 2),
+      N("X", "XOR", 2, 4), N("M1", "LAMP", 4, 4)],
+    edges: [["V", "A"], ["V", "B"], ["V", "C"], ["A", "O"], ["B", "O"], ["O", "I"], ["I", "P1"], ["O", "G"], ["C", "G"],
+      ["G", "M2"], ["A", "X"], ["C", "X"], ["X", "M1"]]
+  },
+  {
+    name: "Red de fusibles",
+    text: "Tres metas, dos fusibles y un interruptor que alimenta a ambos. No sobrecargues la red.",
+    nodes: [N("V", "SRC", 0, 1), N("W", "SRC", 0, 4), N("R", "REL", 1, 1, "b"), N("A", "SW", 1, 3, false), N("B", "SW", 1, 5, true),
+      N("F", "FUSE", 2, 2), N("E", "FUSE", 2, 4), N("M1", "LAMP", 4, 0), N("M2", "LAMP", 4, 2), N("M3", "LAMP", 4, 4)],
+    edges: [["V", "R"], ["R", "M1", "a"], ["R", "F", "b"], ["W", "A"], ["W", "B"], ["A", "F"], ["A", "E"], ["B", "E"],
+      ["F", "M2"], ["E", "M3"]]
+  },
+  {
+    name: "Central eléctrica",
+    text: "Prueba final: cuatro interruptores, un relé, puertas y un fusible. Tres metas y ningún fallo.",
+    nodes: [N("V", "SRC", 0, 3), N("A", "SW", 1, 0, false), N("B", "SW", 1, 2, true), N("C", "SW", 1, 4, false), N("D", "SW", 1, 6, false),
+      N("X", "XOR", 2, 1), N("R", "REL", 3, 0, "b"), N("G", "AND", 3, 2), N("I", "NOT", 3, 6), N("F", "FUSE", 4, 4),
+      N("M3", "LAMP", 5, 0), N("M1", "LAMP", 5, 2), N("M2", "LAMP", 5, 4), N("P1", "ALARM", 5, 6)],
+    edges: [["V", "A"], ["V", "B"], ["V", "C"], ["V", "D"], ["A", "X"], ["B", "X"], ["X", "R"], ["R", "M3", "a"], ["R", "F", "b"],
+      ["X", "G"], ["C", "G"], ["G", "M1"], ["B", "F"], ["D", "F"], ["F", "M2"], ["D", "I"], ["I", "P1"]]
+  }
+];
+
+function initialState(level) {
+  const s = {};
+  level.nodes.forEach(function (n) {
+    if (n.t === "SW") { s[n.id] = !!n.init; }
+    if (n.t === "REL") { s[n.id] = n.init === "a" ? "a" : "b"; }
+  });
+  return s;
+}
+
+function evaluate(level, state) {
+  const byId = {};
+  const incoming = {};
+  level.nodes.forEach(function (n) { byId[n.id] = n; incoming[n.id] = []; });
+  level.edges.forEach(function (e) { incoming[e[1]].push(e); });
+  const memo = {};
+  function out(id, port) {
+    const key = id + ":" + (port || "");
+    if (key in memo) { return memo[key]; }
+    const n = byId[id];
+    const ins = incoming[id].map(function (e) { return out(e[0], e[2]); });
+    const cnt = ins.filter(Boolean).length;
+    let v = false;
+    if (n.t === "SRC") { v = true; }
+    else if (n.t === "SW") { v = cnt > 0 && state[id] === true; }
+    else if (n.t === "REL") { v = cnt > 0 && state[id] === port; }
+    else if (n.t === "AND") { v = ins.length > 0 && cnt === ins.length; }
+    else if (n.t === "XOR") { v = cnt % 2 === 1; }
+    else if (n.t === "NOT") { v = cnt === 0; }
+    else { v = cnt > 0; }
+    memo[key] = v;
+    return v;
+  }
+  const res = { lamps: 0, lit: 0, alarms: 0, tripped: 0, fuses: 0, overloads: 0, node: {}, inLive: {}, edgeLive: [] };
+  level.nodes.forEach(function (n) {
+    const live = incoming[n.id].map(function (e) { return out(e[0], e[2]); });
+    const cnt = live.filter(Boolean).length;
+    res.inLive[n.id] = live;
+    if (n.t === "REL") { res.node[n.id] = { a: out(n.id, "a"), b: out(n.id, "b"), input: cnt > 0 }; }
+    else { res.node[n.id] = out(n.id); }
+    if (n.t === "LAMP") { res.lamps += 1; if (cnt > 0) { res.lit += 1; } }
+    if (n.t === "ALARM") { res.alarms += 1; if (cnt > 0) { res.tripped += 1; } }
+    if (n.t === "FUSE") { res.fuses += 1; if (cnt >= 2) { res.overloads += 1; } }
+  });
+  res.edgeLive = level.edges.map(function (e) { return out(e[0], e[2]); });
+  res.win = res.lit === res.lamps && res.tripped === 0 && res.overloads === 0;
+  return res;
+}
+
+function controls(level) {
+  return level.nodes.filter(function (n) { return n.t === "SW" || n.t === "REL"; });
+}
+
+function solve(level) {
+  const ctl = controls(level);
+  const start = initialState(level);
+  const sols = [];
+  const total = 1 << ctl.length;
+  for (let mask = 0; mask < total; mask += 1) {
+    const s = {};
+    ctl.forEach(function (n, i) {
+      const bit = (mask >> i) & 1;
+      s[n.id] = n.t === "SW" ? bit === 1 : (bit === 1 ? "a" : "b");
+    });
+    if (evaluate(level, s).win) {
+      let d = 0;
+      ctl.forEach(function (n) { if (s[n.id] !== start[n.id]) { d += 1; } });
+      sols.push({ state: s, dist: d });
+    }
+  }
+  const par = sols.length ? Math.min.apply(null, sols.map(function (x) { return x.dist; })) : -1;
+  return { count: sols.length, par: par, startWins: evaluate(level, start).win };
+}
+/*END*/
+
+document.addEventListener("DOMContentLoaded", function () {
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const CW = 130, CH = 82, PAD = 34, NW = 74, NH = 50;
+  const STORE_KEY = "circuito-coen-v1";
+  const PARS = LEVELS.map(function (l) { return solve(l).par; });
+
+  const el = function (id) { return document.getElementById(id); };
+  const board = el("board");
+
+  let cur = 0;
+  let state = {};
+  let moves = 0;
+  let solved = false;
+  let soundOn = true;
+  let audio = null;
+  let progress = {};
+
+  try { progress = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { progress = {}; }
+  function saveProgress() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  function beep(freq, dur) {
+    if (!soundOn) { return; }
+    try {
+      if (!audio) { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+      const o = audio.createOscillator();
+      const g = audio.createGain();
+      o.type = "square";
+      o.frequency.value = freq;
+      g.gain.value = 0.04;
+      o.connect(g); g.connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + dur);
+    } catch (e) { /* sin audio */ }
+  }
+  function jingle(notes) {
+    notes.forEach(function (f, i) { setTimeout(function () { beep(f, 0.09); }, i * 110); });
+  }
+
+  function center(n) { return { x: PAD + n.x * CW + NW / 2, y: PAD + n.y * CH + NH / 2 }; }
+
+  function mk(tag, attrs, parent) {
+    const e = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (parent) { parent.appendChild(e); }
+    return e;
+  }
+  function txt(parent, x, y, s, cls, size) {
+    const t = mk("text", { x: x, y: y, class: cls || "" }, parent);
+    if (size) { t.setAttribute("font-size", size); }
+    t.textContent = s;
+    return t;
+  }
+
+  const CAPTION = { SRC: "FUENTE", SW: "INTERRUPTOR", REL: "RELÉ", AND: "PUERTA", OR: "PUERTA", XOR: "PUERTA", NOT: "INVERSOR", LAMP: "META", ALARM: "PELIGRO", FUSE: "FUSIBLE" };
+
+  function render() {
+    const level = LEVELS[cur];
+    const res = evaluate(level, state);
+    const byId = {};
+    const inCount = {};
+    const inIdx = [];
+    level.nodes.forEach(function (n) { byId[n.id] = n; inCount[n.id] = 0; });
+    level.edges.forEach(function (e) { inIdx.push(inCount[e[1]]); inCount[e[1]] += 1; });
+    const srcOrder = {};
+    level.nodes.forEach(function (n, i) { srcOrder[n.id] = i; });
+
+    const maxX = Math.max.apply(null, level.nodes.map(function (n) { return n.x; }));
+    const maxY = Math.max.apply(null, level.nodes.map(function (n) { return n.y; }));
+    const W = PAD * 2 + maxX * CW + NW;
+    const H = PAD * 2 + maxY * CH + NH + 16;
+
+    board.textContent = "";
+    const svg = mk("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Tablero de circuito del nivel " + (cur + 1) }, board);
+
+    // Rejilla de soldadura
+    const grid = mk("g", { opacity: "0.35" }, svg);
+    for (let gx = PAD / 2; gx < W; gx += 26) {
+      for (let gy = PAD / 2; gy < H; gy += 26) { mk("circle", { cx: gx, cy: gy, r: 1.2, fill: "var(--dim)" }, grid); }
+    }
+
+    function outPt(n, port) {
+      const c = center(n);
+      if (n.t === "REL") { return { x: c.x + NW / 2, y: c.y + (port === "a" ? -14 : 14) }; }
+      return { x: c.x + NW / 2, y: c.y };
+    }
+    function inPt(n, i) {
+      const c = center(n);
+      const k = inCount[n.id];
+      const dy = n.t === "LAMP" ? 0 : (i - (k - 1) / 2) * 16;
+      const dx = n.t === "LAMP" ? 22 : NW / 2;
+      return { x: c.x - dx, y: c.y + dy };
+    }
+
+    // Cables: muertos primero, vivos encima
+    const wiresDead = mk("g", {}, svg);
+    const wiresLive = mk("g", {}, svg);
+    level.edges.forEach(function (e, idx) {
+      const a = outPt(byId[e[0]], e[2]);
+      const b = inPt(byId[e[1]], inIdx[idx]);
+      const off = ((srcOrder[e[0]] * 7) % 5 - 2) * 6;
+      let mx = a.x + (b.x - a.x) / 2 + off;
+      if (byId[e[1]].x - byId[e[0]].x > 1) { mx = b.x - 22 + off; }
+      const d = "M" + a.x + " " + a.y + " H" + mx + " V" + b.y + " H" + b.x;
+      const live = res.edgeLive[idx];
+      mk("path", { d: d, class: "wire" + (live ? " live" : "") }, live ? wiresLive : wiresDead);
+    });
+
+    // Nodos
+    level.nodes.forEach(function (n) {
+      const c = center(n);
+      const live = res.node[n.id];
+      const inLive = res.inLive[n.id];
+      const anyIn = inLive.some(Boolean);
+      const ctl = n.t === "SW" || n.t === "REL";
+      let cls = "node";
+      if (ctl) { cls += " ctl"; }
+      if (n.t === "LAMP" && anyIn) { cls += " lit"; }
+      if (n.t === "ALARM" && anyIn) { cls += " danger"; }
+      if (n.t === "FUSE" && inLive.filter(Boolean).length >= 2) { cls += " danger"; }
+      if (["AND", "OR", "XOR", "NOT"].indexOf(n.t) >= 0 && live) { cls += " gate-live"; }
+      const g = mk("g", { class: cls, "data-id": n.id }, svg);
+      if (ctl) {
+        g.setAttribute("tabindex", "0");
+        g.setAttribute("role", "button");
+        const desc = n.t === "SW" ? (state[n.id] ? "cerrado" : "abierto") : (state[n.id] === "a" ? "salida de arriba" : "salida de abajo");
+        g.setAttribute("aria-label", CAPTION[n.t] + " " + n.id + ", " + desc);
+      }
+
+      if (n.t === "LAMP") {
+        if (anyIn) { mk("circle", { cx: c.x, cy: c.y, r: 34, class: "glow" }, g); }
+        mk("circle", { cx: c.x, cy: c.y, r: 22, class: "body" }, g);
+        txt(g, c.x, c.y, anyIn ? "ON" : "--", "big", 22);
+      } else {
+        mk("rect", { x: c.x - NW / 2, y: c.y - NH / 2, width: NW, height: NH, class: "body" }, g);
+      }
+
+      if (n.t === "SRC") {
+        txt(g, c.x, c.y, "+V", "big", 30);
+      } else if (n.t === "SW") {
+        const on = state[n.id] === true;
+        const lx = c.x - 20, rx = c.x + 20;
+        mk("circle", { cx: lx, cy: c.y + 6, r: 4, class: "port" + (anyIn ? " live" : "") }, g);
+        mk("circle", { cx: rx, cy: c.y + 6, r: 4, class: "port" + (live ? " live" : "") }, g);
+        const ex = on ? rx : rx - 6;
+        const ey = on ? c.y + 6 : c.y - 14;
+        mk("line", { x1: lx, y1: c.y + 6, x2: ex, y2: ey, class: "lever" + (live ? " live" : "") }, g);
+        txt(g, c.x, c.y - 15, on ? "ON" : "OFF", "", 15);
+      } else if (n.t === "REL") {
+        const up = state[n.id] === "a";
+        const sx = c.x - 18;
+        mk("circle", { cx: sx, cy: c.y, r: 4, class: "port" + (anyIn ? " live" : "") }, g);
+        mk("circle", { cx: c.x + 22, cy: c.y - 14, r: 4, class: "port" + (live.a ? " live" : "") }, g);
+        mk("circle", { cx: c.x + 22, cy: c.y + 14, r: 4, class: "port" + (live.b ? " live" : "") }, g);
+        mk("line", { x1: sx, y1: c.y, x2: c.x + 20, y2: c.y + (up ? -13 : 13), class: "lever" + (anyIn ? " live" : "") }, g);
+      } else if (n.t === "AND") {
+        txt(g, c.x, c.y, "Y", "big", 34);
+      } else if (n.t === "OR") {
+        txt(g, c.x, c.y, "O", "big", 34);
+      } else if (n.t === "XOR") {
+        txt(g, c.x, c.y, "O-EX", "big", 28);
+      } else if (n.t === "NOT") {
+        txt(g, c.x, c.y, "NO", "big", 32);
+      } else if (n.t === "ALARM") {
+        txt(g, c.x, c.y, anyIn ? "CORTO" : "/!\\", "big", anyIn ? 24 : 28);
+      } else if (n.t === "FUSE") {
+        const k = inLive.filter(Boolean).length;
+        if (k >= 2) {
+          txt(g, c.x, c.y, "¡x2!", "big", 28);
+        } else {
+          mk("path", { d: "M" + (c.x - 26) + " " + c.y + " h10 l4 -8 l6 16 l6 -16 l6 16 l4 -8 h10", class: "fuseline" + (live ? " live" : "") }, g);
+        }
+      }
+
+      if (n.t !== "SRC" && n.t !== "LAMP") { txt(g, c.x - NW / 2 + 4, c.y - NH / 2 + 8, n.id, "tag"); }
+      if (n.t === "LAMP") { txt(g, c.x - 30, c.y - 22, n.id, "tag"); }
+      const capY = c.y + (n.t === "LAMP" ? 32 : NH / 2 + 10);
+      txt(g, c.x, capY, CAPTION[n.t], "cap");
+    });
+
+    updatePanel(level, res);
+    return res;
+  }
+
+  function updatePanel(level, res) {
+    el("mLevel").textContent = String(cur + 1).padStart(2, "0") + "/" + String(LEVELS.length).padStart(2, "0");
+    el("mMoves").textContent = String(moves);
+    el("mPar").textContent = String(PARS[cur]);
+    el("boardTitle").textContent = "[ " + level.name.toUpperCase() + " ]";
+    el("missionTitle").textContent = (cur + 1) + ". " + level.name;
+    el("missionText").textContent = level.text;
+
+    const rows = [];
+    rows.push(["Metas encendidas", res.lit + "/" + res.lamps, res.lit === res.lamps ? "ok" : "wait"]);
+    if (res.alarms) { rows.push(["Cortocircuitos", String(res.tripped), res.tripped ? "bad" : "ok"]); }
+    if (res.fuses) { rows.push(["Sobrecargas", String(res.overloads), res.overloads ? "bad" : "ok"]); }
+    const ul = el("status");
+    ul.textContent = "";
+    rows.forEach(function (r) {
+      const li = document.createElement("li");
+      const a = document.createElement("span"); a.textContent = r[0];
+      const b = document.createElement("span"); b.textContent = r[1]; b.className = r[2];
+      li.appendChild(a); li.appendChild(b); ul.appendChild(li);
+    });
+
+    const v = el("verdict");
+    if (res.win) { v.textContent = "SISTEMA ESTABLE"; v.className = "verdict ok"; }
+    else if (res.tripped) { v.textContent = "¡CORTOCIRCUITO!"; v.className = "verdict bad"; }
+    else if (res.overloads) { v.textContent = "¡SOBRECARGA!"; v.className = "verdict bad"; }
+    else { v.textContent = "FALTA ENERGÍA"; v.className = "verdict"; }
+
+    const lv = el("levels");
+    lv.textContent = "";
+    LEVELS.forEach(function (l, i) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "lv" + (progress[i] !== undefined ? " done" : "") + (i === cur ? " cur" : "");
+      b.dataset.level = String(i);
+      b.setAttribute("aria-label", "Nivel " + (i + 1) + " " + l.name + (progress[i] !== undefined ? ", superado" : ""));
+      b.textContent = String(i + 1).padStart(2, "0");
+      const sm = document.createElement("small");
+      sm.textContent = progress[i] !== undefined ? starsFor(i, progress[i]) : "·";
+      b.appendChild(sm);
+      lv.appendChild(b);
+    });
+  }
+
+  function starsFor(i, m) {
+    const p = PARS[i];
+    if (m <= p) { return "***"; }
+    if (m <= p + 2) { return "**"; }
+    return "*";
+  }
+
+  function loadLevel(i) {
+    cur = (i + LEVELS.length) % LEVELS.length;
+    state = initialState(LEVELS[cur]);
+    moves = 0;
+    solved = false;
+    el("winDialog").hidden = true;
+    const res = render();
+    el("statusbar").textContent = res.tripped ? "¡Atención! El circuito empieza con un fallo." : "Pulsa un interruptor o un relé para cambiarlo.";
+  }
+
+  function toggle(id) {
+    if (solved) { return; }
+    const n = LEVELS[cur].nodes.find(function (x) { return x.id === id; });
+    if (!n) { return; }
+    if (n.t === "SW") { state[id] = !state[id]; }
+    else if (n.t === "REL") { state[id] = state[id] === "a" ? "b" : "a"; }
+    else { return; }
+    moves += 1;
+    const res = render();
+    const again = board.querySelector('[data-id="' + id + '"]');
+    if (again) { again.focus(); }
+    if (res.tripped || res.overloads) {
+      beep(110, 0.18);
+      el("statusbar").textContent = res.tripped ? "Cortocircuito: hay corriente en una zona de PELIGRO." : "Sobrecarga: un fusible recibe dos corrientes.";
+    } else {
+      beep(n.t === "SW" ? 660 : 520, 0.04);
+      el("statusbar").textContent = (n.t === "SW" ? "Interruptor " : "Relé ") + id + (n.t === "SW" ? (state[id] ? " cerrado." : " abierto.") : (state[id] === "a" ? " hacia arriba." : " hacia abajo."));
+    }
+    if (res.win) { win(); }
+  }
+
+  function win() {
+    solved = true;
+    const prev = progress[cur];
+    if (prev === undefined || moves < prev) { progress[cur] = moves; saveProgress(); }
+    const p = PARS[cur];
+    el("winStars").textContent = starsFor(cur, moves);
+    el("winText").textContent = moves <= p
+      ? "Resuelto en " + moves + " movimientos: el mínimo posible."
+      : "Resuelto en " + moves + " movimientos. Se puede hacer en " + p + ".";
+    el("winNext").innerHTML = cur === LEVELS.length - 1 ? "Volver al 1 <span class=\"k\">[Intro]</span>" : "Siguiente <span class=\"k\">[Intro]</span>";
+    updatePanel(LEVELS[cur], evaluate(LEVELS[cur], state));
+    el("winDialog").hidden = false;
+    el("statusbar").textContent = "Sistema estable. Todas las metas tienen energía.";
+    jingle([523, 659, 784, 1047]);
+    el("winNext").focus();
+  }
+
+  function openHelp() { el("help").hidden = false; el("helpClose").focus(); }
+  function closeHelp() { el("help").hidden = true; el("bHelp").focus(); }
+
+  board.addEventListener("click", function (ev) {
+    const g = ev.target.closest(".node.ctl");
+    if (g) { toggle(g.getAttribute("data-id")); }
+  });
+  board.addEventListener("keydown", function (ev) {
+    const g = ev.target.closest && ev.target.closest(".node.ctl");
+    if (g && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); toggle(g.getAttribute("data-id")); }
+  });
+  el("levels").addEventListener("click", function (ev) {
+    const b = ev.target.closest(".lv");
+    if (b) { loadLevel(Number(b.dataset.level)); }
+  });
+  el("bReset").addEventListener("click", function () { loadLevel(cur); });
+  el("winRetry").addEventListener("click", function () { loadLevel(cur); });
+  el("winNext").addEventListener("click", function () { loadLevel(cur + 1); });
+  el("bHelp").addEventListener("click", openHelp);
+  el("helpClose").addEventListener("click", closeHelp);
+  el("help").addEventListener("click", function (ev) { if (ev.target === el("help")) { closeHelp(); } });
+  el("bSound").addEventListener("click", function () {
+    soundOn = !soundOn;
+    el("bSound").setAttribute("aria-pressed", String(soundOn));
+    el("bSound").innerHTML = "<span class=\"k\">M</span>: sonido " + (soundOn ? "sí" : "no");
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) { return; }
+    if (!el("help").hidden) { if (ev.key === "Escape") { closeHelp(); } return; }
+    const k = ev.key.toUpperCase();
+    if (k === "ESCAPE") { loadLevel(cur); return; }
+    if (k === "?" || k === "F1") { ev.preventDefault(); openHelp(); return; }
+    if (k === "M") { el("bSound").click(); return; }
+    if (k === "ENTER" && solved) { ev.preventDefault(); loadLevel(cur + 1); return; }
+    const n = LEVELS[cur].nodes.find(function (x) { return x.id === k && (x.t === "SW" || x.t === "REL"); });
+    if (n) { toggle(n.id); }
+  });
+
+  let start = 0;
+  for (let i = 0; i < LEVELS.length; i += 1) { if (progress[i] === undefined) { start = i; break; } }
+  loadLevel(start);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aguacero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: una columna tipo consola portátil — tablero isométrico arriba, HUD y mando abajo. Tema oscuro único y deliberado (noche de tormenta). */
+:root {
+  --bg: #0e1820;
+  --panel: #16252f;
+  --line: #24384a;
+  --fg: #e7eee4;
+  --muted: #8ea3ae;
+  --water: #44b4dc;
+  --earth: #d2a462;
+  --fire: #ff7b3a;
+  --dig: #b48ad8;
+  --danger: #ff5a5a;
+  --f-display: "Bungee", "Impact", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); margin: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 28px; display: grid; gap: 12px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 7vw, 44px); margin: 0; letter-spacing: 0.02em; line-height: 1;
+  background: linear-gradient(180deg, var(--water) 0 55%, var(--earth) 55% 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tag { color: var(--muted); font-size: 13px; margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
+.stat span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stat b { font-family: var(--f-display); font-weight: 400; font-size: 20px; font-variant-numeric: tabular-nums; }
+.board { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(120% 80% at 50% 0%, #1d3442 0%, var(--bg) 70%); }
+canvas#tablero { display: block; width: 100%; touch-action: manipulation; cursor: pointer; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8, 14, 19, 0.82); padding: 16px; }
+.card { max-width: 420px; display: grid; gap: 10px; text-align: center; }
+.card h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0; text-wrap: balance; }
+.card p { margin: 0; color: var(--muted); }
+.hud { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; min-width: 0; }
+.box h3 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
+canvas#siguiente { width: 92px; height: 70px; display: block; }
+.next-name { font-size: 13px; font-weight: 700; }
+.meter { height: 16px; border-radius: 8px; background: #0a1218; border: 1px solid var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--water), #2a7fa8); transition: width 0.2s; }
+.meter.alerta i { background: linear-gradient(90deg, #ffb04a, var(--danger)); }
+.meter-txt { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pad { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.cruz { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); gap: 4px; }
+.cruz button:nth-child(1) { grid-column: 1; grid-row: 1; }
+.cruz button:nth-child(2) { grid-column: 3; grid-row: 1; }
+.cruz button:nth-child(3) { grid-column: 1; grid-row: 3; }
+.cruz button:nth-child(4) { grid-column: 3; grid-row: 3; }
+.acciones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+button { font-family: var(--f-body); font-weight: 700; font-size: 15px; color: var(--fg); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; min-height: 48px; }
+button:hover { border-color: var(--muted); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--water); outline-offset: 2px; }
+button.prim { background: var(--water); color: #06202c; border-color: var(--water); }
+button.big { font-family: var(--f-display); font-weight: 400; font-size: 18px; padding: 12px 22px; }
+.cruz button { font-size: 20px; padding: 0; }
+.leyenda { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; font-size: 13px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.leyenda li { display: flex; gap: 8px; align-items: baseline; }
+.leyenda b { color: var(--fg); }
+.dot { width: 10px; height: 10px; border-radius: 3px; flex: none; transform: translateY(1px); }
+.teclas { font-size: 12px; color: var(--muted); margin: 0; }
+kbd { font-family: var(--f-body); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--fg); }
+@media (max-width: 520px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pad { grid-template-columns: 1fr; justify-items: center; }
+  .acciones { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Aguacero</h1>
+    <p class="tag">Levanta diques, embalsa la lluvia, evapora los lagos con fuego.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><span>Puntos</span><b id="puntos">0</b></div>
+    <div class="stat"><span>Récord</span><b id="record">0</b></div>
+    <div class="stat"><span>Nivel</span><b id="nivel">1</b></div>
+    <div class="stat"><span>Agua embalsada</span><b id="embalse">0</b></div>
+  </div>
+
+  <div class="board">
+    <canvas id="tablero" aria-label="Tablero isométrico del juego"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2 id="ov-titulo">Construye la presa</h2>
+        <p id="ov-texto">Las piezas marrones elevan el terreno. Rodea un hueco con muros y luego deja caer agua dentro. Si el agua se escapa por los bordes, se llena el desagüe. Cuando esté lleno, se acaba la partida.</p>
+        <div><button class="prim big" id="btn-empezar" type="button">Empezar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="box">
+      <h3>Siguiente</h3>
+      <canvas id="siguiente" width="92" height="70"></canvas>
+      <div class="next-name" id="sig-nombre">—</div>
+    </div>
+    <div class="box">
+      <h3>Desagüe</h3>
+      <div class="meter" id="meter"><i id="meter-fill"></i></div>
+      <div class="meter-txt"><span id="meter-pct">0 %</span><span>Al 100 % pierdes</span></div>
+      <h3 style="margin-top:4px">Pieza actual</h3>
+      <div class="meter" aria-hidden="true"><i id="caida-fill" style="background:linear-gradient(90deg,var(--earth),var(--fire))"></i></div>
+      <div class="meter-txt"><span id="actual-nombre">—</span><span>Cae sola al llenarse</span></div>
+    </div>
+  </div>
+
+  <div class="pad">
+    <div class="cruz" aria-label="Mover pieza">
+      <button type="button" id="m-arriba-izq" aria-label="Mover arriba a la izquierda">↖</button>
+      <button type="button" id="m-arriba-der" aria-label="Mover arriba a la derecha">↗</button>
+      <button type="button" id="m-abajo-izq" aria-label="Mover abajo a la izquierda">↙</button>
+      <button type="button" id="m-abajo-der" aria-label="Mover abajo a la derecha">↘</button>
+    </div>
+    <div class="acciones">
+      <button type="button" id="btn-girar">Girar</button>
+      <button type="button" id="btn-soltar" class="prim">Soltar</button>
+      <button type="button" id="btn-pausa">Pausa</button>
+    </div>
+  </div>
+
+  <ul class="leyenda">
+    <li><span class="dot" style="background:var(--earth)"></span><span><b>Tierra</b>: sube 1 nivel</span></li>
+    <li><span class="dot" style="background:var(--dig)"></span><span><b>Pala</b>: baja 1 nivel</span></li>
+    <li><span class="dot" style="background:var(--water)"></span><span><b>Lluvia</b>: añade agua</span></li>
+    <li><span class="dot" style="background:var(--fire)"></span><span><b>Fuego</b>: evapora el lago entero y puntúa</span></li>
+    <li><span class="dot" style="background:#3a2a2a;border:1px solid var(--danger)"></span><span><b>Bomba</b>: abre un agujero que traga agua (tápalo con tierra)</span></li>
+  </ul>
+  <p class="teclas">Teclado: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> mover · <kbd>Z</kbd>/<kbd>X</kbd> girar · <kbd>Espacio</kbd> soltar · <kbd>P</kbd> pausa. En el móvil, toca una casilla para llevar la pieza allí y vuelve a tocarla para soltarla.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const N = 12;
+  const MAXH = 10;
+  const LEAK_MAX = 50;
+  const FALL_LIFT = 5;
+
+  const h = new Float32Array(N * N);
+  const w = new Float32Array(N * N);
+  const hole = new Uint8Array(N * N);
+  const dw = new Float32Array(N * N);
+
+  const SHAPES = {
+    I: [[0, 0], [1, 0], [2, 0], [3, 0]],
+    O: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    T: [[0, 0], [1, 0], [2, 0], [1, 1]],
+    L: [[0, 0], [0, 1], [0, 2], [1, 2]],
+    S: [[1, 0], [2, 0], [0, 1], [1, 1]],
+    U: [[0, 0]],
+    D: [[0, 0], [1, 0]]
+  };
+  const TYPES = {
+    up: { nombre: 'Tierra', color: '#d2a462', shapes: ['I', 'O', 'T', 'L', 'S', 'L', 'I', 'D'] },
+    down: { nombre: 'Pala', color: '#b48ad8', shapes: ['U', 'D', 'O'] },
+    water: { nombre: 'Lluvia', color: '#44b4dc', shapes: ['O', 'D'] },
+    fire: { nombre: 'Fuego', color: '#ff7b3a', shapes: ['U'] },
+    bomb: { nombre: 'Bomba', color: '#ff5a5a', shapes: ['U'] }
+  };
+
+  const el = (id) => document.getElementById(id);
+  const cv = el('tablero');
+  const ctx = cv.getContext('2d');
+  const nx = el('siguiente');
+  const nctx = nx.getContext('2d');
+
+  let TW = 40, UH = 12, ox = 0, oy = 0, CW = 0, CH = 0;
+  let piece = null, next = null;
+  let fallT = 0, fallDur = 6;
+  let score = 0, best = 0, level = 1, placed = 0, leak = 0;
+  let running = false, paused = false, over = false;
+  let waterTick = 0;
+  let floats = [];
+  let flash = [];
+
+  try { best = parseInt(localStorage.getItem('aguacero-record') || '0', 10) || 0; } catch (e) { best = 0; }
+
+  const idx = (x, y) => y * N + x;
+  const inB = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+
+  function rnd(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+  function randomPiece() {
+    const r = Math.random();
+    const fireW = 0.07 + Math.min(level, 8) * 0.005;
+    const bombW = level >= 2 ? 0.035 + Math.min(level, 8) * 0.004 : 0;
+    let type;
+    if (r < 0.5) type = 'up';
+    else if (r < 0.62) type = 'down';
+    else if (r < 0.62 + 0.25) type = 'water';
+    else if (r < 0.87 + fireW) type = 'fire';
+    else if (r < 0.87 + fireW + bombW) type = 'bomb';
+    else type = 'up';
+    const key = rnd(TYPES[type].shapes);
+    return { type: type, cells: SHAPES[key].map((c) => [c[0], c[1]]), ax: 0, ay: 0 };
+  }
+
+  function bounds(cells) {
+    let mx = 0, my = 0;
+    cells.forEach((c) => { mx = Math.max(mx, c[0]); my = Math.max(my, c[1]); });
+    return [mx, my];
+  }
+
+  function clampPiece(p) {
+    const b = bounds(p.cells);
+    p.ax = Math.max(0, Math.min(N - 1 - b[0], p.ax));
+    p.ay = Math.max(0, Math.min(N - 1 - b[1], p.ay));
+  }
+
+  function spawn() {
+    piece = next || randomPiece();
+    next = randomPiece();
+    const b = bounds(piece.cells);
+    piece.ax = Math.floor((N - 1 - b[0]) / 2);
+    piece.ay = Math.floor((N - 1 - b[1]) / 2);
+    fallT = 0;
+    fallDur = Math.max(2.2, 6.5 - (level - 1) * 0.45);
+    drawNext();
+  }
+
+  function absCells(p) { return p.cells.map((c) => [p.ax + c[0], p.ay + c[1]]); }
+
+  function move(dx, dy) {
+    if (!running || paused || !piece) return;
+    piece.ax += dx; piece.ay += dy;
+    clampPiece(piece);
+  }
+
+  function rotate(dir) {
+    if (!running || paused || !piece) return;
+    let cells = piece.cells.map((c) => dir > 0 ? [-c[1], c[0]] : [c[1], -c[0]]);
+    let mx = Infinity, my = Infinity;
+    cells.forEach((c) => { mx = Math.min(mx, c[0]); my = Math.min(my, c[1]); });
+    piece.cells = cells.map((c) => [c[0] - mx, c[1] - my]);
+    clampPiece(piece);
+  }
+
+  function addFloat(x, y, text, color) {
+    floats.push({ x: x + 0.5, y: y + 0.5, text: text, color: color, t: 0 });
+  }
+
+  function evaporate(sx, sy) {
+    const seen = new Uint8Array(N * N);
+    const stack = [[sx, sy]];
+    let vol = 0, count = 0;
+    if (w[idx(sx, sy)] < 0.05) {
+      const opts = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      let found = false;
+      for (const o of opts) {
+        const x = sx + o[0], y = sy + o[1];
+        if (inB(x, y) && w[idx(x, y)] >= 0.05) { stack[0] = [x, y]; found = true; break; }
+      }
+      if (!found) return 0;
+    }
+    while (stack.length) {
+      const c = stack.pop();
+      const i = idx(c[0], c[1]);
+      if (seen[i]) continue;
+      seen[i] = 1;
+      if (w[i] < 0.05) continue;
+      vol += w[i]; count++;
+      w[i] = 0;
+      flash.push({ i: i, t: 0 });
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach((o) => {
+        const x = c[0] + o[0], y = c[1] + o[1];
+        if (inB(x, y) && !seen[idx(x, y)]) stack.push([x, y]);
+      });
+    }
+    return { vol: vol, count: count };
+  }
+
+  function land() {
+    const cells = absCells(piece);
+    const t = piece.type;
+    if (t === 'up') {
+      cells.forEach((c) => { const i = idx(c[0], c[1]); hole[i] = 0; h[i] = Math.min(MAXH, h[i] + 1); });
+      score += 4 * cells.length;
+    } else if (t === 'down') {
+      cells.forEach((c) => { const i = idx(c[0], c[1]); if (!hole[i]) h[i] = Math.max(0, h[i] - 1); });
+      score += 3 * cells.length;
+    } else if (t === 'water') {
+      cells.forEach((c) => { w[idx(c[0], c[1])] += 1.6; });
+    } else if (t === 'fire') {
+      const c = cells[0];
+      const r = evaporate(c[0], c[1]);
+      if (r && r.vol > 0.2) {
+        const mult = r.vol >= 12 ? 3 : r.vol >= 6 ? 2 : 1;
+        const pts = Math.round(r.vol * 25) * mult;
+        score += pts;
+        leak = Math.max(0, leak - r.vol * 0.4);
+        addFloat(c[0], c[1], '+' + pts + (mult > 1 ? ' ×' + mult : ''), '#ffd08a');
+      } else {
+        addFloat(c[0], c[1], 'Sin agua', '#8ea3ae');
+      }
+    } else if (t === 'bomb') {
+      const c = cells[0];
+      const i = idx(c[0], c[1]);
+      hole[i] = 1; h[i] = 0;
+      addFloat(c[0], c[1], '¡Agujero!', '#ff8a8a');
+    }
+    placed++;
+    if (placed % 15 === 0) {
+      level++;
+      addFloat(N / 2 - 0.5, N / 2 - 0.5, 'Nivel ' + level, '#e7eee4');
+    }
+    spawn();
+  }
+
+  function stepWater() {
+    dw.fill(0);
+    let lost = 0;
+    const k = 0.12;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const i = idx(x, y);
+        const wi = w[i];
+        if (wi <= 0) continue;
+        if (hole[i]) {
+          const d = Math.min(wi, 0.06 + wi * 0.15);
+          dw[i] -= d; lost += d;
+          continue;
+        }
+        const s = h[i] + wi;
+        const outs = [0, 0, 0, 0];
+        const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        let total = 0;
+        for (let n = 0; n < 4; n++) {
+          const ax = x + nb[n][0], ay = y + nb[n][1];
+          const ns = inB(ax, ay) ? h[idx(ax, ay)] + w[idx(ax, ay)] : 0;
+          const diff = s - ns;
+          if (diff > 0) { outs[n] = Math.min(wi, diff) * k; total += outs[n]; }
+        }
+        if (total <= 0) continue;
+        const scale = total > wi ? wi / total : 1;
+        for (let n = 0; n < 4; n++) {
+          if (!outs[n]) continue;
+          const f = outs[n] * scale;
+          const ax = x + nb[n][0], ay = y + nb[n][1];
+          dw[i] -= f;
+          if (inB(ax, ay)) dw[idx(ax, ay)] += f; else lost += f;
+        }
+      }
+    }
+    for (let i = 0; i < N * N; i++) {
+      w[i] += dw[i];
+      if (w[i] < 0.003) w[i] = 0;
+    }
+    return lost;
+  }
+
+  /* ---------- Render ---------- */
+
+  function P(x, y, z) { return [ox + (x - y) * TW / 2, oy + (x + y) * TW / 4 - z * UH]; }
+
+  function poly(pts, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+  }
+
+  const STOPS = [[0, [214, 186, 128]], [2, [126, 160, 82]], [4, [86, 128, 66]], [6, [138, 104, 72]], [8, [150, 140, 128]], [10, [214, 210, 200]]];
+  function earthRGB(z) {
+    for (let s = 1; s < STOPS.length; s++) {
+      if (z <= STOPS[s][0]) {
+        const a = STOPS[s - 1], b = STOPS[s];
+        const t = (z - a[0]) / (b[0] - a[0]);
+        return [0, 1, 2].map((j) => Math.round(a[1][j] + (b[1][j] - a[1][j]) * t));
+      }
+    }
+    return STOPS[STOPS.length - 1][1];
+  }
+  const rgb = (c, m) => 'rgb(' + Math.round(c[0] * m) + ',' + Math.round(c[1] * m) + ',' + Math.round(c[2] * m) + ')';
+
+  function face(x1, y1, x2, y2, zt, zb, fill) {
+    if (zt <= zb) return;
+    poly([P(x1, y1, zt), P(x2, y2, zt), P(x2, y2, zb), P(x1, y1, zb)], fill);
+  }
+
+  function drawCell(x, y, ghost) {
+    const i = idx(x, y);
+    const z = h[i];
+    const isHole = hole[i] === 1;
+    const top = isHole ? -0.6 : z;
+    const col = earthRGB(z);
+    const zl = y + 1 < N ? (hole[idx(x, y + 1)] ? -0.6 : h[idx(x, y + 1)]) : -1;
+    const zr = x + 1 < N ? (hole[idx(x + 1, y)] ? -0.6 : h[idx(x + 1, y)]) : -1;
+    face(x, y + 1, x + 1, y + 1, top, zl, isHole ? '#1b1414' : rgb(col, 0.66));
+    face(x + 1, y, x + 1, y + 1, top, zr, isHole ? '#241a1a' : rgb(col, 0.82));
+    if (isHole) {
+      poly([P(x, y, top), P(x + 1, y, top), P(x + 1, y + 1, top), P(x, y + 1, top)], '#0b0707', 'rgba(255,90,90,0.55)');
+    } else {
+      poly([P(x, y, top), P(x + 1, y, top), P(x + 1, y + 1, top), P(x, y + 1, top)], rgb(col, 1), 'rgba(0,0,0,0.12)');
+    }
+    const wi = w[i];
+    if (wi > 0.02) {
+      const s = top + wi;
+      const a = Math.min(0.88, 0.5 + wi * 0.12);
+      const deep = Math.max(0, 1 - wi * 0.12);
+      const wc = 'rgba(' + Math.round(40 + 40 * deep) + ',' + Math.round(130 + 60 * deep) + ',' + Math.round(200 + 25 * deep) + ',' + a + ')';
+      const nsl = y + 1 < N ? h[idx(x, y + 1)] + w[idx(x, y + 1)] : -1;
+      const nsr = x + 1 < N ? h[idx(x + 1, y)] + w[idx(x + 1, y)] : -1;
+      face(x, y + 1, x + 1, y + 1, s, Math.max(top, nsl), 'rgba(30,110,160,' + a + ')');
+      face(x + 1, y, x + 1, y + 1, s, Math.max(top, nsr), 'rgba(40,130,180,' + a + ')');
+      poly([P(x, y, s), P(x + 1, y, s), P(x + 1, y + 1, s), P(x, y + 1, s)], wc);
+    }
+    if (ghost) {
+      const s = top + wi + 0.01;
+      ctx.lineWidth = 2;
+      poly([P(x, y, s), P(x + 1, y, s), P(x + 1, y + 1, s), P(x, y + 1, s)], ghost + '55', ghost);
+      ctx.lineWidth = 1;
+    }
+  }
+
+  function drawFlashes(dt) {
+    flash = flash.filter((f) => (f.t += dt) < 0.6);
+    flash.forEach((f) => {
+      const x = f.i % N, y = Math.floor(f.i / N);
+      const z = h[f.i] + 0.4 + f.t * 2;
+      const c = P(x + 0.5, y + 0.5, z);
+      ctx.fillStyle = 'rgba(230,240,245,' + (0.6 - f.t) + ')';
+      ctx.beginPath();
+      ctx.ellipse(c[0], c[1], TW * 0.3 * (1 + f.t), TW * 0.15 * (1 + f.t), 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawPiece() {
+    if (!piece) return;
+    const cells = absCells(piece);
+    let zmax = 0;
+    cells.forEach((c) => { const i = idx(c[0], c[1]); zmax = Math.max(zmax, h[i] + w[i]); });
+    const frac = 1 - fallT / fallDur;
+    const zb = zmax + 0.4 + frac * FALL_LIFT;
+    const color = TYPES[piece.type].color;
+    const base = [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)];
+    const sorted = cells.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+    sorted.forEach((c) => {
+      const x = c[0], y = c[1];
+      if (piece.type === 'fire' || piece.type === 'bomb') {
+        const p = P(x + 0.5, y + 0.5, zb + 0.4);
+        const r = TW * 0.32;
+        const g = ctx.createRadialGradient(p[0] - r * 0.3, p[1] - r * 0.3, r * 0.1, p[0], p[1], r);
+        if (piece.type === 'fire') { g.addColorStop(0, '#fff3b0'); g.addColorStop(0.5, '#ff9a3a'); g.addColorStop(1, '#c2361a'); }
+        else { g.addColorStop(0, '#6a6a6a'); g.addColorStop(0.6, '#2a2a2a'); g.addColorStop(1, '#0a0a0a'); }
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2); ctx.fill();
+        if (piece.type === 'bomb') {
+          ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(p[0] + r * 0.5, p[1] - r * 0.7); ctx.lineTo(p[0] + r * 0.9, p[1] - r * 1.2); ctx.stroke();
+          ctx.lineWidth = 1;
+        }
+        return;
+      }
+      const t = 0.7;
+      const alpha = piece.type === 'water' ? 0.8 : 1;
+      const f = (m) => 'rgba(' + Math.round(base[0] * m) + ',' + Math.round(base[1] * m) + ',' + Math.round(base[2] * m) + ',' + alpha + ')';
+      face(x, y + 1, x + 1, y + 1, zb + t, zb, f(0.62));
+      face(x + 1, y, x + 1, y + 1, zb + t, zb, f(0.8));
+      poly([P(x, y, zb + t), P(x + 1, y, zb + t), P(x + 1, y + 1, zb + t), P(x, y + 1, zb + t)], f(1), 'rgba(0,0,0,0.25)');
+      if (piece.type === 'down' || piece.type === 'up') {
+        const c0 = P(x + 0.5, y + 0.5, zb + t);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath();
+        const s = TW * 0.12;
+        if (piece.type === 'down') { ctx.moveTo(c0[0] - s, c0[1] - s * 0.4); ctx.lineTo(c0[0] + s, c0[1] - s * 0.4); ctx.lineTo(c0[0], c0[1] + s * 0.6); }
+        else { ctx.moveTo(c0[0] - s, c0[1] + s * 0.4); ctx.lineTo(c0[0] + s, c0[1] + s * 0.4); ctx.lineTo(c0[0], c0[1] - s * 0.6); }
+        ctx.fill();
+      }
+    });
+  }
+
+  function drawFloats(dt) {
+    floats = floats.filter((f) => (f.t += dt) < 1.6);
+    ctx.textAlign = 'center';
+    ctx.font = Math.round(TW * 0.5) + 'px Bungee, Impact, sans-serif';
+    floats.forEach((f) => {
+      const p = P(f.x, f.y, 3 + f.t * 2.5);
+      ctx.globalAlpha = Math.max(0, 1 - f.t / 1.6);
+      ctx.fillStyle = '#0e1820';
+      ctx.fillText(f.text, p[0] + 2, p[1] + 2);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, p[0], p[1]);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function render(dt) {
+    ctx.clearRect(0, 0, CW, CH);
+    // base slab
+    face(0, N, N, N, -1, -1.8, '#1a2a35');
+    face(N, 0, N, N, -1, -1.8, '#22343f');
+    const ghostSet = {};
+    if (piece && running) {
+      const gc = TYPES[piece.type].color;
+      absCells(piece).forEach((c) => { ghostSet[idx(c[0], c[1])] = gc; });
+    }
+    for (let s = 0; s <= 2 * (N - 1); s++) {
+      for (let x = 0; x < N; x++) {
+        const y = s - x;
+        if (y < 0 || y >= N) continue;
+        drawCell(x, y, ghostSet[idx(x, y)]);
+      }
+    }
+    drawFlashes(dt);
+    if (running) drawPiece();
+    drawFloats(dt);
+  }
+
+  function drawNext() {
+    nctx.clearRect(0, 0, nx.width, nx.height);
+    if (!next) { el('sig-nombre').textContent = '—'; return; }
+    const b = bounds(next.cells);
+    const s = Math.min(16, Math.floor(80 / (Math.max(b[0], b[1]) + 1.5)));
+    const offx = (nx.width - (b[0] + 1) * s) / 2;
+    const offy = (nx.height - (b[1] + 1) * s) / 2;
+    nctx.fillStyle = TYPES[next.type].color;
+    next.cells.forEach((c) => {
+      if (next.type === 'fire' || next.type === 'bomb') {
+        nctx.beginPath(); nctx.arc(offx + s / 2, offy + s / 2, s * 0.6, 0, Math.PI * 2); nctx.fill();
+      } else {
+        nctx.fillRect(offx + c[0] * s + 1, offy + c[1] * s + 1, s - 2, s - 2);
+      }
+    });
+    el('sig-nombre').textContent = TYPES[next.type].nombre;
+  }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    CW = cv.clientWidth || 600;
+    TW = CW / (N + 0.6);
+    UH = TW * 0.34;
+    ox = CW / 2;
+    oy = UH * 7 + TW * 0.4;
+    CH = Math.round(oy + N * TW / 2 + UH * 2 + 8);
+    cv.style.height = CH + 'px';
+    cv.width = Math.round(CW * dpr);
+    cv.height = Math.round(CH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /* ---------- HUD ---------- */
+
+  function updateHUD() {
+    el('puntos').textContent = score.toLocaleString('es-ES');
+    el('record').textContent = Math.max(best, score).toLocaleString('es-ES');
+    el('nivel').textContent = level;
+    let tot = 0;
+    for (let i = 0; i < N * N; i++) tot += w[i];
+    el('embalse').textContent = tot.toFixed(1);
+    const pct = Math.min(100, (leak / LEAK_MAX) * 100);
+    el('meter-fill').style.width = pct + '%';
+    el('meter-pct').textContent = Math.floor(pct) + ' %';
+    el('meter').classList.toggle('alerta', pct > 70);
+    el('caida-fill').style.width = (piece && running ? Math.min(100, fallT / fallDur * 100) : 0) + '%';
+    el('actual-nombre').textContent = piece && running ? TYPES[piece.type].nombre : '—';
+    return tot;
+  }
+
+  /* ---------- Game flow ---------- */
+
+  function reset() {
+    for (let i = 0; i < N * N; i++) { h[i] = 1; w[i] = 0; hole[i] = 0; }
+    score = 0; level = 1; placed = 0; leak = 0; floats = []; flash = [];
+    next = null; spawn();
+  }
+
+  function showOverlay(title, text, btn) {
+    el('ov-titulo').textContent = title;
+    el('ov-texto').textContent = text;
+    el('btn-empezar').textContent = btn;
+    el('overlay').hidden = false;
+  }
+
+  function start() {
+    reset();
+    running = true; paused = false; over = false;
+    el('overlay').hidden = true;
+    el('btn-pausa').textContent = 'Pausa';
+  }
+
+  function gameOver() {
+    running = false; over = true;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('aguacero-record', String(best)); } catch (e) { /* sin almacenamiento */ }
+    }
+    showOverlay('El desagüe se ha llenado', 'Has conseguido ' + score.toLocaleString('es-ES') + ' puntos en el nivel ' + level + '. Récord: ' + best.toLocaleString('es-ES') + '.', 'Jugar otra vez');
+  }
+
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    el('btn-pausa').textContent = paused ? 'Seguir' : 'Pausa';
+    if (paused) showOverlay('En pausa', 'El agua también espera.', 'Seguir');
+    else el('overlay').hidden = true;
+  }
+
+  function hardDrop() {
+    if (!running || paused || !piece) return;
+    land();
+  }
+
+  let last = performance.now();
+  let scoreAcc = 0;
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (running && !paused) {
+      fallT += dt;
+      if (fallT >= fallDur) land();
+      waterTick += dt;
+      let lost = 0;
+      while (waterTick >= 1 / 60) {
+        waterTick -= 1 / 60;
+        lost += stepWater();
+        lost += stepWater();
+      }
+      leak += lost;
+      const tot = updateHUD();
+      scoreAcc += dt * tot * 0.6;
+      if (scoreAcc >= 1) { score += Math.floor(scoreAcc); scoreAcc -= Math.floor(scoreAcc); }
+      if (leak >= LEAK_MAX) { updateHUD(); gameOver(); }
+    }
+    render(dt);
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- Input ---------- */
+
+  function cellAt(px, py) {
+    for (let s = 2 * (N - 1); s >= 0; s--) {
+      for (let x = N - 1; x >= 0; x--) {
+        const y = s - x;
+        if (y < 0 || y >= N) continue;
+        const i = idx(x, y);
+        const z = (hole[i] ? -0.6 : h[i]) + w[i];
+        const c = P(x + 0.5, y + 0.5, z);
+        const dx = Math.abs(px - c[0]) / (TW / 2);
+        const dy = Math.abs(py - c[1]) / (TW / 4);
+        if (dx + dy <= 1) return [x, y];
+      }
+    }
+    return null;
+  }
+
+
+  cv.addEventListener('pointerdown', function (e) {
+    if (!running || paused || !piece) return;
+    const r = cv.getBoundingClientRect();
+    const c = cellAt(e.clientX - r.left, e.clientY - r.top);
+    if (!c) return;
+    const b = bounds(piece.cells);
+    const cx = Math.floor(b[0] / 2), cy = Math.floor(b[1] / 2);
+    const nax = Math.max(0, Math.min(N - 1 - b[0], c[0] - cx));
+    const nay = Math.max(0, Math.min(N - 1 - b[1], c[1] - cy));
+    if (nax === piece.ax && nay === piece.ay) hardDrop();
+    else { piece.ax = nax; piece.ay = nay; }
+  });
+
+  window.addEventListener('keydown', function (e) {
+    const k = e.key;
+    if (k === 'p' || k === 'P') { togglePause(); e.preventDefault(); return; }
+    if (!running) {
+      if (k === 'Enter' || k === ' ') { start(); e.preventDefault(); }
+      return;
+    }
+    if (k === 'ArrowUp') move(-1, 0);
+    else if (k === 'ArrowDown') move(1, 0);
+    else if (k === 'ArrowLeft') move(0, 1);
+    else if (k === 'ArrowRight') move(0, -1);
+    else if (k === 'z' || k === 'Z') rotate(-1);
+    else if (k === 'x' || k === 'X') rotate(1);
+    else if (k === ' ') hardDrop();
+    else return;
+    e.preventDefault();
+  });
+
+  el('m-arriba-izq').addEventListener('click', function () { move(-1, 0); });
+  el('m-abajo-der').addEventListener('click', function () { move(1, 0); });
+  el('m-abajo-izq').addEventListener('click', function () { move(0, 1); });
+  el('m-arriba-der').addEventListener('click', function () { move(0, -1); });
+  el('btn-girar').addEventListener('click', function () { rotate(1); });
+  el('btn-soltar').addEventListener('click', hardDrop);
+  el('btn-pausa').addEventListener('click', togglePause);
+  el('btn-empezar').addEventListener('click', function () {
+    if (paused) togglePause(); else start();
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  reset();
+  updateHUD();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

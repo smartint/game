@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estación Veltri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: consola de exploración — escena gráfica + terminal de texto a la izquierda, instrumentos a la derecha. Un solo tema oscuro deliberado (casco de nave). */
+:root {
+  --void: #0a0c18;
+  --hull: #141a2e;
+  --hull-2: #1d2540;
+  --line: #2f3a5e;
+  --text: #ddd3bc;
+  --muted: #8f93a8;
+  --amber: #f0a640;
+  --glyph: #7fd6ca;
+  --danger: #ef6b5b;
+  --font-display: "Chakra Petch", "Trebuchet MS", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--void); color: var(--text); }
+body { margin: 0; font-family: var(--font-mono); font-size: 15px; line-height: 1.55; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.app {
+  max-width: 1200px; margin: 0 auto;
+  padding-inline: 16px; padding-block: 18px 28px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px;
+}
+.top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.top h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.5rem, 3.4vw, 2.2rem); letter-spacing: 0.14em; text-transform: uppercase; margin: 0; color: var(--amber); text-wrap: balance; }
+.top h1 span { color: var(--glyph); }
+.top p { margin: 0; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.04em; }
+
+.main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.scene { position: relative; border: 1px solid var(--line); background: var(--void); }
+.scene canvas { display: block; width: 100%; height: auto; aspect-ratio: 12 / 5; max-width: 100%; }
+.scene .room-tag { position: absolute; left: 10px; top: 8px; font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--amber); background: rgba(10, 12, 24, 0.75); padding: 2px 8px; border: 1px solid var(--line); }
+
+.log { height: 300px; overflow-y: auto; background: var(--hull); border: 1px solid var(--line); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.log p, .log div.blk { margin: 0; max-width: 72ch; }
+.log .cmd { color: var(--amber); }
+.log .cmd::before { content: "> "; }
+.log .room-title { font-family: var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber); font-weight: 700; margin-top: 4px; }
+.log .sys { color: var(--muted); font-size: 0.88rem; }
+.log .good { color: var(--glyph); }
+.log .bad { color: var(--danger); }
+.log b { color: var(--amber); font-weight: 600; }
+
+.prompt { display: flex; gap: 8px; }
+.prompt label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.prompt .caret { align-self: center; color: var(--amber); font-weight: 600; }
+.prompt input { flex: 1; min-width: 0; background: var(--void); border: 1px solid var(--line); padding: 9px 10px; color: var(--text); }
+.prompt button { background: var(--amber); color: var(--void); border: 0; padding: 0 16px; font-weight: 600; cursor: pointer; }
+
+.side { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.panel { border: 1px solid var(--line); background: var(--hull); padding: 10px 12px 12px; }
+.panel h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+
+.meters { display: grid; gap: 8px; }
+.meter { display: grid; grid-template-columns: 76px 1fr 44px; align-items: center; gap: 8px; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.meter .bar { height: 8px; background: var(--void); border: 1px solid var(--line); }
+.meter .fill { height: 100%; background: var(--glyph); transition: width .3s; }
+.meter.low .fill { background: var(--danger); }
+.meter .val { text-align: right; }
+
+.compass { display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 34px); gap: 4px; justify-content: center; }
+.compass button { background: var(--hull-2); border: 1px solid var(--line); cursor: pointer; font-family: var(--font-display); font-weight: 700; }
+.compass button:disabled { opacity: 0.25; cursor: default; }
+.compass .c-n { grid-column: 2; grid-row: 1; } .compass .c-o { grid-column: 1; grid-row: 2; }
+.compass .c-e { grid-column: 3; grid-row: 2; } .compass .c-s { grid-column: 2; grid-row: 3; }
+.compass .c-mid { grid-column: 2; grid-row: 2; display: grid; place-items: center; color: var(--muted); font-size: 0.7rem; }
+
+.verbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.verbs button, .chips button, .gpad button { background: var(--hull-2); border: 1px solid var(--line); padding: 6px 4px; cursor: pointer; font-size: 0.8rem; }
+.verbs button[aria-pressed="true"] { background: var(--amber); color: var(--void); border-color: var(--amber); }
+.verbs button:hover, .chips button:hover, .gpad button:hover, .compass button:not(:disabled):hover { border-color: var(--amber); }
+.hint-line { margin: 8px 0 0; font-size: 0.75rem; color: var(--muted); min-height: 1.2em; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { padding: 4px 9px; }
+.chips .inv { border-color: var(--glyph); color: var(--glyph); }
+.chips .empty { color: var(--muted); font-size: 0.8rem; }
+
+.gpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 38px); gap: 4px; }
+.gpad .g-up { grid-column: 2; grid-row: 1; } .gpad .g-left { grid-column: 1; grid-row: 2; }
+.gpad .g-right { grid-column: 3; grid-row: 2; } .gpad .g-down { grid-column: 2; grid-row: 3; }
+.gpad .g-reset { grid-column: 3; grid-row: 3; font-size: 0.7rem; color: var(--muted); }
+
+.gn { display: inline-flex; gap: 1px; vertical-align: -0.28em; color: var(--glyph); padding: 0 2px; }
+.gn svg { width: 1.25em; height: 1.25em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.wall-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px 12px; margin-top: 6px; }
+.wall-list span.dots { color: var(--muted); letter-spacing: 1px; font-size: 0.75rem; }
+.tab-list { display: grid; gap: 4px; margin-top: 6px; }
+
+.overlay { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.82); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.card { width: min(460px, 100%); background: var(--hull); border: 1px solid var(--amber); padding: 18px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
+.card h3 { margin: 0; font-family: var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); font-size: 1.05rem; }
+.card p { margin: 0; font-size: 0.88rem; }
+.kp-display { min-height: 52px; background: var(--void); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.kp-keys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.kp-keys button { background: var(--hull-2); border: 1px solid var(--line); height: 54px; cursor: pointer; font-size: 1.5rem; display: grid; place-items: center; }
+.kp-keys button:hover { border-color: var(--glyph); }
+.row-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.row-btns button { border: 1px solid var(--line); background: var(--hull-2); padding: 7px 14px; cursor: pointer; }
+.row-btns .primary { background: var(--amber); color: var(--void); border-color: var(--amber); font-weight: 600; }
+.prow { display: grid; grid-template-columns: 24px 1fr 64px; gap: 8px; align-items: center; }
+.prow .pnum { color: var(--muted); font-variant-numeric: tabular-nums; }
+.prow select { background: var(--void); border: 1px solid var(--line); padding: 8px; }
+.prow .opbtn { background: var(--void); border: 1px solid var(--line); height: 40px; cursor: pointer; font-size: 1.2rem; display: grid; place-items: center; }
+.prog-head { display: flex; justify-content: space-between; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+.trace { background: var(--void); border: 1px solid var(--line); padding: 8px 10px; font-size: 0.85rem; min-height: 3em; display: grid; gap: 3px; }
+.end-score { font-family: var(--font-display); font-size: 2.4rem; color: var(--glyph); letter-spacing: 0.08em; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .log { height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) { .meter .fill { transition: none; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Estación <span>Veltri</span></h1>
+    <p>Aventura de texto con gráficos · Escribe órdenes o usa los botones</p>
+  </header>
+
+  <main class="main">
+    <div class="scene">
+      <canvas id="scene" width="960" height="400" aria-label="Vista de la sala actual"></canvas>
+      <div class="room-tag" id="room-tag">Muelle</div>
+    </div>
+    <div class="log" id="log" aria-live="polite"></div>
+    <form class="prompt" id="prompt" autocomplete="off">
+      <label for="cmd">Orden</label>
+      <span class="caret">&gt;</span>
+      <input id="cmd" type="text" placeholder="p. ej.: examinar pared, norte, coger prisma…" spellcheck="false">
+      <button type="submit">Enviar</button>
+    </form>
+  </main>
+
+  <aside class="side">
+    <section class="panel">
+      <h2>Constantes</h2>
+      <div class="meters">
+        <div class="meter" id="m-o2"><span>Oxígeno</span><div class="bar"><div class="fill" id="o2-fill"></div></div><span class="val" id="o2-val">150</span></div>
+        <div class="meter"><span>Puntos</span><div class="bar"><div class="fill" id="pts-fill" style="background:var(--amber)"></div></div><span class="val" id="pts-val">0</span></div>
+        <div class="meter"><span>Turnos</span><span></span><span class="val" id="turn-val">0</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Rumbo</h2>
+      <div class="compass" id="compass">
+        <button type="button" class="c-n" data-dir="norte" aria-label="Norte">N</button>
+        <button type="button" class="c-o" data-dir="oeste" aria-label="Oeste">O</button>
+        <span class="c-mid">TÚ</span>
+        <button type="button" class="c-e" data-dir="este" aria-label="Este">E</button>
+        <button type="button" class="c-s" data-dir="sur" aria-label="Sur">S</button>
+      </div>
+    </section>
+
+    <section class="panel" id="gpanel" hidden>
+      <h2>Gravedad</h2>
+      <div class="gpad" id="gpad">
+        <button type="button" class="g-up" data-g="arriba" aria-label="Gravedad arriba">▲</button>
+        <button type="button" class="g-left" data-g="izquierda" aria-label="Gravedad izquierda">◀</button>
+        <button type="button" class="g-right" data-g="derecha" aria-label="Gravedad derecha">▶</button>
+        <button type="button" class="g-down" data-g="abajo" aria-label="Gravedad abajo">▼</button>
+        <button type="button" class="g-reset" data-g="reiniciar">Reiniciar</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Acciones</h2>
+      <div class="verbs" id="verbs">
+        <button type="button" data-verb="mirar">Mirar</button>
+        <button type="button" data-verb="examinar" aria-pressed="false">Examinar</button>
+        <button type="button" data-verb="coger" aria-pressed="false">Coger</button>
+        <button type="button" data-verb="usar" aria-pressed="false">Usar</button>
+        <button type="button" data-verb="abrir" aria-pressed="false">Abrir</button>
+        <button type="button" data-verb="entrar" aria-pressed="false">Entrar</button>
+        <button type="button" data-verb="inventario">Inventario</button>
+        <button type="button" data-verb="pista">Pista</button>
+        <button type="button" data-verb="ayuda">Ayuda</button>
+      </div>
+      <p class="hint-line" id="verb-hint">Elige una acción y luego un objeto.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Aquí ves</h2>
+      <div class="chips" id="chips-room"></div>
+      <h2 style="margin-top:12px">Llevas</h2>
+      <div class="chips" id="chips-inv"></div>
+    </section>
+  </aside>
+</div>
+
+<div class="overlay" id="kp" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="kp-title">
+    <h3 id="kp-title">Teclado de la puerta</h3>
+    <p>Pulsa los símbolos en orden, de izquierda a derecha, y envía.</p>
+    <div class="kp-display" id="kp-display"></div>
+    <div class="kp-keys" id="kp-keys"></div>
+    <div class="row-btns">
+      <button type="button" id="kp-close">Cerrar</button>
+      <button type="button" id="kp-del">Borrar</button>
+      <button type="button" class="primary" id="kp-send">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="pe" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="pe-title">
+    <h3 id="pe-title">Consola veltri</h3>
+    <div class="prog-head"><span>Registro inicial: <span id="pe-start"></span></span><span>Destino: <span id="pe-target"></span></span></div>
+    <p>Hasta cuatro órdenes. Cada orden es una palabra y un número. Toca el número para cambiarlo.</p>
+    <div id="pe-rows" style="display:grid;gap:6px"></div>
+    <div class="trace" id="pe-trace"><span class="sys" style="color:var(--muted)">Aún no has ejecutado nada.</span></div>
+    <div class="row-btns">
+      <button type="button" id="pe-close">Cerrar</button>
+      <button type="button" class="primary" id="pe-run">Ejecutar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="end-title">
+    <h3 id="end-title">Fin</h3>
+    <p id="end-text"></p>
+    <div class="end-score" id="end-score"></div>
+    <div class="row-btns"><button type="button" class="primary" id="end-restart">Empezar de nuevo</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Glifos veltri (base 5) ---------- */
+  const GLYPH_PATHS = [
+    "M10 4a6 6 0 1 0 0.01 0Z",
+    "M10 3V17M10 3l4 3",
+    "M4 4L10 16L16 4",
+    "M10 17V7M4 4v4c0 2.5 3 4 6 4s6-1.5 6-4V4",
+    "M10 3L17 10L10 17L3 10ZM10 7v6"
+  ];
+  const BASE = 5;
+  function toDigits(n) {
+    if (n === 0) return [0];
+    const d = [];
+    let v = n;
+    while (v > 0) { d.unshift(v % BASE); v = Math.floor(v / BASE); }
+    return d;
+  }
+  function svgGlyph(d) {
+    return '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="' + GLYPH_PATHS[d] + '"/></svg>';
+  }
+  function glyphNum(n) {
+    return '<span class="gn" role="img" aria-label="número veltri">' + toDigits(n).map(svgGlyph).join("") + "</span>";
+  }
+  function glyphDigits(arr) {
+    return '<span class="gn" role="img" aria-label="número veltri">' + arr.map(svgGlyph).join("") + "</span>";
+  }
+
+  /* ---------- Constantes del juego ---------- */
+  const O2_MAX = 150;
+  const PROG_START = 4;
+  const PROG_TARGET = 47;
+  const DOOR_SEQ = [3, 6, 9, 12];
+  const DOOR_ANSWER = 15;
+  const GMAP = [
+    "#########",
+    "#S..#...#",
+    "#.#.....#",
+    "#...#..P#",
+    "##.....##",
+    "#..#....#",
+    "#.....#.#",
+    "#########"
+  ];
+  const GSTART = { x: 1, y: 1 };
+  const GPRISM = { x: 7, y: 3 };
+  const GVEC = { arriba: [0, -1], abajo: [0, 1], izquierda: [-1, 0], derecha: [1, 0] };
+  const TABLET = [
+    ["kesh", 2, 3, 5], ["kesh", 4, 4, 8],
+    ["tul", 4, 1, 3], ["tul", 7, 3, 4],
+    ["vor", 2, 3, 6], ["vor", 4, 4, 16],
+    ["mek", 16, 3, 5], ["mek", 4, 2, 2]
+  ];
+
+  /* ---------- Estado ---------- */
+  let S;
+  function freshState() {
+    return {
+      room: "muelle", o2: O2_MAX, turns: 0, score: 0, inv: [], over: false,
+      f: { door: false, prism: false, powered: false, programmed: false, launched: false, warned30: false, warned15: false },
+      g: { x: GSTART.x, y: GSTART.y, dir: "abajo", moves: 0 },
+      gd: { x: GSTART.x, y: GSTART.y },
+      hint: {}, verb: null, kp: [], history: [], hpos: 0
+    };
+  }
+
+  /* ---------- Utilidades de texto ---------- */
+  const logEl = document.getElementById("log");
+  function say(html, cls) {
+    const el = document.createElement("p");
+    if (cls) el.className = cls;
+    el.innerHTML = html;
+    logEl.appendChild(el);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function block(html) {
+    const el = document.createElement("div");
+    el.className = "blk";
+    el.innerHTML = html;
+    logEl.appendChild(el);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function echo(t) {
+    const el = document.createElement("p");
+    el.className = "cmd";
+    el.textContent = t;
+    logEl.appendChild(el);
+  }
+  function norm(t) {
+    return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ\s]/g, " ").trim();
+  }
+  function addScore(n) { S.score += n; say("[+" + n + " puntos]", "sys"); }
+
+  /* ---------- Salas ---------- */
+  const ROOMS = {
+    muelle: {
+      name: "Muelle de atraque",
+      desc: function () {
+        return "Tu cápsula de un solo pasajero descansa junto a una nave veltri con forma de lágrima, cubierta por un polvo de miles de años. " +
+          (S.f.programmed ? "<b>La compuerta de la nave está abierta</b> y dentro brilla una luz cálida. " : "La compuerta de la nave está sellada. ") +
+          "En la pared parpadea un depósito de oxígeno compatible con tu traje. Al norte se abre un corredor.";
+      },
+      exits: function () { return { norte: "corredor" }; },
+      objects: {
+        capsula: {
+          label: "cápsula", names: ["capsula", "mi capsula", "tu capsula"],
+          examine: function () { return "Tu cápsula gastó casi todo el combustible en el viaje de ida. No te llevará de vuelta. Necesitarás otra nave."; }
+        },
+        nave: {
+          label: "nave", names: ["nave", "lagrima", "compuerta", "nave veltri"],
+          examine: function () {
+            return S.f.programmed
+              ? "La compuerta está abierta. Dentro hay un asiento demasiado largo para un humano y una pantalla con la ruta que trazaste. Puedes <b>entrar</b>."
+              : "La compuerta está sellada. Bajo ella hay un panel apagado, como si esperara la orden de algún ordenador de la estación.";
+          },
+          open: function () { return S.f.programmed ? "Ya está abierta. Puedes entrar." : "No tiene asa ni cerradura. Se abrirá cuando algo le dé la orden."; },
+          enter: function () { launch(); return null; }
+        },
+        deposito: {
+          label: "depósito", names: ["deposito", "oxigeno", "tanque", "o2"],
+          examine: function () { return "Un depósito de oxígeno. Puedes <b>usarlo</b> para rellenar tu traje."; },
+          use: function () { S.o2 = O2_MAX; S.f.warned30 = false; S.f.warned15 = false; return "Conectas la manguera. El traje silba y el indicador vuelve a llenarse."; }
+        }
+      }
+    },
+    corredor: {
+      name: "Corredor de glifos",
+      desc: function () {
+        return "Un pasillo estrecho y curvo. En la pared izquierda hay una hilera de símbolos tallados. " +
+          (S.f.door ? "Al fondo, <b>la puerta hexagonal está abierta</b> hacia el norte. " : "Al fondo, una puerta hexagonal cerrada con un panel luminoso y un teclado. ") +
+          "Al sur queda el muelle.";
+      },
+      exits: function () { return S.f.door ? { sur: "muelle", norte: "nexo" } : { sur: "muelle" }; },
+      blocked: { norte: "La puerta hexagonal está cerrada. Su panel espera una respuesta." },
+      objects: {
+        pared: {
+          label: "pared", names: ["pared", "simbolos", "glifos", "hilera", "inscripcion"],
+          examine: function () {
+            let html = "La hilera tiene doce grupos de símbolos. Bajo cada grupo alguien grabó una fila de puntos:<div class=\"wall-list\">";
+            for (let i = 1; i <= 12; i++) html += "<span>" + glyphNum(i) + ' <span class="dots">' + "•".repeat(i) + "</span></span>";
+            html += "</div>";
+            return { block: html };
+          }
+        },
+        puerta: {
+          label: "puerta", names: ["puerta", "panel", "teclado", "hexagono", "pantalla"],
+          examine: function () {
+            if (S.f.door) return "La puerta está abierta. El panel muestra ahora un único símbolo que no reconoces, quizá un saludo.";
+            return { block: "El panel muestra una secuencia: " + DOOR_SEQ.map(glyphNum).join(" ") + " <b>?</b><br>Debajo hay un teclado con cinco símbolos. Escribe <b>teclear</b> para usarlo." };
+          },
+          open: function () { return S.f.door ? "Ya está abierta." : "No cede. Tendrás que responder en el teclado (escribe <b>teclear</b>)."; },
+          use: function () { openKeypad(); return null; }
+        }
+      }
+    },
+    nexo: {
+      name: "Nexo",
+      desc: function () {
+        return "Una sala circular donde la gravedad es suave. Una esfera de metal flota en el centro, girando despacio. Sobre un pedestal descansa una tablilla grabada. " +
+          "Al este, un arco del que sale un zumbido grave. Al oeste, un arco con un brillo azulado. Al sur, el corredor.";
+      },
+      exits: function () { return { sur: "corredor", este: "gravedad", oeste: "ordenador" }; },
+      objects: {
+        esfera: {
+          label: "esfera", names: ["esfera", "bola"],
+          examine: function () { return "Gira sin tocar nada. Al acercarte notas que tu cuerpo se inclina hacia ella. Su masa crea su propia gravedad: aquí la física obedece a los Veltri."; },
+          take: function () { return "Pesa tanto que tus guantes resbalan. Ni lo intentes."; }
+        },
+        tablilla: {
+          label: "tablilla", names: ["tablilla", "pedestal", "tabla", "placa"],
+          examine: function () {
+            let html = "La tablilla tiene ocho líneas. Cada una lleva una palabra veltri, dos números y, tras una flecha, un resultado:<div class=\"tab-list\">";
+            TABLET.forEach(function (r) { html += "<span><b>" + r[0] + "</b> " + glyphNum(r[1]) + " " + glyphNum(r[2]) + " → " + glyphNum(r[3]) + "</span>"; });
+            html += "</div><span class=\"sys\">En una esquina, alguien rascó en tu idioma: «El ordenador del oeste entiende estas palabras».</span>";
+            return { block: html };
+          },
+          take: function () { return "Está fundida con el pedestal."; }
+        }
+      }
+    },
+    gravedad: {
+      name: "Sala de gravedad",
+      desc: function () {
+        return "Un cubo negro con nervios metálicos. Aquí «abajo» es lo que la sala decida. Cuatro flechas talladas en la pared responden a tus órdenes: <b>arriba</b>, <b>abajo</b>, <b>izquierda</b> y <b>derecha</b>. Al cambiar la gravedad caes en esa dirección hasta chocar con algo. " +
+          (S.f.prism ? "El nicho donde estaba el prisma está vacío. " : "En un nicho lejano brilla un <b>prisma</b>. ") +
+          "La escotilla de salida (oeste) está en la esquina donde entraste.";
+      },
+      exits: function () { return { oeste: "nexo" }; },
+      objects: {
+        prisma: {
+          label: "prisma", names: ["prisma", "cristal", "nicho"], visible: function () { return !S.f.prism; },
+          examine: function () { return "Un prisma triangular que emite una luz verdosa. Tiene la forma exacta de algo que encaja en una máquina."; },
+          take: function () { return "Está lejos. Tendrás que caer justo encima de él cambiando la gravedad."; }
+        },
+        flechas: {
+          label: "flechas", names: ["flechas", "flecha", "pared"],
+          examine: function () { return "Cuatro flechas talladas. Di una dirección (arriba, abajo, izquierda, derecha) o usa el panel de gravedad. Si te atascas, di <b>reiniciar</b>."; }
+        }
+      }
+    },
+    ordenador: {
+      name: "Cámara del ordenador",
+      desc: function () {
+        let t = "Una consola enorme ocupa la pared, con una pantalla curva. ";
+        if (!S.f.powered) t += "Está apagada. Bajo la pantalla hay una <b>ranura</b> con forma de prisma. ";
+        else if (!S.f.programmed) t += "El prisma brilla en su ranura y la pantalla muestra dos números. Escribe <b>programar</b> para usar la consola. ";
+        else t += "La pantalla muestra una ruta trazada entre estrellas. Algo en el muelle se ha puesto en marcha. ";
+        return t + "Al este, el nexo.";
+      },
+      exits: function () { return { este: "nexo" }; },
+      objects: {
+        consola: {
+          label: "consola", names: ["consola", "ordenador", "pantalla", "maquina"],
+          examine: function () {
+            if (!S.f.powered) return "Apagada. Le falta una fuente de energía. La ranura de abajo está vacía.";
+            if (S.f.programmed) return "La pantalla muestra " + glyphNum(PROG_TARGET) + " rodeado por un círculo. Misión cumplida.";
+            return { block: "La pantalla muestra " + glyphNum(PROG_START) + " a la izquierda y " + glyphNum(PROG_TARGET) + " a la derecha, unidos por una flecha. Debajo hay cuatro casillas vacías para órdenes. Escribe <b>programar</b>." };
+          },
+          use: function () { if (!S.f.powered) return "No responde. Está sin energía."; openEditor(); return null; }
+        },
+        ranura: {
+          label: "ranura", names: ["ranura", "hueco"],
+          examine: function () { return S.f.powered ? "El prisma encaja perfectamente y vibra." : "Una ranura triangular. Le falta algo con esa forma."; },
+          use: function () { return usePrism(); }
+        }
+      }
+    }
+  };
+  const INV_ITEMS = {
+    prisma: {
+      label: "prisma", names: ["prisma", "cristal"],
+      examine: function () { return "Un prisma triangular que emite una luz verdosa. Está tibio, como si guardara energía."; },
+      use: function () { return usePrism(); }
+    }
+  };
+
+  function usePrism() {
+    if (S.f.powered) return "El prisma ya está en su sitio.";
+    if (S.inv.indexOf("prisma") < 0) return "No tienes nada que encaje ahí.";
+    if (S.room !== "ordenador") return "Aquí no hay nada donde encaje el prisma.";
+    S.inv.splice(S.inv.indexOf("prisma"), 1);
+    S.f.powered = true;
+    addScore(10);
+    return "Metes el prisma en la ranura. Un pulso de luz recorre la consola y la pantalla se enciende con dos números veltri. Escribe <b>programar</b>.";
+  }
+
+  /* ---------- Turnos y oxígeno ---------- */
+  function tick() {
+    S.turns += 1;
+    S.o2 -= 1;
+    if (S.o2 <= 0) { S.o2 = 0; gameOver(false); return; }
+    if (S.o2 <= 15 && !S.f.warned15) { S.f.warned15 = true; say("¡ALERTA! Oxígeno crítico. Vuelve al depósito del muelle.", "bad"); }
+    else if (S.o2 <= 30 && !S.f.warned30) { S.f.warned30 = true; say("El traje pita: oxígeno bajo. El depósito está en el muelle.", "bad"); }
+  }
+
+  function describe() {
+    const r = ROOMS[S.room];
+    say(r.name, "room-title");
+    say(r.desc());
+  }
+
+  function move(dir) {
+    const r = ROOMS[S.room];
+    if (S.room === "gravedad" && dir === "oeste" && !(S.g.x === GSTART.x && S.g.y === GSTART.y)) {
+      say("Estás flotando lejos de la escotilla. Primero tienes que caer hasta la esquina por la que entraste.");
+      tick(); return;
+    }
+    const ex = r.exits();
+    if (!ex[dir]) {
+      say((r.blocked && r.blocked[dir]) || "No puedes ir hacia el " + dir + ".");
+      tick(); return;
+    }
+    S.room = ex[dir];
+    if (S.room === "gravedad") { S.g.x = GSTART.x; S.g.y = GSTART.y; S.gd.x = GSTART.x; S.gd.y = GSTART.y; S.g.dir = "abajo"; }
+    tick();
+    if (!S.over) describe();
+  }
+
+  /* ---------- Sala de gravedad ---------- */
+  function gravity(dir) {
+    if (dir === "reiniciar") {
+      S.g.x = GSTART.x; S.g.y = GSTART.y; S.g.dir = "abajo";
+      say("Las flechas se apagan un instante y la sala te devuelve, despacio, a la escotilla.");
+      tick(); return;
+    }
+    const v = GVEC[dir];
+    let x = S.g.x, y = S.g.y;
+    while (GMAP[y + v[1]][x + v[0]] !== "#") { x += v[0]; y += v[1]; }
+    S.g.dir = dir;
+    S.g.moves += 1;
+    if (x === S.g.x && y === S.g.y) {
+      say("La gravedad cambia hacia " + dir + ", pero ya estás pegado a esa pared. No te mueves.");
+    } else {
+      S.g.x = x; S.g.y = y;
+      let msg = "La sala gira. Caes hacia " + dir + " y te detienes contra una pared.";
+      if (!S.f.prism && x === GPRISM.x && y === GPRISM.y) {
+        S.f.prism = true; S.inv.push("prisma");
+        msg += " <b>¡Aterrizas sobre el prisma y lo guardas!</b> Ahora vuelve a la escotilla.";
+        say(msg, "good"); addScore(20); tick(); return;
+      }
+      if (x === GSTART.x && y === GSTART.y) msg += " Estás junto a la escotilla de salida (oeste).";
+      say(msg);
+    }
+    tick();
+  }
+
+  /* ---------- Teclado de la puerta ---------- */
+  const kpEl = document.getElementById("kp");
+  const kpDisplay = document.getElementById("kp-display");
+  const kpKeys = document.getElementById("kp-keys");
+  for (let d = 0; d < BASE; d++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.d = String(d); b.setAttribute("aria-label", "Símbolo " + (d + 1));
+    b.innerHTML = '<span class="gn">' + svgGlyph(d) + "</span>";
+    kpKeys.appendChild(b);
+  }
+  function renderKp() { kpDisplay.innerHTML = S.kp.length ? glyphDigits(S.kp) : '<span style="color:var(--muted);font-size:0.9rem">—</span>'; }
+  function openKeypad() {
+    if (S.room !== "corredor") { say("Aquí no hay ningún teclado."); return; }
+    if (S.f.door) { say("La puerta ya está abierta."); return; }
+    S.kp = []; renderKp(); kpEl.hidden = false; kpKeys.querySelector("button").focus();
+  }
+  function closeKeypad() { kpEl.hidden = true; document.getElementById("cmd").focus(); }
+  kpKeys.addEventListener("click", function (e) {
+    const b = e.target.closest("button"); if (!b) return;
+    if (S.kp.length < 4) S.kp.push(Number(b.dataset.d));
+    renderKp();
+  });
+  document.getElementById("kp-del").addEventListener("click", function () { S.kp.pop(); renderKp(); });
+  document.getElementById("kp-close").addEventListener("click", closeKeypad);
+  document.getElementById("kp-send").addEventListener("click", function () {
+    if (!S.kp.length) return;
+    const val = S.kp.reduce(function (a, d) { return a * BASE + d; }, 0);
+    const entered = glyphDigits(S.kp);
+    closeKeypad();
+    echo("teclear");
+    if (val === DOOR_ANSWER) {
+      S.f.door = true;
+      say("Tecleas " + entered + ". El panel se ilumina de arriba abajo y la puerta hexagonal se pliega sobre sí misma. <b>El paso al norte está abierto.</b>", "good");
+      addScore(15);
+    } else {
+      say("Tecleas " + entered + ". El panel emite un zumbido grave y la secuencia vuelve a parpadear. No era eso.", "bad");
+    }
+    tick(); refresh();
+  });
+
+  /* ---------- Editor del ordenador ---------- */
+  const peEl = document.getElementById("pe");
+  const peRows = document.getElementById("pe-rows");
+  const peTrace = document.getElementById("pe-trace");
+  const WORDS = ["kesh", "tul", "vor", "mek"];
+  for (let i = 0; i < 4; i++) {
+    const row = document.createElement("div");
+    row.className = "prow";
+    let opts = '<option value="">—</option>';
+    WORDS.forEach(function (w) { opts += '<option value="' + w + '">' + w + "</option>"; });
+    row.innerHTML = '<span class="pnum">' + (i + 1) + '</span><select id="pw' + i + '" aria-label="Palabra de la orden ' + (i + 1) + '">' + opts +
+      '</select><button type="button" class="opbtn" id="po' + i + '" data-v="1" aria-label="Número de la orden ' + (i + 1) + '">' + glyphNum(1) + "</button>";
+    peRows.appendChild(row);
+  }
+  peRows.addEventListener("click", function (e) {
+    const b = e.target.closest(".opbtn"); if (!b) return;
+    const v = (Number(b.dataset.v) + 1) % BASE;
+    b.dataset.v = String(v);
+    b.innerHTML = glyphNum(v);
+  });
+  document.getElementById("pe-start").innerHTML = glyphNum(PROG_START);
+  document.getElementById("pe-target").innerHTML = glyphNum(PROG_TARGET);
+  function openEditor() {
+    if (S.room !== "ordenador") { say("Aquí no hay ningún ordenador."); return; }
+    if (!S.f.powered) { say("La consola está apagada. Le falta energía."); return; }
+    if (S.f.programmed) { say("La ruta ya está trazada. No hace falta tocar nada más."); return; }
+    peEl.hidden = false; document.getElementById("pw0").focus();
+  }
+  function closeEditor() { peEl.hidden = true; document.getElementById("cmd").focus(); }
+  document.getElementById("pe-close").addEventListener("click", closeEditor);
+  document.getElementById("pe-run").addEventListener("click", function () {
+    const prog = [];
+    for (let i = 0; i < 4; i++) {
+      const w = document.getElementById("pw" + i).value;
+      if (w) prog.push([w, Number(document.getElementById("po" + i).dataset.v)]);
+    }
+    if (!prog.length) { peTrace.innerHTML = "<span>Elige al menos una palabra.</span>"; return; }
+    let r = PROG_START;
+    let html = "<span>Registro: " + glyphNum(r) + "</span>";
+    let err = "";
+    for (let k = 0; k < prog.length; k++) {
+      const w = prog[k][0], n = prog[k][1];
+      if (w === "kesh") r += n;
+      else if (w === "tul") r -= n;
+      else if (w === "vor") r *= n;
+      else if (w === "mek") { if (n === 0) { err = "La consola chirría: «mek» con " + glyphNum(0) + " no tiene sentido."; break; } r = Math.floor(r / n); }
+      if (r < 0) { err = "La consola chirría: el registro no puede bajar de " + glyphNum(0) + "."; break; }
+      html += "<span><b>" + w + "</b> " + glyphNum(n) + " → " + glyphNum(r) + "</span>";
+    }
+    if (err) html += '<span style="color:var(--danger)">' + err + "</span>";
+    const ok = !err && r === PROG_TARGET;
+    if (!err && !ok) html += '<span style="color:var(--danger)">El resultado no coincide con el destino.</span>';
+    if (ok) html += '<span style="color:var(--glyph)">¡Coincide! La pantalla dibuja una ruta.</span>';
+    peTrace.innerHTML = html;
+    tick();
+    if (ok) {
+      S.f.programmed = true;
+      say("La consola acepta tu programa. La pantalla traza una ruta entre estrellas y, muy lejos, en el muelle, oyes un siseo: <b>una compuerta se abre</b>.", "good");
+      addScore(30);
+      setTimeout(closeEditor, 1400);
+    }
+    refresh();
+  });
+
+  /* ---------- Final ---------- */
+  function launch() {
+    if (!S.f.programmed) { say("La compuerta está sellada."); tick(); return; }
+    S.f.launched = true;
+    addScore(25);
+    say("Te tumbas en el asiento veltri. La compuerta se cierra, la nave tiembla y la estación se encoge en la ventana hasta ser un punto de luz.", "good");
+    S.over = true;
+    showEnd(true);
+  }
+  function gameOver() {
+    S.over = true;
+    say("El indicador de oxígeno llega a cero. Todo se vuelve gris…", "bad");
+    showEnd(false);
+  }
+  function showEnd(win) {
+    document.getElementById("end-title").textContent = win ? "Despegue" : "Sin oxígeno";
+    document.getElementById("end-text").textContent = win
+      ? "Has descifrado la forma de contar de los Veltri, has dominado su gravedad y has programado su máquina. La ruta te lleva de vuelta. Turnos usados: " + S.turns + "."
+      : "La estación se queda con un visitante más. Puedes volver a intentarlo: ahora sabes más que antes.";
+    document.getElementById("end-score").textContent = S.score + " / 100";
+    document.getElementById("end").hidden = false;
+    refresh();
+    document.getElementById("end-restart").focus();
+  }
+  document.getElementById("end-restart").addEventListener("click", function () {
+    document.getElementById("end").hidden = true;
+    start();
+  });
+
+  /* ---------- Pistas ---------- */
+  function hints() {
+    if (!S.f.door) return ["puerta", [
+      "La pared del corredor cuenta algo. Examínala con calma y compárala con el panel de la puerta.",
+      "Los puntos bajo cada símbolo dicen su valor. Fíjate en cuándo aparecen números de dos símbolos: los Veltri cuentan en grupos de cinco.",
+      "El panel muestra 3, 6, 9, 12… El siguiente es 15: tres grupos de cinco y ninguno suelto. Busca en la pared cómo se escribe el 3 y cómo el 0."
+    ]];
+    if (!S.f.prism) return ["prisma", [
+      "En la sala del este puedes cambiar la gravedad. Caes en línea recta hasta chocar con una pared.",
+      "Solo coges el prisma si te detienes justo encima. Después tienes que volver a detenerte en la esquina de la escotilla.",
+      "Empieza así: derecha, abajo, derecha, arriba, derecha, abajo… La solución completa tiene catorce cambios."
+    ]];
+    if (!S.f.powered) return ["energia", [
+      "La consola de la sala del oeste está apagada.",
+      "El prisma tiene la forma de la ranura de la consola. Escribe «usar prisma» en esa sala."
+    ]];
+    if (!S.f.programmed) return ["programa", [
+      "La tablilla del nexo enseña cuatro palabras con ejemplos. Traduce los números a nuestro sistema y compara.",
+      "kesh suma, tul resta, vor multiplica y mek divide sin decimales.",
+      "Empiezas con 4 y necesitas 47 (en veltri, uno-cuatro-dos). Multiplica dos veces y ajusta al final."
+    ]];
+    return ["nave", ["Vuelve al muelle. La nave veltri tiene la compuerta abierta: entra en ella."]];
+  }
+  function giveHint() {
+    const h = hints();
+    const lv = S.hint[h[0]] || 0;
+    const list = h[1];
+    say("Pista: " + list[Math.min(lv, list.length - 1)], "sys");
+    S.hint[h[0]] = lv + 1;
+  }
+
+  /* ---------- Parser ---------- */
+  const DIRS = { n: "norte", norte: "norte", s: "sur", sur: "sur", e: "este", este: "este", o: "oeste", oeste: "oeste" };
+  const GDIRS = { arriba: "arriba", sube: "arriba", abajo: "abajo", baja: "abajo", izquierda: "izquierda", izq: "izquierda", derecha: "derecha", der: "derecha", reiniciar: "reiniciar" };
+  const STOP = new Set(["el", "la", "los", "las", "un", "una", "al", "del", "de", "a", "en", "con", "mi", "hacia", "por"]);
+  const VERBS = {
+    mirar: "look", m: "look", ver: "look", l: "look",
+    examinar: "examine", x: "examine", leer: "examine", observar: "examine", inspeccionar: "examine", mira: "examine",
+    coger: "take", tomar: "take", recoger: "take", agarrar: "take", coge: "take", toma: "take",
+    usar: "use", usa: "use", meter: "use", insertar: "use", poner: "use", conectar: "use", rellenar: "refill", respirar: "refill",
+    abrir: "open", abre: "open", entrar: "enter", entra: "enter", subir: "enter",
+    inventario: "inv", i: "inv", inv: "inv",
+    teclear: "keypad", pulsar: "keypad", introducir: "keypad", escribir: "keypad",
+    programar: "program", ejecutar: "program",
+    pista: "hint", ayuda: "help", puntos: "score", salir: "exit"
+  };
+  const MOVE_VERBS = new Set(["ir", "ve", "camina", "caminar", "andar", "avanzar", "voy"]);
+
+  function findObj(words) {
+    const phrase = words.join(" ");
+    const r = ROOMS[S.room];
+    const pools = [];
+    Object.keys(r.objects).forEach(function (k) {
+      const o = r.objects[k];
+      if (!o.visible || o.visible()) pools.push(o);
+    });
+    S.inv.forEach(function (k) { pools.push(INV_ITEMS[k]); });
+    for (let i = 0; i < pools.length; i++) {
+      const o = pools[i];
+      if (o.names.some(function (n) { return phrase.indexOf(n) >= 0 || words.indexOf(n) >= 0; })) return o;
+    }
+    return null;
+  }
+  function out(res) {
+    if (res == null) return;
+    if (typeof res === "object") block(res.block); else say(res);
+  }
+
+  function exec(raw) {
+    if (S.over) return;
+    const clean = norm(raw);
+    if (!clean) return;
+    echo(raw);
+    const words = clean.split(/\s+/).filter(function (w) { return !STOP.has(w); });
+    if (!words.length) { say("¿Perdón?"); return; }
+    const v = words[0];
+    const rest = words.slice(1);
+
+    if (DIRS[v] && rest.length === 0) { move(DIRS[v]); refresh(); return; }
+    if (MOVE_VERBS.has(v) && DIRS[rest[0]]) { move(DIRS[rest[0]]); refresh(); return; }
+    if (S.room === "gravedad") {
+      if (GDIRS[v] && rest.length === 0) { gravity(GDIRS[v]); refresh(); return; }
+      if ((v === "gravedad" || MOVE_VERBS.has(v) || v === "caer") && GDIRS[rest[0]]) { gravity(GDIRS[rest[0]]); refresh(); return; }
+    } else if (GDIRS[v] || v === "gravedad") {
+      say("Aquí la gravedad no obedece tus órdenes. Eso solo pasa en la sala del este del nexo."); refresh(); return;
+    }
+
+    const act = VERBS[v];
+    const obj = rest.length ? findObj(rest) : null;
+    switch (act) {
+      case "look":
+        if (rest.length && obj) { out(obj.examine()); tick(); break; }
+        describe(); tick(); break;
+      case "examine":
+        if (!rest.length) { say("¿Qué quieres examinar?"); break; }
+        if (!obj) { say("No ves eso por aquí."); break; }
+        out(obj.examine()); tick(); break;
+      case "take":
+        if (!rest.length) { say("¿Qué quieres coger?"); break; }
+        if (!obj) { say("No ves eso por aquí."); break; }
+        if (S.inv.some(function (k) { return INV_ITEMS[k] === obj; })) { say("Ya lo llevas."); break; }
+        say(obj.take ? obj.take() : "No puedes llevarte eso."); tick(); break;
+      case "use":
+        if (!rest.length) { say("¿Qué quieres usar?"); break; }
+        if (!obj) { say("No ves eso por aquí."); break; }
+        if (rest.indexOf("ranura") >= 0 || rest.indexOf("consola") >= 0) {
+          if (rest.indexOf("prisma") >= 0) { say(usePrism()); tick(); break; }
+        }
+        if (obj.use) { out(obj.use()); } else say("No sabes cómo usar eso.");
+        if (!S.over) tick();
+        break;
+      case "refill":
+        if (S.room !== "muelle") { say("El único depósito de oxígeno está en el muelle."); break; }
+        say(ROOMS.muelle.objects.deposito.use()); tick(); break;
+      case "open":
+        if (!rest.length) { say("¿Qué quieres abrir?"); break; }
+        if (!obj) { say("No ves eso por aquí."); break; }
+        say(obj.open ? obj.open() : "No se puede abrir."); tick(); break;
+      case "enter":
+        if (S.room === "muelle") { launch(); break; }
+        say("Aquí no hay nada en lo que entrar."); break;
+      case "inv":
+        say(S.inv.length ? "Llevas: " + S.inv.map(function (k) { return INV_ITEMS[k].label; }).join(", ") + ". Y tu traje, claro." : "No llevas nada salvo tu traje.");
+        break;
+      case "keypad":
+        openKeypad(); break;
+      case "program":
+        openEditor(); break;
+      case "hint":
+        giveHint(); break;
+      case "help":
+        say("Órdenes útiles: <b>norte/sur/este/oeste</b> (o n, s, e, o), <b>mirar</b>, <b>examinar</b> algo, <b>coger</b>, <b>usar</b>, <b>abrir</b>, <b>entrar</b>, <b>inventario</b>, <b>teclear</b>, <b>programar</b>, <b>pista</b>. En la sala de gravedad: <b>arriba, abajo, izquierda, derecha, reiniciar</b>. Cada acción gasta una unidad de oxígeno.", "sys");
+        break;
+      case "score":
+        say("Llevas " + S.score + " de 100 puntos en " + S.turns + " turnos.", "sys"); break;
+      case "exit": {
+        const ex = Object.keys(ROOMS[S.room].exits());
+        if (ex.length === 1) move(ex[0]); else say("¿Hacia dónde? Hay salidas al " + ex.join(", ") + ".");
+        break;
+      }
+      default:
+        say("No entiendo «" + v + "». Escribe <b>ayuda</b> para ver las órdenes.");
+    }
+    refresh();
+  }
+
+  /* ---------- Interfaz lateral ---------- */
+  const cmdEl = document.getElementById("cmd");
+  const chipsRoom = document.getElementById("chips-room");
+  const chipsInv = document.getElementById("chips-inv");
+  const verbHint = document.getElementById("verb-hint");
+  function setVerb(v) {
+    S.verb = v;
+    document.querySelectorAll("#verbs button[aria-pressed]").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.verb === v ? "true" : "false");
+    });
+    verbHint.textContent = v ? "«" + v + "»… ahora elige un objeto." : "Elige una acción y luego un objeto.";
+  }
+  function refresh() {
+    const r = ROOMS[S.room];
+    document.getElementById("room-tag").textContent = r.name;
+    const ex = r.exits();
+    document.querySelectorAll("#compass button").forEach(function (b) {
+      const d = b.dataset.dir;
+      b.disabled = S.over || !(ex[d] || (r.blocked && r.blocked[d]));
+    });
+    document.getElementById("gpanel").hidden = S.room !== "gravedad";
+    const o2 = Math.max(0, S.o2);
+    document.getElementById("o2-fill").style.width = (o2 / O2_MAX * 100) + "%";
+    document.getElementById("o2-val").textContent = String(o2);
+    document.getElementById("m-o2").classList.toggle("low", o2 <= 30);
+    document.getElementById("pts-fill").style.width = S.score + "%";
+    document.getElementById("pts-val").textContent = String(S.score);
+    document.getElementById("turn-val").textContent = String(S.turns);
+    chipsRoom.innerHTML = "";
+    Object.keys(r.objects).forEach(function (k) {
+      const o = r.objects[k];
+      if (o.visible && !o.visible()) return;
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = o.label; b.dataset.obj = o.names[0];
+      chipsRoom.appendChild(b);
+    });
+    chipsInv.innerHTML = "";
+    if (!S.inv.length) chipsInv.innerHTML = '<span class="empty">Nada</span>';
+    S.inv.forEach(function (k) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "inv"; b.textContent = INV_ITEMS[k].label; b.dataset.obj = INV_ITEMS[k].names[0];
+      chipsInv.appendChild(b);
+    });
+    dirty = true;
+  }
+
+  document.getElementById("prompt").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const t = cmdEl.value;
+    if (t.trim()) { S.history.push(t); S.hpos = S.history.length; }
+    cmdEl.value = "";
+    exec(t);
+  });
+  cmdEl.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowUp" && S.history.length) { S.hpos = Math.max(0, S.hpos - 1); cmdEl.value = S.history[S.hpos]; e.preventDefault(); }
+    else if (e.key === "ArrowDown" && S.history.length) { S.hpos = Math.min(S.history.length, S.hpos + 1); cmdEl.value = S.history[S.hpos] || ""; e.preventDefault(); }
+  });
+  document.getElementById("compass").addEventListener("click", function (e) {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    exec(b.dataset.dir);
+  });
+  document.getElementById("gpad").addEventListener("click", function (e) {
+    const b = e.target.closest("button"); if (!b) return;
+    exec(b.dataset.g);
+  });
+  document.getElementById("verbs").addEventListener("click", function (e) {
+    const b = e.target.closest("button"); if (!b) return;
+    const v = b.dataset.verb;
+    if (b.hasAttribute("aria-pressed")) {
+      if (v === "entrar" && S.room === "muelle") { setVerb(null); exec("entrar nave"); return; }
+      setVerb(S.verb === v ? null : v);
+      return;
+    }
+    setVerb(null);
+    exec(v);
+  });
+  function chipClick(e) {
+    const b = e.target.closest("button"); if (!b) return;
+    const v = S.verb || "examinar";
+    setVerb(null);
+    exec(v + " " + b.dataset.obj);
+  }
+  chipsRoom.addEventListener("click", chipClick);
+  chipsInv.addEventListener("click", chipClick);
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (!kpEl.hidden) closeKeypad();
+    if (!peEl.hidden) closeEditor();
+  });
+
+  /* ---------- Escena gráfica ---------- */
+  const cv = document.getElementById("scene");
+  const ctx = cv.getContext("2d");
+  const W = 960, H = 400;
+  const css = getComputedStyle(document.documentElement);
+  const C = {};
+  ["void", "hull", "hull-2", "line", "text", "muted", "amber", "glyph", "danger"].forEach(function (k) { C[k] = css.getPropertyValue("--" + k).trim(); });
+  const PATHS = GLYPH_PATHS.map(function (d) { return new Path2D(d); });
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let dirty = true;
+  let seed = 7;
+  function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  const STARS = [];
+  for (let i = 0; i < 90; i++) STARS.push({ x: rnd(), y: rnd(), z: 0.3 + rnd() * 0.7 });
+
+  function glyphsAt(n, x, y, size, color, lw) {
+    const digits = Array.isArray(n) ? n : toDigits(n);
+    const s = size / 20;
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = (lw || 2) / s; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    digits.forEach(function (d, i) {
+      ctx.save(); ctx.translate(x + i * size * 0.95, y); ctx.scale(s, s); ctx.stroke(PATHS[d]); ctx.restore();
+    });
+    ctx.restore();
+    return digits.length * size * 0.95;
+  }
+  function bg() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, C.hull); g.addColorStop(1, C.void);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  function floor(vy) {
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 22, vy); ctx.lineTo(W / 2 + i * 150, H); ctx.stroke(); }
+    for (let k = 0; k <= 6; k++) { const y = vy + (H - vy) * Math.pow(k / 6, 1.8); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  }
+  function starfield(t, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = "#04050b"; ctx.fillRect(x, y, w, h);
+    STARS.forEach(function (s) {
+      const sx = x + ((s.x * w + t * 0.008 * s.z) % w);
+      const sy = y + s.y * h;
+      ctx.globalAlpha = 0.4 + s.z * 0.6;
+      ctx.fillStyle = s.z > 0.85 ? C.amber : C.text;
+      ctx.fillRect(sx, sy, s.z * 2, s.z * 2);
+    });
+    ctx.restore();
+  }
+  function glow(x, y, r, color, a) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
+  }
+
+  function drawMuelle(t) {
+    bg();
+    starfield(t, 300, 36, 360, 120);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 6; ctx.strokeRect(300, 36, 360, 120);
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(480, 36); ctx.lineTo(480, 156); ctx.stroke();
+    floor(240);
+    // cápsula
+    ctx.fillStyle = C["hull-2"]; ctx.strokeStyle = C.muted; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(200, 285, 120, 52, -0.05, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.void; ctx.beginPath(); ctx.ellipse(250, 272, 30, 18, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.muted; ctx.font = "600 13px 'IBM Plex Mono', monospace"; ctx.fillText("UNE-7", 140, 292);
+    // nave veltri
+    const sg = ctx.createLinearGradient(520, 180, 820, 310);
+    sg.addColorStop(0, "#1f3b45"); sg.addColorStop(1, "#0f1a26");
+    ctx.fillStyle = sg; ctx.strokeStyle = C.glyph; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(520, 300);
+    ctx.bezierCurveTo(515, 190, 700, 165, 840, 255);
+    ctx.bezierCurveTo(860, 270, 840, 305, 800, 308);
+    ctx.lineTo(540, 310); ctx.closePath(); ctx.fill(); ctx.stroke();
+    glyphsAt([3, 1, 4, 0, 2], 560, 215, 16, "rgba(127,214,202,0.55)", 1.6);
+    if (S.f.programmed) {
+      const p = reduce ? 0.7 : 0.55 + Math.sin(t / 400) * 0.2;
+      glow(690, 272, 70, C.amber, p);
+      ctx.fillStyle = C.amber; ctx.fillRect(665, 248, 50, 52);
+    } else {
+      ctx.strokeStyle = C.glyph; ctx.strokeRect(665, 248, 50, 52);
+      ctx.beginPath(); ctx.moveTo(690, 248); ctx.lineTo(690, 300); ctx.stroke();
+    }
+    // depósito de oxígeno
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 2; ctx.strokeRect(880, 110, 44, 120);
+    const lvl = Math.max(0, S.o2) / O2_MAX;
+    ctx.fillStyle = lvl > 0.2 ? C.glyph : C.danger; ctx.globalAlpha = 0.75;
+    ctx.fillRect(884, 114 + 112 * (1 - lvl), 36, 112 * lvl); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.muted; ctx.font = "600 12px 'IBM Plex Mono', monospace"; ctx.fillText("O₂", 892, 248);
+  }
+
+  function drawCorredor(t) {
+    bg();
+    const vx = 480, vy = 200;
+    ctx.fillStyle = "rgba(29,37,64,0.6)";
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(370, 120); ctx.lineTo(370, 300); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W, 0); ctx.lineTo(590, 120); ctx.lineTo(590, 300); ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1.5;
+    [[0, 0], [W, 0], [0, H], [W, H]].forEach(function (p) { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(vx + (p[0] ? 110 : -110), vy + (p[1] ? 100 : -80)); ctx.stroke(); });
+    for (let k = 1; k <= 4; k++) {
+      const f = k / 5;
+      ctx.strokeRect(f * 370, f * 120, W - f * 740, H - f * 120 - f * (H - 300));
+    }
+    // inscripción de la pared
+    let x = 18;
+    for (let n = 1; n <= 12; n++) {
+      const w = glyphsAt(n, x, 150, 13, C.glyph, 1.6);
+      ctx.fillStyle = C.muted;
+      for (let d = 0; d < n; d++) ctx.fillRect(x + (d % 6) * 3.5, 170 + Math.floor(d / 6) * 4, 2, 2);
+      x += Math.max(w, 22) + 7;
+    }
+    // puerta hexagonal
+    const r = 82, cx = 480, cy = 222;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+    ctx.closePath();
+    if (S.f.door) {
+      const g = ctx.createRadialGradient(cx, cy, 5, cx, cy, r);
+      g.addColorStop(0, "#3a5b6a"); g.addColorStop(1, C.void);
+      ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = C.glyph; ctx.lineWidth = 3; ctx.stroke();
+      glow(cx, cy, 90, C.glyph, reduce ? 0.25 : 0.2 + Math.sin(t / 700) * 0.08);
+    } else {
+      ctx.fillStyle = C["hull-2"]; ctx.fill(); ctx.strokeStyle = C.muted; ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+      // panel con la secuencia
+      ctx.fillStyle = C.void; ctx.fillRect(372, 92, 216, 40); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.strokeRect(372, 92, 216, 40);
+      let px = 382;
+      DOOR_SEQ.forEach(function (n) { px += glyphsAt(n, px, 102, 18, C.glyph, 2) + 12; });
+      const blink = reduce || Math.floor(t / 600) % 2 === 0;
+      if (blink) { ctx.fillStyle = C.amber; ctx.font = "700 24px 'Chakra Petch', sans-serif"; ctx.fillText("?", px + 2, 121); }
+    }
+  }
+
+  function drawNexo(t) {
+    bg();
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(480, 330, 400 - i * 80, 60 - i * 12, 0, 0, Math.PI * 2); ctx.stroke(); }
+    function arch(x, color, a) {
+      ctx.fillStyle = C.void; ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x - 50, 320); ctx.lineTo(x - 50, 150); ctx.arc(x, 150, 50, Math.PI, 0); ctx.lineTo(x + 50, 320); ctx.closePath(); ctx.fill(); ctx.stroke();
+      glow(x, 230, 80, color, a);
+    }
+    arch(110, C.glyph, 0.22);
+    arch(850, C.amber, reduce ? 0.2 : 0.15 + Math.abs(Math.sin(t / 300)) * 0.12);
+    const sy = 160 + (reduce ? 0 : Math.sin(t / 900) * 9);
+    const g = ctx.createRadialGradient(462, sy - 20, 6, 480, sy, 60);
+    g.addColorStop(0, "#c9cfdd"); g.addColorStop(0.5, "#56607d"); g.addColorStop(1, "#1a2036");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(480, sy, 58, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.glyph; ctx.lineWidth = 1.5;
+    const rot = reduce ? 0.3 : t / 2400;
+    ctx.beginPath(); ctx.ellipse(480, sy, 92, 18, Math.sin(rot) * 0.4, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.3; ctx.fillStyle = C.void; ctx.beginPath(); ctx.ellipse(480, 330, 60, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    // pedestal y tablilla
+    ctx.fillStyle = C["hull-2"]; ctx.strokeStyle = C.muted; ctx.lineWidth = 2;
+    ctx.fillRect(655, 250, 40, 80); ctx.strokeRect(655, 250, 40, 80);
+    ctx.save(); ctx.translate(675, 245); ctx.rotate(-0.12);
+    ctx.fillStyle = "#2a3049"; ctx.fillRect(-48, -30, 96, 34); ctx.strokeRect(-48, -30, 96, 34);
+    ctx.strokeStyle = C.glyph; ctx.lineWidth = 1;
+    for (let l = 0; l < 4; l++) { ctx.beginPath(); ctx.moveTo(-40, -22 + l * 7); ctx.lineTo(28 - (l % 2) * 14, -22 + l * 7); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawGravedad(t) {
+    ctx.fillStyle = "#06070f"; ctx.fillRect(0, 0, W, H);
+    const cs = 40, ox = (W - GMAP[0].length * cs) / 2 - 60, oy = (H - GMAP.length * cs) / 2;
+    for (let y = 0; y < GMAP.length; y++) {
+      for (let x = 0; x < GMAP[0].length; x++) {
+        const px = ox + x * cs, py = oy + y * cs;
+        if (GMAP[y][x] === "#") {
+          ctx.fillStyle = C["hull-2"]; ctx.fillRect(px, py, cs, cs);
+          ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, cs - 1, cs - 1);
+        } else {
+          ctx.fillStyle = C.void; ctx.fillRect(px, py, cs, cs);
+          ctx.fillStyle = C.line; ctx.fillRect(px + cs / 2 - 1, py + cs / 2 - 1, 2, 2);
+        }
+      }
+    }
+    // escotilla
+    const ex = ox + GSTART.x * cs, ey = oy + GSTART.y * cs;
+    ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.strokeRect(ex + 4, ey + 4, cs - 8, cs - 8); ctx.setLineDash([]);
+    ctx.fillStyle = C.amber; ctx.fillRect(ox - 6, ey + 8, 6, cs - 16);
+    // prisma
+    if (!S.f.prism) {
+      const px = ox + GPRISM.x * cs + cs / 2, py = oy + GPRISM.y * cs + cs / 2;
+      glow(px, py, 34, C.glyph, 0.35);
+      ctx.save(); ctx.translate(px, py); ctx.rotate(reduce ? 0 : t / 900);
+      ctx.fillStyle = C.glyph; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(10, 8); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    // jugador (posición suavizada)
+    const k = reduce ? 1 : 0.22;
+    S.gd.x += (S.g.x - S.gd.x) * k; S.gd.y += (S.g.y - S.gd.y) * k;
+    if (Math.abs(S.g.x - S.gd.x) < 0.01) S.gd.x = S.g.x;
+    if (Math.abs(S.g.y - S.gd.y) < 0.01) S.gd.y = S.g.y;
+    const jx = ox + S.gd.x * cs + cs / 2, jy = oy + S.gd.y * cs + cs / 2;
+    ctx.fillStyle = C.amber; ctx.beginPath(); ctx.arc(jx, jy, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.void; ctx.beginPath(); ctx.ellipse(jx + 3, jy - 2, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // indicador de gravedad
+    const ix = ox + GMAP[0].length * cs + 110, iy = H / 2;
+    ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ix, iy, 56, 0, Math.PI * 2); ctx.stroke();
+    const ang = { abajo: Math.PI / 2, arriba: -Math.PI / 2, izquierda: Math.PI, derecha: 0 }[S.g.dir];
+    ctx.save(); ctx.translate(ix, iy); ctx.rotate(ang);
+    ctx.fillStyle = C.glyph; ctx.beginPath(); ctx.moveTo(42, 0); ctx.lineTo(10, -20); ctx.lineTo(10, -8); ctx.lineTo(-36, -8); ctx.lineTo(-36, 8); ctx.lineTo(10, 8); ctx.lineTo(10, 20); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = C.muted; ctx.font = "600 13px 'IBM Plex Mono', monospace"; ctx.textAlign = "center";
+    ctx.fillText("GRAVEDAD", ix, iy + 82);
+    ctx.fillText("cambios: " + S.g.moves, ix, iy + 100);
+    ctx.textAlign = "left";
+    if (S.gd.x !== S.g.x || S.gd.y !== S.g.y) dirty = true;
+  }
+
+  function drawOrdenador(t) {
+    bg();
+    floor(300);
+    ctx.fillStyle = C["hull-2"]; ctx.strokeStyle = C.line; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(160, 270); ctx.lineTo(800, 270); ctx.lineTo(860, 340); ctx.lineTo(100, 340); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#070912"; ctx.strokeStyle = S.f.powered ? C.glyph : C.line; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(200, 50); ctx.quadraticCurveTo(480, 30, 760, 50); ctx.lineTo(760, 240); ctx.quadraticCurveTo(480, 255, 200, 240); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (S.f.powered) {
+      ctx.save(); ctx.clip();
+      ctx.globalAlpha = 0.08; ctx.fillStyle = C.glyph;
+      for (let y = 40; y < 250; y += 4) ctx.fillRect(200, y, 560, 1);
+      ctx.globalAlpha = 1;
+      if (S.f.programmed) {
+        ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.beginPath();
+        const pts = [[250, 200], [330, 120], [430, 160], [540, 90], [700, 130]];
+        pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+        pts.forEach(function (p) { ctx.fillStyle = C.text; ctx.beginPath(); ctx.arc(p[0], p[1], 4, 0, Math.PI * 2); ctx.fill(); });
+        glyphsAt(PROG_TARGET, 600, 180, 28, C.glyph, 2.4);
+        ctx.strokeStyle = C.glyph; ctx.beginPath(); ctx.arc(640, 194, 46, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        glyphsAt(PROG_START, 300, 115, 44, C.glyph, 2.6);
+        ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(390, 140); ctx.lineTo(500, 140); ctx.lineTo(486, 128); ctx.moveTo(500, 140); ctx.lineTo(486, 152); ctx.stroke();
+        glyphsAt(PROG_TARGET, 540, 115, 44, C.glyph, 2.6);
+        for (let i = 0; i < 4; i++) {
+          ctx.strokeStyle = C.line; ctx.strokeRect(290 + i * 100, 195, 80, 26);
+          if (!reduce && i === Math.floor(t / 500) % 4) { ctx.fillStyle = "rgba(240,166,64,0.25)"; ctx.fillRect(291 + i * 100, 196, 78, 24); }
+        }
+      }
+      ctx.restore();
+    }
+    ctx.fillStyle = C.void; ctx.strokeStyle = C.muted; ctx.lineWidth = 2; ctx.fillRect(450, 285, 60, 20); ctx.strokeRect(450, 285, 60, 20);
+    if (S.f.powered) {
+      glow(480, 295, 50, C.glyph, reduce ? 0.4 : 0.3 + Math.sin(t / 350) * 0.12);
+      ctx.fillStyle = C.glyph; ctx.beginPath(); ctx.moveTo(480, 287); ctx.lineTo(490, 303); ctx.lineTo(470, 303); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  const DRAW = { muelle: drawMuelle, corredor: drawCorredor, nexo: drawNexo, gravedad: drawGravedad, ordenador: drawOrdenador };
+  function frame(t) {
+    if (!reduce || dirty) {
+      dirty = false;
+      ctx.clearRect(0, 0, W, H);
+      DRAW[S.room](t || 0);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Arranque ---------- */
+  function start() {
+    S = freshState();
+    logEl.innerHTML = "";
+    for (let i = 0; i < 4; i++) {
+      document.getElementById("pw" + i).value = "";
+      const b = document.getElementById("po" + i); b.dataset.v = "1"; b.innerHTML = glyphNum(1);
+    }
+    peTrace.innerHTML = '<span style="color:var(--muted)">Aún no has ejecutado nada.</span>';
+    setVerb(null);
+    say("Tu cápsula ha atracado en una estación que los Veltri abandonaron hace miles de años. Nadie ha visto nunca a un Veltri. Te queda poco combustible y no puedes volver por tu cuenta.");
+    say("Para salir de aquí tendrás que entender a quienes la construyeron: su forma de contar, su gravedad caprichosa y sus máquinas. Cada acción gasta oxígeno. Escribe <b>ayuda</b> si te pierdes o <b>pista</b> si te atascas.", "sys");
+    describe();
+    refresh();
+  }
+
+  start();
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

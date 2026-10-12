@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blockout 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;600&family=VT323&display=swap">
+<style>
+/* Layout: el foso visto desde arriba manda; HUD y mandos a la derecha en escritorio, apilados en móvil. Estética de monitor DOS en ámbar sobre azul tinta. */
+:root {
+  --bg: #0a0c18;
+  --panel: #12163a;
+  --line: #2b3478;
+  --ink: #e2e5ff;
+  --mute: #8a91c4;
+  --amber: #ffb547;
+  --amber-ink: #1a1204;
+  --veil: rgba(8, 10, 22, 0.86);
+  --f-display: 'Bungee', 'Impact', sans-serif;
+  --f-ui: 'Chakra Petch', system-ui, sans-serif;
+  --f-num: 'VT323', ui-monospace, 'Courier New', monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 15px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.app {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 14px 24px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  grid-template-areas: "stage hud" "stage controls" "stage help";
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+}
+.stage { grid-area: stage; display: flex; gap: 8px; justify-content: center; min-width: 0; }
+.pitwrap {
+  position: relative;
+  width: min(calc(100% - 26px), 78vh);
+  aspect-ratio: 1;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+#pit { display: block; width: 100%; height: 100%; touch-action: none; }
+.gauge { display: flex; flex-direction: column; gap: 3px; width: 18px; }
+.gauge span { flex: 1; border: 1px solid var(--line); border-radius: 2px; background: transparent; }
+
+.hud { grid-area: hud; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.hud-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hud-title h1 { margin: 0; font-family: var(--f-display); font-size: 26px; font-weight: 400; color: var(--amber); letter-spacing: 0.02em; }
+.stat { display: flex; flex-direction: column; }
+.stat small { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+.stat b { font-family: var(--f-num); font-weight: 400; font-size: 34px; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat.main b { color: var(--amber); }
+
+.controls { grid-area: controls; display: flex; gap: 14px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.pad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
+.pad [data-act="up"] { grid-column: 2; grid-row: 1; }
+.pad [data-act="left"] { grid-column: 1; grid-row: 2; }
+.pad [data-act="down"] { grid-column: 2; grid-row: 2; font-size: 16px; }
+.pad [data-act="right"] { grid-column: 3; grid-row: 2; }
+.pad [data-act="back"] { grid-column: 2; grid-row: 3; }
+.acts { display: grid; grid-template-columns: repeat(3, 52px); gap: 4px; }
+.acts [data-act="drop"] { grid-column: 1 / -1; }
+.btn {
+  font-family: var(--f-num);
+  font-size: 26px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-height: 52px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active, .btn.hit { background: var(--line); }
+.btn.rot { color: var(--amber); }
+.btn.drop { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-family: var(--f-ui); font-weight: 600; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; }
+.btn.small { min-height: 34px; font-family: var(--f-ui); font-size: 13px; padding-inline: 12px; letter-spacing: 0.08em; }
+.btn:focus-visible, input:focus-visible + span { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.help { grid-area: help; font-size: 13px; color: var(--mute); line-height: 1.55; }
+.help h2 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); margin: 0 0 6px; font-weight: 600; }
+.help dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+.help dt { font-family: var(--f-num); font-size: 19px; color: var(--amber); line-height: 1.1; }
+.help dd { margin: 0; }
+
+.overlay {
+  position: fixed; inset: 0;
+  z-index: 20;
+  background: var(--veil);
+  display: grid; place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  text-align: center;
+}
+.card { display: flex; flex-direction: column; gap: 14px; align-items: center; max-width: 340px; }
+.card h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 9vw, 52px); color: var(--amber); line-height: 1; text-wrap: balance; }
+.card p { margin: 0; color: var(--mute); line-height: 1.45; text-wrap: balance; }
+.card .big { font-family: var(--f-num); font-size: 44px; color: var(--ink); line-height: 1; }
+.opts { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.opts legend { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; padding: 0; }
+.opts fieldset { border: 0; margin: 0; padding: 0; }
+.seg { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; }
+.seg span { display: block; padding: 7px 12px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--f-num); font-size: 21px; color: var(--ink); background: var(--panel); }
+.seg input:checked + span { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.row .btn { padding-inline: 22px; font-family: var(--f-ui); font-weight: 600; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; }
+.row .btn.primary { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "stage" "controls"; grid-template-rows: auto; gap: 10px; padding-block: 8px 16px; }
+  .help { display: none; }
+  .hud { grid-template-columns: repeat(4, 1fr); gap: 4px 10px; }
+  .hud-title h1 { font-size: 20px; }
+  .stat b { font-size: 28px; }
+  .pitwrap { width: min(calc(100% - 26px), 60vh); }
+}
+@media (max-width: 380px) {
+  .pad, .acts { grid-template-columns: repeat(3, 46px); }
+  .pad { grid-template-rows: repeat(3, 46px); }
+  .btn { min-height: 46px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<style>[hidden]{display:none!important} body{margin:0} *,*::before,*::after{box-sizing:border-box}</style>
+</head>
+<body>
+<main class="app">
+  <section class="hud" aria-label="Marcador">
+    <div class="hud-title">
+      <h1>BLOCKOUT</h1>
+      <button class="btn small" id="pauseBtn" type="button">Pausa</button>
+    </div>
+    <div class="stat main"><small>Puntos</small><b id="sScore">0</b></div>
+    <div class="stat"><small>Capas</small><b id="sLayers">0</b></div>
+    <div class="stat"><small>Cubos</small><b id="sCubes">0</b></div>
+    <div class="stat"><small>Nivel</small><b id="sLevel">1</b></div>
+  </section>
+
+  <section class="stage">
+    <div class="pitwrap" id="pitwrap">
+      <canvas id="pit" aria-label="Foso de juego visto desde arriba"></canvas>
+
+      <div class="overlay" id="menu">
+        <div class="card">
+          <h2>BLOCKOUT</h2>
+          <p>Mira el fondo del foso, gira las piezas en los ejes X, Y y Z y completa capas enteras.</p>
+          <form class="opts" id="menuForm">
+            <fieldset>
+              <legend>Foso</legend>
+              <div class="seg">
+                <label><input type="radio" name="pit" id="pit3" value="3"><span>3×3×10</span></label>
+                <label><input type="radio" name="pit" id="pit4" value="4"><span>4×4×12</span></label>
+                <label><input type="radio" name="pit" id="pit5" value="5" checked><span>5×5×12</span></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Piezas</legend>
+              <div class="seg">
+                <label><input type="radio" name="set" id="setFlat" value="flat" checked><span>Planas</span></label>
+                <label><input type="radio" name="set" id="set3d" value="full"><span>Con 3D</span></label>
+              </div>
+            </fieldset>
+            <div class="row"><button class="btn primary" type="button" id="playBtn">Jugar</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="overlay" id="pauseOv" hidden>
+        <div class="card">
+          <h2>PAUSA</h2>
+          <div class="row">
+            <button class="btn primary" type="button" id="resumeBtn">Seguir</button>
+            <button class="btn" type="button" id="menuBtn1">Menú</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="overOv" hidden>
+        <div class="card">
+          <h2>FOSO LLENO</h2>
+          <div class="big" id="finalScore">0</div>
+          <p id="finalInfo"></p>
+          <div class="row">
+            <button class="btn primary" type="button" id="againBtn">Otra vez</button>
+            <button class="btn" type="button" id="menuBtn2">Menú</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gauge" id="gauge" aria-label="Altura de la pila"></div>
+  </section>
+
+  <section class="controls" id="controls" aria-label="Mandos táctiles">
+    <div class="pad">
+      <button class="btn" type="button" data-act="up" aria-label="Mover arriba">▲</button>
+      <button class="btn" type="button" data-act="left" aria-label="Mover izquierda">◀</button>
+      <button class="btn" type="button" data-act="down" aria-label="Bajar un nivel">BAJA</button>
+      <button class="btn" type="button" data-act="right" aria-label="Mover derecha">▶</button>
+      <button class="btn" type="button" data-act="back" aria-label="Mover abajo">▼</button>
+    </div>
+    <div class="acts">
+      <button class="btn rot" type="button" data-act="rx" aria-label="Girar en eje X">X⟳</button>
+      <button class="btn rot" type="button" data-act="ry" aria-label="Girar en eje Y">Y⟳</button>
+      <button class="btn rot" type="button" data-act="rz" aria-label="Girar en eje Z">Z⟳</button>
+      <button class="btn drop" type="button" data-act="drop">Soltar</button>
+    </div>
+  </section>
+
+  <aside class="help">
+    <h2>Teclado</h2>
+    <dl>
+      <dt>← ↑ → ↓</dt><dd>Mover la pieza</dd>
+      <dt>Q / A</dt><dd>Girar en eje X (y al revés)</dd>
+      <dt>W / S</dt><dd>Girar en eje Y (y al revés)</dd>
+      <dt>E / D</dt><dd>Girar en eje Z (y al revés)</dd>
+      <dt>Z</dt><dd>Bajar un nivel</dd>
+      <dt>Espacio</dt><dd>Soltar hasta el fondo</dd>
+      <dt>P</dt><dd>Pausa</dd>
+    </dl>
+    <p>El contorno ámbar marca dónde caerá la pieza. Cada capa se pinta de un color según su profundidad; la barra lateral muestra hasta dónde llega la pila.</p>
+  </aside>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const SHAPES_FLAT = [
+    [[0, 0, 0]],
+    [[0, 0, 0], [1, 0, 0]],
+    [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+    [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+    [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]],
+    [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 1, 0]],
+    [[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 1, 0]],
+    [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0]]
+  ];
+  const SHAPES_3D = [
+    [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    [[0, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
+    [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 1, 1]]
+  ];
+  const PITS = { '3': { w: 3, h: 10 }, '4': { w: 4, h: 12 }, '5': { w: 5, h: 12 } };
+  const HUES = [350, 22, 44, 78, 140, 168, 192, 212, 236, 262, 290, 320];
+  const KICKS = [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+    [1, 1, 0], [-1, -1, 0], [1, -1, 0], [-1, 1, 0], [2, 0, 0], [-2, 0, 0], [0, 2, 0], [0, -2, 0], [0, 0, 2]];
+  const LAYER_POINTS = [0, 100, 300, 700, 1500];
+  const LAYERS_PER_LEVEL = 5;
+  const ROT = {
+    x: function (c) { return [c[0], -c[2], c[1]]; },
+    y: function (c) { return [c[2], c[1], -c[0]]; },
+    z: function (c) { return [-c[1], c[0], c[2]]; }
+  };
+  const COL_BG = '#0a0c18';
+  const COL_WALL_A = '#10143a';
+  const COL_WALL_B = '#0d1131';
+  const COL_FLOOR = '#080a1c';
+  const COL_GRID = '#2b3478';
+  const COL_RIM = '#5664c8';
+  const COL_EDGE = 'rgba(5,6,16,0.55)';
+  const COL_PIECE = '#f2f3ff';
+  const COL_GHOST = 'rgba(255,181,71,0.55)';
+  const COL_DEPTH = 'rgba(255,181,71,0.35)';
+
+  let W = 5, H = 12, K = 0.2;
+  let grid = [];
+  let colors = [];
+  let shapes = SHAPES_FLAT;
+  let setName = 'flat';
+  let piece = null;
+  let state = 'menu';
+  let score = 0, cubes = 0, layers = 0, level = 1;
+  let dropAcc = 0, lastT = 0;
+  let clearing = null;
+  let best = 0;
+  let canvas, ctx, size = 0, cell = 0, cx = 0, cy = 0, dpr = 1;
+  const el = {};
+
+  function $(id) { return document.getElementById(id); }
+  function idx(x, y) { return y * W + x; }
+  function emptyLayer() { return new Uint8Array(W * W); }
+
+  function normalize(cs) {
+    let mx = Infinity, my = Infinity, mz = Infinity;
+    for (const c of cs) { mx = Math.min(mx, c[0]); my = Math.min(my, c[1]); mz = Math.min(mz, c[2]); }
+    return cs.map(function (c) { return [c[0] - mx, c[1] - my, c[2] - mz]; });
+  }
+  function extent(cs) {
+    const e = [0, 0, 0];
+    for (const c of cs) { for (let i = 0; i < 3; i++) { e[i] = Math.max(e[i], c[i] + 1); } }
+    return e;
+  }
+  function fits(cs, px, py, pz) {
+    for (const c of cs) {
+      const x = c[0] + px, y = c[1] + py, z = c[2] + pz;
+      if (x < 0 || y < 0 || z < 0 || x >= W || y >= W || z >= H) { return false; }
+      if (grid[z][idx(x, y)]) { return false; }
+    }
+    return true;
+  }
+
+  function bestKey() { return 'blockout-best-' + W + '-' + setName; }
+  function loadBest() {
+    try { best = parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) { best = 0; }
+  }
+  function saveBest() {
+    try { localStorage.setItem(bestKey(), String(best)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  function buildColors() {
+    colors = [];
+    for (let z = 0; z < H; z++) {
+      const h = HUES[(H - 1 - z) % HUES.length];
+      colors.push({
+        top: 'hsl(' + h + ' 72% 58%)',
+        sx: 'hsl(' + h + ' 60% 40%)',
+        sy: 'hsl(' + h + ' 60% 31%)'
+      });
+    }
+  }
+
+  function buildGauge() {
+    el.gauge.textContent = '';
+    for (let z = 0; z < H; z++) { el.gauge.appendChild(document.createElement('span')); }
+  }
+  function updateGauge() {
+    const segs = el.gauge.children;
+    for (let z = 0; z < H; z++) {
+      let any = false;
+      for (let i = 0; i < W * W; i++) { if (grid[z][i]) { any = true; break; } }
+      segs[z].style.background = any ? colors[z].top : 'transparent';
+    }
+  }
+  function updateHud() {
+    el.score.textContent = score;
+    el.layers.textContent = layers;
+    el.cubes.textContent = cubes;
+    el.level.textContent = level;
+  }
+
+  function startGame() {
+    const pitVal = (document.querySelector('input[name="pit"]:checked') || { value: '5' }).value;
+    setName = (document.querySelector('input[name="set"]:checked') || { value: 'flat' }).value;
+    W = PITS[pitVal].w;
+    H = PITS[pitVal].h;
+    K = 2.4 / H;
+    shapes = setName === 'full' ? SHAPES_FLAT.concat(SHAPES_3D, SHAPES_3D) : SHAPES_FLAT;
+    grid = [];
+    for (let z = 0; z < H; z++) { grid.push(emptyLayer()); }
+    buildColors();
+    buildGauge();
+    loadBest();
+    score = 0; cubes = 0; layers = 0; level = 1; dropAcc = 0; clearing = null;
+    resize();
+    updateHud();
+    updateGauge();
+    showOverlay(null);
+    state = 'play';
+    spawn();
+  }
+
+  function spawn() {
+    const s = shapes[Math.floor(Math.random() * shapes.length)];
+    const cs = normalize(s.map(function (c) { return c.slice(); }));
+    const e = extent(cs);
+    const p = { cubes: cs, x: Math.floor((W - e[0]) / 2), y: Math.floor((W - e[1]) / 2), z: 0 };
+    if (!fits(p.cubes, p.x, p.y, p.z)) { piece = null; gameOver(); return; }
+    piece = p;
+    dropAcc = 0;
+  }
+
+  function canAct() { return state === 'play' && piece && !clearing; }
+
+  function move(dx, dy) {
+    if (!canAct()) { return; }
+    if (fits(piece.cubes, piece.x + dx, piece.y + dy, piece.z)) { piece.x += dx; piece.y += dy; }
+  }
+
+  function rotate(axis, dir) {
+    if (!canAct()) { return; }
+    let cs = piece.cubes;
+    const times = dir > 0 ? 1 : 3;
+    for (let i = 0; i < times; i++) { cs = cs.map(ROT[axis]); }
+    cs = normalize(cs);
+    const eo = extent(piece.cubes), en = extent(cs);
+    const bx = Math.round(piece.x + eo[0] / 2 - en[0] / 2);
+    const by = Math.round(piece.y + eo[1] / 2 - en[1] / 2);
+    const bz = Math.max(0, Math.round(piece.z + eo[2] / 2 - en[2] / 2));
+    for (const k of KICKS) {
+      if (fits(cs, bx + k[0], by + k[1], bz + k[2])) {
+        piece.cubes = cs; piece.x = bx + k[0]; piece.y = by + k[1]; piece.z = bz + k[2];
+        return;
+      }
+    }
+  }
+
+  function stepDown(manual) {
+    if (!canAct()) { return; }
+    if (fits(piece.cubes, piece.x, piece.y, piece.z + 1)) {
+      piece.z += 1;
+      if (manual) { score += 1; updateHud(); }
+    } else {
+      lock();
+    }
+    dropAcc = 0;
+  }
+
+  function hardDrop() {
+    if (!canAct()) { return; }
+    let n = 0;
+    while (fits(piece.cubes, piece.x, piece.y, piece.z + 1)) { piece.z += 1; n++; }
+    score += n * 2;
+    lock();
+  }
+
+  function landingZ() {
+    let z = piece.z;
+    while (fits(piece.cubes, piece.x, piece.y, z + 1)) { z++; }
+    return z;
+  }
+
+  function lock() {
+    for (const c of piece.cubes) { grid[c[2] + piece.z][idx(c[0] + piece.x, c[1] + piece.y)] = 1; }
+    cubes += piece.cubes.length;
+    score += piece.cubes.length * level;
+    piece = null;
+    const full = [];
+    for (let z = 0; z < H; z++) {
+      let ok = true;
+      for (let i = 0; i < W * W; i++) { if (!grid[z][i]) { ok = false; break; } }
+      if (ok) { full.push(z); }
+    }
+    updateGauge();
+    updateHud();
+    if (full.length) { clearing = { layers: full, t: 0 }; } else { spawn(); }
+  }
+
+  function finishClear() {
+    const n = clearing.layers.length;
+    for (const z of clearing.layers) { grid.splice(z, 1); grid.unshift(emptyLayer()); }
+    clearing = null;
+    layers += n;
+    score += (LAYER_POINTS[n] || n * 400) * level;
+    let empty = true;
+    for (let z = 0; z < H && empty; z++) {
+      for (let i = 0; i < W * W; i++) { if (grid[z][i]) { empty = false; break; } }
+    }
+    if (empty) { score += 1000 * level; }
+    level = 1 + Math.floor(layers / LAYERS_PER_LEVEL);
+    updateGauge();
+    updateHud();
+    spawn();
+  }
+
+  function dropInterval() { return Math.max(110, 1000 * Math.pow(0.85, level - 1)); }
+
+  function gameOver() {
+    state = 'over';
+    if (score > best) { best = score; saveBest(); }
+    el.finalScore.textContent = score + ' pts';
+    el.finalInfo.textContent = layers + ' capas · ' + cubes + ' cubos · récord en este foso: ' + best;
+    showOverlay('over');
+  }
+
+  function pause() {
+    if (state !== 'play') { return; }
+    state = 'pause';
+    showOverlay('pause');
+  }
+  function resume() {
+    if (state !== 'pause') { return; }
+    state = 'play';
+    lastT = performance.now();
+    showOverlay(null);
+  }
+  function toMenu() {
+    state = 'menu';
+    piece = null;
+    showOverlay('menu');
+  }
+  function showOverlay(which) {
+    el.menu.hidden = which !== 'menu';
+    el.pauseOv.hidden = which !== 'pause';
+    el.overOv.hidden = which !== 'over';
+    const target = which === 'menu' ? el.playBtn : which === 'pause' ? el.resumeBtn : which === 'over' ? el.againBtn : null;
+    if (target) { target.focus({ preventScroll: true }); }
+    el.pauseBtn.textContent = state === 'pause' ? 'Seguir' : 'Pausa';
+  }
+
+  /* ---------- Dibujo ---------- */
+  function proj(x, y, z) {
+    const s = 1 / (1 + z * K);
+    return [cx + (x - W / 2) * cell * s, cy + (y - W / 2) * cell * s];
+  }
+  function poly(pts, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) { ctx.lineTo(pts[i][0], pts[i][1]); }
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+  }
+  function seg(a, b) {
+    const p = proj(a[0], a[1], a[2]), q = proj(b[0], b[1], b[2]);
+    ctx.moveTo(p[0], p[1]);
+    ctx.lineTo(q[0], q[1]);
+  }
+  function rectAt(z, stroke, lw) {
+    ctx.lineWidth = lw;
+    poly([proj(0, 0, z), proj(W, 0, z), proj(W, W, z), proj(0, W, z)], null, stroke);
+  }
+
+  function drawPit() {
+    ctx.fillStyle = COL_BG;
+    ctx.fillRect(0, 0, size, size);
+    poly([proj(0, 0, 0), proj(W, 0, 0), proj(W, 0, H), proj(0, 0, H)], COL_WALL_A);
+    poly([proj(0, W, 0), proj(W, W, 0), proj(W, W, H), proj(0, W, H)], COL_WALL_A);
+    poly([proj(0, 0, 0), proj(0, W, 0), proj(0, W, H), proj(0, 0, H)], COL_WALL_B);
+    poly([proj(W, 0, 0), proj(W, W, 0), proj(W, W, H), proj(W, 0, H)], COL_WALL_B);
+    poly([proj(0, 0, H), proj(W, 0, H), proj(W, W, H), proj(0, W, H)], COL_FLOOR);
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = COL_GRID;
+    ctx.beginPath();
+    for (let i = 0; i <= W; i++) {
+      seg([i, 0, 0], [i, 0, H]); seg([i, W, 0], [i, W, H]);
+      seg([0, i, 0], [0, i, H]); seg([W, i, 0], [W, i, H]);
+      seg([i, 0, H], [i, W, H]); seg([0, i, H], [W, i, H]);
+    }
+    ctx.stroke();
+    for (let z = 1; z <= H; z++) { rectAt(z, COL_GRID, 1); }
+    rectAt(0, COL_RIM, 2);
+  }
+
+  function drawStack() {
+    ctx.lineWidth = 1;
+    const half = W / 2;
+    for (let z = H - 1; z >= 0; z--) {
+      const layer = grid[z];
+      const list = [];
+      for (let y = 0; y < W; y++) {
+        for (let x = 0; x < W; x++) {
+          if (layer[idx(x, y)]) { list.push([x, y, Math.max(Math.abs(x + 0.5 - half), Math.abs(y + 0.5 - half))]); }
+        }
+      }
+      if (!list.length) { continue; }
+      list.sort(function (a, b) { return b[2] - a[2]; });
+      const flash = clearing && clearing.layers.indexOf(z) !== -1;
+      const blink = flash && Math.floor(clearing.t / 80) % 2 === 0;
+      const col = blink ? { top: '#ffffff', sx: '#e8e8ff', sy: '#d0d0f0' } : colors[z];
+      for (const it of list) {
+        const x = it[0], y = it[1];
+        if (x > half && !layer[idx(x - 1, y)]) {
+          poly([proj(x, y, z), proj(x, y + 1, z), proj(x, y + 1, z + 1), proj(x, y, z + 1)], col.sx, COL_EDGE);
+        }
+        if (x + 1 < half && !layer[idx(x + 1, y)]) {
+          poly([proj(x + 1, y, z), proj(x + 1, y + 1, z), proj(x + 1, y + 1, z + 1), proj(x + 1, y, z + 1)], col.sx, COL_EDGE);
+        }
+        if (y > half && !layer[idx(x, y - 1)]) {
+          poly([proj(x, y, z), proj(x + 1, y, z), proj(x + 1, y, z + 1), proj(x, y, z + 1)], col.sy, COL_EDGE);
+        }
+        if (y + 1 < half && !layer[idx(x, y + 1)]) {
+          poly([proj(x, y + 1, z), proj(x + 1, y + 1, z), proj(x + 1, y + 1, z + 1), proj(x, y + 1, z + 1)], col.sy, COL_EDGE);
+        }
+        if (z === 0 || !grid[z - 1][idx(x, y)]) {
+          poly([proj(x, y, z), proj(x + 1, y, z), proj(x + 1, y + 1, z), proj(x, y + 1, z)], col.top, COL_EDGE);
+        }
+      }
+    }
+  }
+
+  function drawWire(cs, px, py, pz, stroke, lw, topFill) {
+    if (topFill) {
+      for (const c of cs) {
+        const x = c[0] + px, y = c[1] + py, z = c[2] + pz;
+        poly([proj(x, y, z), proj(x + 1, y, z), proj(x + 1, y + 1, z), proj(x, y + 1, z)], topFill);
+      }
+    }
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = stroke;
+    ctx.beginPath();
+    for (const c of cs) {
+      const x = c[0] + px, y = c[1] + py, z = c[2] + pz;
+      for (const d of [0, 1]) {
+        seg([x, y, z + d], [x + 1, y, z + d]); seg([x + 1, y, z + d], [x + 1, y + 1, z + d]);
+        seg([x + 1, y + 1, z + d], [x, y + 1, z + d]); seg([x, y + 1, z + d], [x, y, z + d]);
+      }
+      seg([x, y, z], [x, y, z + 1]); seg([x + 1, y, z], [x + 1, y, z + 1]);
+      seg([x + 1, y + 1, z], [x + 1, y + 1, z + 1]); seg([x, y + 1, z], [x, y + 1, z + 1]);
+    }
+    ctx.stroke();
+  }
+
+  function render() {
+    if (!ctx || !size) { return; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawPit();
+    if (!grid.length) { return; }
+    if (piece && (state === 'play' || state === 'pause')) {
+      const ez = extent(piece.cubes)[2];
+      rectAt(piece.z, COL_DEPTH, 1.5);
+      rectAt(piece.z + ez, COL_DEPTH, 1.5);
+    }
+    drawStack();
+    if (piece && (state === 'play' || state === 'pause')) {
+      const gz = landingZ();
+      if (gz !== piece.z) { drawWire(piece.cubes, piece.x, piece.y, gz, COL_GHOST, 1, null); }
+      drawWire(piece.cubes, piece.x, piece.y, piece.z, COL_PIECE, 2, 'rgba(242,243,255,0.10)');
+    }
+  }
+
+  function frame(t) {
+    const dt = Math.min(100, t - lastT);
+    lastT = t;
+    if (state === 'play') {
+      if (clearing) {
+        clearing.t += dt;
+        if (clearing.t > 360) { finishClear(); }
+      } else if (piece) {
+        dropAcc += dt;
+        if (dropAcc >= dropInterval()) { stepDown(false); }
+      }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  function resize() {
+    const rect = el.pitwrap.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    size = rect.width;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    cell = (size * 0.96) / W;
+    cx = size / 2;
+    cy = size / 2;
+  }
+
+  /* ---------- Entrada ---------- */
+  const KEYMAP = {
+    ArrowLeft: function () { move(-1, 0); },
+    ArrowRight: function () { move(1, 0); },
+    ArrowUp: function () { move(0, -1); },
+    ArrowDown: function () { move(0, 1); },
+    KeyQ: function () { rotate('x', 1); },
+    KeyA: function () { rotate('x', -1); },
+    KeyW: function () { rotate('y', 1); },
+    KeyS: function () { rotate('y', -1); },
+    KeyE: function () { rotate('z', 1); },
+    KeyD: function () { rotate('z', -1); },
+    KeyZ: function () { stepDown(true); },
+    Space: function () { hardDrop(); }
+  };
+  const ACTS = {
+    up: function () { move(0, -1); },
+    back: function () { move(0, 1); },
+    left: function () { move(-1, 0); },
+    right: function () { move(1, 0); },
+    down: function () { stepDown(true); },
+    rx: function () { rotate('x', 1); },
+    ry: function () { rotate('y', 1); },
+    rz: function () { rotate('z', 1); },
+    drop: function () { hardDrop(); }
+  };
+
+  function init() {
+    canvas = $('pit');
+    ctx = canvas.getContext('2d');
+    el.pitwrap = $('pitwrap');
+    el.gauge = $('gauge');
+    el.score = $('sScore'); el.layers = $('sLayers'); el.cubes = $('sCubes'); el.level = $('sLevel');
+    el.menu = $('menu'); el.pauseOv = $('pauseOv'); el.overOv = $('overOv');
+    el.playBtn = $('playBtn'); el.resumeBtn = $('resumeBtn'); el.againBtn = $('againBtn');
+    el.pauseBtn = $('pauseBtn');
+    el.finalScore = $('finalScore'); el.finalInfo = $('finalInfo');
+
+    W = 5; H = 12; K = 2.4 / H;
+    buildColors();
+    buildGauge();
+
+    $('menuForm').addEventListener('submit', function (ev) { ev.preventDefault(); });
+    el.playBtn.addEventListener('click', startGame);
+    el.resumeBtn.addEventListener('click', resume);
+    el.againBtn.addEventListener('click', startGame);
+    $('menuBtn1').addEventListener('click', toMenu);
+    $('menuBtn2').addEventListener('click', toMenu);
+    el.pauseBtn.addEventListener('click', function () {
+      if (state === 'play') { pause(); } else if (state === 'pause') { resume(); }
+    });
+
+    let lastPointer = 0;
+    function runAct(ev) {
+      const btn = ev.target.closest('[data-act]');
+      if (!btn) { return; }
+      if (ev.type === 'click' && performance.now() - lastPointer < 500) { return; }
+      if (ev.type === 'pointerdown') { lastPointer = performance.now(); ev.preventDefault(); }
+      const fn = ACTS[btn.getAttribute('data-act')];
+      if (fn) { fn(); }
+    }
+    $('controls').addEventListener('pointerdown', runAct);
+    $('controls').addEventListener('click', runAct);
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.code === 'KeyP' || ev.code === 'Escape') {
+        if (state === 'play') { pause(); } else if (state === 'pause') { resume(); }
+        ev.preventDefault();
+        return;
+      }
+      if (state !== 'play') { return; }
+      const fn = KEYMAP[ev.code];
+      if (fn) { ev.preventDefault(); fn(); }
+    });
+
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { pause(); } });
+
+    if (window.ResizeObserver) {
+      new ResizeObserver(resize).observe(el.pitwrap);
+    } else {
+      window.addEventListener('resize', resize);
+    }
+    resize();
+    showOverlay('menu');
+    lastT = performance.now();
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

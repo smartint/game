@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Máquina Disparatada: Engranajes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Atkinson+Hyperlegible:wght@400;700&family=Bungee&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+/* Layout: tablero de taller mecánico (madera oscura, latón y acero) a todo ancho; caja de piezas y mandos debajo. Tema único y deliberado. */
+:root {
+  --paper: #2a2119;
+  --desk: #17110b;
+  --panel: #241b13;
+  --line: rgba(243, 230, 207, 0.16);
+  --ink: #f3e6cf;
+  --ink-dim: #c4b394;
+  --amber: #ffb238;
+  --amber-ink: #3a2300;
+  --red: #ff8f80;
+  --green: #7ee0a0;
+  --f-display: "Bungee", "Arial Black", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-hand: "Architects Daughter", "Comic Sans MS", cursive;
+  color-scheme: dark;
+}
+html, body { background: var(--desk); color: var(--ink); }
+body {
+  font-family: var(--f-body); font-size: 16px; line-height: 1.45;
+  background-color: var(--desk);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: -1px -1px;
+  padding-inline: 16px; padding-block: 16px 32px;
+}
+.app { max-width: 1040px; margin: 0 auto; display: grid; gap: 12px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+.brand { min-width: 0; }
+.brand h1 {
+  font-family: var(--f-display); font-weight: 400; font-size: clamp(1.6rem, 4.5vw, 2.5rem);
+  line-height: 1; margin: 0; letter-spacing: 0.01em; color: var(--ink);
+  text-shadow: 3px 3px 0 #8a6420;
+}
+.brand .sub { display: inline-block; margin-top: 6px; font: 400 0.95rem var(--f-display); color: var(--desk); background: var(--ink); padding: 2px 10px; border-radius: 3px; transform: rotate(-2deg); }
+.readout { margin: 0; font: 700 0.95rem var(--f-body); color: var(--green); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+.readout[data-tone="bad"] { color: var(--red); }
+.brand p { margin: 6px 0 0; font-family: var(--f-hand); color: var(--ink-dim); font-size: 1rem; }
+.sound {
+  font: 700 0.85rem var(--f-body); color: var(--ink-dim); background: transparent;
+  border: 1.5px dashed var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+.sound:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+.brief { display: grid; gap: 2px; min-width: 0; }
+.brief .num { font: 700 0.75rem var(--f-body); text-transform: uppercase; letter-spacing: 0.12em; color: var(--amber); }
+.brief h2 { margin: 0; font: 700 1.3rem var(--f-body); text-wrap: balance; }
+.brief p { margin: 0; color: var(--ink-dim); max-width: 65ch; }
+
+.stage {
+  position: relative; width: 100%; aspect-ratio: 960 / 600; max-width: 100%;
+  border: 2px solid var(--ink); border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--line), 0 18px 40px rgba(0, 0, 0, 0.35);
+  background: var(--paper);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+body.running .stage canvas { cursor: default; }
+
+.stage-wrap { position: relative; min-width: 0; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+  background: rgba(23, 17, 11, 0.55);
+}
+.overlay[hidden] { display: none; }
+@media (max-width: 560px) {
+  .overlay { position: static; background: none; padding: 14px 0 0; place-items: stretch; }
+  .stage-wrap .overlay .card { max-width: none; }
+}
+.overlay .card {
+  background: var(--ink); color: var(--desk); border-radius: 6px; padding: 20px 22px; max-width: 360px;
+  display: grid; gap: 12px; text-align: left; box-shadow: 6px 6px 0 var(--amber);
+}
+.overlay h3 { margin: 0; font: 400 1.35rem var(--f-display); text-wrap: balance; }
+.overlay p { margin: 0; }
+.overlay .row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.status {
+  min-height: 1.5em; font-family: var(--f-hand); font-size: 1.05rem; color: var(--ink);
+  padding-left: 12px; border-left: 3px solid var(--ink-dim);
+}
+.status[data-tone="bad"] { border-color: var(--red); color: var(--red); }
+.status[data-tone="good"] { border-color: var(--green); color: var(--green); }
+
+.dock { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 760px) { .dock { grid-template-columns: minmax(0, 1fr); } }
+.box {
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  display: grid; gap: 8px; min-width: 0;
+}
+.box h4 { margin: 0; font: 700 0.72rem var(--f-body); text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); }
+
+.inv { display: flex; flex-wrap: wrap; gap: 8px; }
+.part {
+  display: grid; grid-template-columns: 40px auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  text-align: left; padding: 6px 12px 6px 8px; border-radius: 6px; cursor: pointer;
+  background: var(--desk); color: var(--ink); border: 1.5px solid var(--line); font: inherit;
+}
+.part { min-width: 170px; }
+.part svg { width: 40px; height: 28px; grid-row: 1 / 3; }
+.part .pname { font-weight: 700; font-size: 0.9rem; line-height: 1.1; }
+.part .pcount { font-size: 0.8rem; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.part:hover:not(:disabled) { border-color: var(--ink-dim); }
+.part[aria-pressed="true"] { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); background: #3a2d20; }
+.part:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sel { font-size: 0.85rem; color: var(--ink-dim); flex-basis: 100%; }
+
+.btn {
+  font: 700 0.92rem var(--f-body); border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  background: transparent; color: var(--ink); border: 1.5px solid var(--ink-dim);
+}
+.btn:hover:not(:disabled) { background: rgba(243, 230, 207, 0.08); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn.go { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); padding: 10px 18px; font-size: 1rem; }
+.btn.go:hover:not(:disabled) { background: #ffc566; }
+.btn.go.stop { background: var(--ink); border-color: var(--ink); color: var(--desk); }
+.overlay .btn { color: var(--desk); border-color: var(--desk); }
+.overlay .btn.go { color: var(--amber-ink); border-color: var(--amber); }
+.runbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.runbar .go { margin-left: auto; }
+
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.lv {
+  display: grid; gap: 2px; text-align: left; padding: 8px 10px; cursor: pointer; border-radius: 6px;
+  background: transparent; color: var(--ink); border: 1.5px dashed var(--line); font: inherit; min-width: 0;
+}
+.lv .lvn { font: 400 1.1rem var(--f-display); color: var(--ink-dim); }
+.lv .lvt { font-size: 0.85rem; font-weight: 700; overflow-wrap: anywhere; }
+.lv .lvd { font-size: 0.72rem; color: var(--green); }
+.lv.done { border-style: solid; border-color: rgba(94, 224, 160, 0.45); }
+.lv.done .lvn { color: var(--green); }
+.lv[aria-current="true"] { border: 1.5px solid var(--amber); background: rgba(255, 178, 56, 0.1); }
+.lv[aria-current="true"] .lvn { color: var(--amber); }
+
+.help { background: var(--panel); border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 14px; }
+.help summary { cursor: pointer; font-weight: 700; }
+.help ul { margin: 8px 0 4px; padding-left: 20px; display: grid; gap: 4px; max-width: 70ch; }
+.help kbd { font: 700 0.8rem var(--f-body); border: 1px solid var(--ink-dim); border-radius: 4px; padding: 0 5px; }
+
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Máquina Disparatada</h1>
+      <span class="sub">Engranajes y poleas</span>
+      <p>Transmite el giro del motor hasta cada máquina.</p>
+    </div>
+    <button type="button" class="sound" id="btnSound" aria-pressed="true">Sonido: sí</button>
+  </header>
+
+  <section class="brief" aria-live="polite">
+    <span class="num" id="lvNum">Plano 1 de 8</span>
+    <h2 id="lvName">Primer engranaje</h2>
+    <p id="lvGoal"></p>
+  </section>
+
+  <div class="stage-wrap">
+  <div class="stage">
+    <canvas id="board" aria-label="Tablero del puzle"></canvas>
+  </div>
+    <div class="overlay" id="overlay" hidden>
+      <div class="card" role="dialog" aria-labelledby="ovTitle">
+        <h3 id="ovTitle">¡La máquina funciona!</h3>
+        <p id="ovText"></p>
+        <div class="row">
+          <button type="button" class="btn go" id="ovNext">Siguiente plano</button>
+          <button type="button" class="btn" id="ovRetry">Mejorar mi máquina</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="readout" id="readout" aria-live="polite"></p>
+  <p class="status" id="status" role="status"></p>
+
+  <div class="dock">
+    <section class="box">
+      <h4>Caja de piezas</h4>
+      <div class="inv" id="inv"></div>
+    </section>
+    <section class="box">
+      <h4>Pieza elegida</h4>
+      <div class="tools">
+        <span class="sel" id="selName">Ninguna pieza seleccionada</span>
+        <button type="button" class="btn" id="btnLink">Unir con correa</button>
+        <button type="button" class="btn" id="btnCross">Cruzar correa</button>
+        <button type="button" class="btn" id="btnUnlink">Quitar correa</button>
+        <button type="button" class="btn" id="btnDel">Quitar pieza</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="runbar">
+    <button type="button" class="btn" id="btnHint">Pista</button>
+    <button type="button" class="btn" id="btnClear">Vaciar tablero</button>
+    <button type="button" class="btn go" id="btnRun">Soltar la pelota</button>
+  </div>
+
+  <nav class="levels" id="levels" aria-label="Planos"></nav>
+
+  <details class="help">
+    <summary>Cómo se juega</summary>
+    <ul>
+      <li>El <b>motor</b> siempre gira en el sentido de las agujas del reloj (↻). Tu trabajo es llevar ese giro hasta cada máquina.</li>
+      <li>Toca una rueda de la caja y después el tablero. Si la acercas a otro engranaje, <b>encaja sola</b>. Dos engranajes que encajan giran en <b>sentidos contrarios</b>.</li>
+      <li>Si pones una rueda encima de otra, comparten <b>eje</b> y giran juntas a la misma velocidad. Así se mueven juntas al arrastrarlas.</li>
+      <li>Las <b>poleas</b> se unen con una <b>correa</b>: elige «Correa» y toca dos poleas. Correa abierta: mismo sentido. Correa cruzada: sentido contrario.</li>
+      <li>Un engranaje pequeño movido por uno grande gira <b>más deprisa</b>. Mira las <b>rpm</b> (vueltas por minuto) de cada rueda.</li>
+      <li>Si tres engranajes forman un triángulo, la máquina se <b>atasca</b>.</li>
+      <li>Teclado: <kbd>C</kbd> cruzar correa, <kbd>Supr</kbd> quitar, <kbd>R</kbd> soltar/parar.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+/*ENGINE-START*/
+const W = 960, H = 600, GRAV = 900, MAXV = 1400;
+const MESH_TOL = 4, COAX_TOL = 6;
+const CONV_K = 70, LAUNCH_K = 60, LIFT_K = 26, GATE_K = 40;
+const BALL_TYPES = {
+  ball: { name: 'Pelota', r: 14, mass: 1, e: 0.5, g: 1, drag: 0.02 }
+};
+const WHEEL_TYPES = {
+  gearS:   { name: 'Engranaje pequeño', gear: true, r: 26, teeth: 10 },
+  gearM:   { name: 'Engranaje mediano', gear: true, r: 39, teeth: 15 },
+  gearL:   { name: 'Engranaje grande', gear: true, r: 52, teeth: 20 },
+  pulleyS: { name: 'Polea pequeña', gear: false, r: 20 },
+  pulleyL: { name: 'Polea grande', gear: false, r: 40 }
+};
+
+function rad(d) { return d * Math.PI / 180; }
+
+function segFrom(ax, ay, bx, by, th, kind, extra) {
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const ux = (bx - ax) / len, uy = (by - ay) / len;
+  return Object.assign({ ax, ay, bx, by, th, kind, ux, uy, nx: uy, ny: -ux, fric: 0.0012, speed: 0 }, extra || {});
+}
+function setSeg(s, ax, ay, bx, by) {
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  s.ax = ax; s.ay = ay; s.bx = bx; s.by = by;
+  s.ux = (bx - ax) / len; s.uy = (by - ay) / len; s.nx = s.uy; s.ny = -s.ux;
+}
+
+function cupSegs(g) {
+  return [
+    segFrom(g.x, g.y, g.x, g.y + g.h, 8, 'n'),
+    segFrom(g.x, g.y + g.h, g.x + g.w, g.y + g.h, 8, 'n'),
+    segFrom(g.x + g.w, g.y + g.h, g.x + g.w, g.y, 8, 'n')
+  ];
+}
+
+/* ---------- Transmisión ---------- */
+function allWheels(level, placed) {
+  const out = [];
+  (level.wheels || []).forEach(w => out.push({ id: w.id, type: w.type, x: w.x, y: w.y, r: WHEEL_TYPES[w.type].r, gear: WHEEL_TYPES[w.type].gear, fixed: true, motor: w.motor || 0, role: w.role || '' }));
+  placed.forEach(p => { if (WHEEL_TYPES[p.kind]) out.push({ id: 'p' + p.id, type: p.kind, x: p.x, y: p.y, r: WHEEL_TYPES[p.kind].r, gear: WHEEL_TYPES[p.kind].gear, fixed: false, motor: 0, role: '' }); });
+  return out;
+}
+
+function relation(a, b) {
+  const d = Math.hypot(a.x - b.x, a.y - b.y);
+  if (d < COAX_TOL) return 'coax';
+  if (a.gear && b.gear && Math.abs(d - (a.r + b.r)) <= MESH_TOL) return 'mesh';
+  return null;
+}
+
+function solveMech(level, placed, links) {
+  const wheels = allWheels(level, placed);
+  const byId = {}; wheels.forEach(w => { byId[w.id] = w; });
+  const adj = {}; wheels.forEach(w => { adj[w.id] = []; });
+  const overlaps = new Set();
+  for (let i = 0; i < wheels.length; i++) {
+    for (let j = i + 1; j < wheels.length; j++) {
+      const a = wheels[i], b = wheels[j], rel = relation(a, b);
+      if (rel === 'coax') { adj[a.id].push([b.id, 1]); adj[b.id].push([a.id, 1]); }
+      else if (rel === 'mesh') { adj[a.id].push([b.id, -a.r / b.r]); adj[b.id].push([a.id, -b.r / a.r]); }
+      else if (rel === 'overlap') { if (!a.fixed) overlaps.add(a.id); if (!b.fixed) overlaps.add(b.id); }
+    }
+  }
+  const validLinks = [];
+  (links || []).forEach(l => {
+    const a = byId[l.a], b = byId[l.b];
+    if (!a || !b || a.gear || b.gear) return;
+    const s = l.crossed ? -1 : 1;
+    adj[a.id].push([b.id, s * a.r / b.r]); adj[b.id].push([a.id, s * b.r / a.r]);
+    validLinks.push(l);
+  });
+  const omega = {}; let jam = false;
+  const queue = [];
+  wheels.forEach(w => { if (w.motor) { omega[w.id] = w.motor; queue.push(w.id); } });
+  while (queue.length && !jam) {
+    const u = queue.shift();
+    for (const [v, k] of adj[u]) {
+      const val = omega[u] * k;
+      if (omega[v] === undefined) { omega[v] = val; queue.push(v); }
+      else if (Math.abs(omega[v] - val) > 1e-6) { jam = true; break; }
+    }
+  }
+  if (jam) wheels.forEach(w => { omega[w.id] = 0; });
+  wheels.forEach(w => { if (omega[w.id] === undefined) omega[w.id] = 0; });
+  return { wheels, byId, omega, jam, overlaps, links: validLinks };
+}
+
+/* ---------- Mundo físico ---------- */
+function newBall(type, x, y, target) {
+  return { type, x, y, vx: 0, vy: 0, rot: 0, target: !!target, lost: false };
+}
+
+function makeWorld(level, placed, links) {
+  const mech = solveMech(level, placed, links);
+  const om = id => mech.omega[id] || 0;
+  const w = { t: 0, mech, balls: [], segs: [], launchers: [], lifts: [], gates: [], goal: level.goal || null, won: false, winT: 0, lost: false, events: [], still: 0 };
+  (level.statics || []).forEach(s => w.segs.push(segFrom(s[0], s[1], s[2], s[3], 10, 'n')));
+  if (w.goal && w.goal.cup) cupSegs(w.goal).forEach(s => w.segs.push(s));
+  (level.conveyors || []).forEach(c => {
+    w.segs.push(segFrom(c.seg[0], c.seg[1], c.seg[2], c.seg[3], 16, 'belt', { speed: om(c.wheel) * CONV_K }));
+  });
+  (level.launchers || []).forEach(l => {
+    const wh = mech.byId[l.wheel];
+    w.launchers.push({ x: wh.x, y: wh.y, r: l.r, omega: om(l.wheel) });
+  });
+  (level.lifts || []).forEach(l => {
+    const seg = segFrom(l.x - l.w / 2, l.yBottom, l.x + l.w / 2, l.yBottom, 10, 'n');
+    w.segs.push(seg);
+    w.lifts.push({ def: l, y: l.yBottom, tilt: 0, omega: om(l.wheel), seg });
+  });
+  (level.gates || []).forEach(g => {
+    const seg = segFrom(g.seg[0], g.seg[1], g.seg[2], g.seg[3], 12, 'n');
+    w.segs.push(seg);
+    w.gates.push({ def: g, off: 0, omega: om(g.wheel), seg });
+  });
+  (level.balls || []).forEach(b => w.balls.push(newBall(b.type, b.x, b.y, b.target)));
+  return w;
+}
+
+function collideSeg(b, s, bt, w) {
+  const abx = s.bx - s.ax, aby = s.by - s.ay;
+  const l2 = abx * abx + aby * aby;
+  let t = ((b.x - s.ax) * abx + (b.y - s.ay) * aby) / l2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const qx = s.ax + abx * t, qy = s.ay + aby * t;
+  const dx = b.x - qx, dy = b.y - qy;
+  const R = bt.r + s.th / 2;
+  const d2 = dx * dx + dy * dy;
+  if (d2 >= R * R) return;
+  const d = Math.sqrt(d2) || 1e-4;
+  const nx = dx / d, ny = dy / d;
+  b.x += nx * (R - d); b.y += ny * (R - d);
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn >= 0) return;
+  const tx = -ny, ty = nx;
+  let vt = b.vx * tx + b.vy * ty;
+  let out = -vn * bt.e;
+  if (out < 60) out = 0;
+  if (-vn > 260) w.events.push('hit');
+  const top = (nx * s.nx + ny * s.ny) > 0.6;
+  if (s.kind === 'belt' && top) {
+    const target = s.ux * s.speed * tx + s.uy * s.speed * ty;
+    vt += (target - vt) * 0.5;
+  } else vt *= (1 - s.fric);
+  b.vx = nx * out + tx * vt;
+  b.vy = ny * out + ty * vt;
+}
+
+function updateMachines(w, h) {
+  for (const L of w.lifts) {
+    const d = L.def;
+    if (L.y > d.yTop || L.omega < 0) {
+      L.y -= L.omega * LIFT_K * h;
+      L.y = Math.max(d.yTop, Math.min(d.yBottom, L.y));
+    }
+    if (L.y <= d.yTop + 0.01 && L.omega > 0) L.tilt = Math.min(Math.abs(d.tilt), L.tilt + 70 * h);
+    const a = rad(L.tilt * Math.sign(d.tilt)), c = Math.cos(a), s = Math.sin(a), hw = d.w / 2;
+    setSeg(L.seg, d.x - c * hw, L.y - s * hw, d.x + c * hw, L.y + s * hw);
+  }
+  for (const G of w.gates) {
+    const d = G.def;
+    if (G.omega > 0) G.off = Math.min(d.rise, G.off + G.omega * GATE_K * h);
+    setSeg(G.seg, d.seg[0], d.seg[1] - G.off, d.seg[2], d.seg[3] - G.off);
+  }
+}
+
+function stepWorld(w, dt) {
+  const SUB = 4, h = dt / SUB;
+  for (let k = 0; k < SUB; k++) {
+    updateMachines(w, h);
+    for (const b of w.balls) {
+      if (b.lost) continue;
+      const bt = BALL_TYPES[b.type];
+      b.vy += GRAV * bt.g * h;
+      const damp = 1 - bt.drag * h;
+      b.vx *= damp; b.vy *= damp;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > MAXV) { b.vx *= MAXV / sp; b.vy *= MAXV / sp; }
+      b.x += b.vx * h; b.y += b.vy * h;
+      b.rot += b.vx / bt.r * h;
+      for (const s of w.segs) collideSeg(b, s, bt, w);
+      for (const L of w.launchers) {
+        const dx = b.x - L.x, dy = b.y - L.y, R = L.r + bt.r, d = Math.hypot(dx, dy);
+        if (d >= R || d < 1e-4) continue;
+        const nx = dx / d, ny = dy / d, tx = -ny, ty = nx;
+        b.x = L.x + nx * R; b.y = L.y + ny * R;
+        const vn = b.vx * nx + b.vy * ny;
+        const rim = L.omega * LAUNCH_K;
+        let out = vn < 0 ? -vn * 0.3 : vn;
+        if (out < 40) out = 0;
+        const vt = b.vx * tx + b.vy * ty;
+        const nvt = vt + (rim - vt) * 0.85;
+        if (Math.abs(rim) > 200 && Math.abs(nvt - vt) > 60) w.events.push('whir');
+        b.vx = nx * out + tx * nvt; b.vy = ny * out + ty * nvt;
+      }
+      if (b.x < -80 || b.x > W + 80 || b.y > H + 80 || b.y < -80) b.lost = true;
+    }
+  }
+  w.t += dt;
+  const targets = w.balls.filter(b => b.target);
+  if (targets.some(b => b.lost)) w.lost = true;
+  const g = w.goal;
+  if (g && targets.length && !w.won) {
+    const inside = targets.every(b => !b.lost && b.x > g.x && b.x < g.x + g.w && b.y > g.y && b.y < g.y + g.h);
+    w.winT = inside ? w.winT + dt : 0;
+    if (w.winT > 0.35) w.won = true;
+  }
+  const moving = w.balls.some(b => !b.lost && Math.hypot(b.vx, b.vy) > 6) || w.lifts.some(L => L.omega > 0 && (L.y > L.def.yTop || L.tilt < Math.abs(L.def.tilt))) || w.gates.some(G => G.omega > 0 && G.off < G.def.rise);
+  w.still = moving ? 0 : w.still + dt;
+}
+
+/* Encaje automático: group = ruedas del mismo eje que se arrastran juntas; (px, py) = posición deseada */
+function snapGroup(level, placed, group, px, py) {
+  const ids = new Set(group.map(g => g.id));
+  const others = allWheels(level, placed.filter(q => !ids.has(q.id)));
+  const members = group.map(g => WHEEL_TYPES[g.kind]);
+  let best = null, bestD = 18;
+  const consider = (x, y) => { const d = Math.hypot(x - px, y - py); if (d < bestD) { bestD = d; best = { x, y }; } };
+  others.forEach(o => { if (Math.hypot(o.x - px, o.y - py) < 16) consider(o.x, o.y); });
+  const gm = members.filter(m => m.gear);
+  const gears = others.filter(o => o.gear);
+  for (let i = 0; i < gears.length; i++) {
+    for (let j = i + 1; j < gears.length; j++) {
+      for (const m1 of gm) {
+        for (const m2 of gm) {
+          const a = gears[i], b = gears[j];
+          const ra = a.r + m1.r, rb = b.r + m2.r, d = Math.hypot(b.x - a.x, b.y - a.y);
+          if (d > ra + rb || d < Math.abs(ra - rb) || d < 1) continue;
+          const l = (ra * ra - rb * rb + d * d) / (2 * d), hh = Math.sqrt(Math.max(0, ra * ra - l * l));
+          const mx = a.x + (b.x - a.x) * l / d, my = a.y + (b.y - a.y) * l / d;
+          const ox = -(b.y - a.y) / d * hh, oy = (b.x - a.x) / d * hh;
+          consider(mx + ox, my + oy); consider(mx - ox, my - oy);
+        }
+      }
+    }
+  }
+  if (!best) {
+    bestD = 18;
+    gears.forEach(o => gm.forEach(m => {
+      const d = Math.hypot(px - o.x, py - o.y), want = o.r + m.r;
+      if (d > 1 && Math.abs(d - want) < 18) consider(o.x + (px - o.x) / d * want, o.y + (py - o.y) / d * want);
+    }));
+  }
+  return best;
+}
+
+function wheelBlocked(level, placed, p) {
+  const T = WHEEL_TYPES[p.kind];
+  if (!T) return false;
+  const me = { x: p.x, y: p.y, r: T.r, gear: T.gear };
+  return allWheels(level, placed.filter(q => q.id !== p.id)).some(o => relation(me, o) === 'overlap');
+}
+
+const FLOOR = [0, 595, 960, 595];
+const LWALL = [4, 0, 4, 600];
+const RWALL = [956, 0, 956, 600];
+const LEVELS = [
+  {
+    id: 'primero', name: 'Primer engranaje',
+    goalText: 'El motor gira, pero la cinta está lejos. Une el motor con la rueda de la cinta para que la pelota vaya a la derecha.',
+    wheels: [{ id: 'motor', type: 'gearM', x: 220, y: 420, motor: 2.5, role: 'motor' }, { id: 'c', type: 'gearM', x: 400, y: 420, role: 'conveyor' }],
+    conveyors: [{ seg: [400, 420, 800, 420], wheel: 'c' }],
+    balls: [{ type: 'ball', x: 560, y: 370, target: true }],
+    statics: [FLOOR, LWALL, RWALL],
+    goal: { x: 830, y: 525, w: 110, h: 65, cup: true },
+    hint: {"parts": [{"kind": "gearL", "x": 310, "y": 406.55}], "links": []},
+    inv: { gearL: 1, gearS: 2 }
+  },
+  {
+    id: 'reves', name: 'Al revés',
+    goalText: 'Ahora la cesta está a la izquierda. Cada engranaje que añades cambia el sentido de giro.',
+    wheels: [{ id: 'motor', type: 'gearM', x: 820, y: 420, motor: 2.5, role: 'motor' }, { id: 'c', type: 'gearM', x: 640, y: 420, role: 'conveyor' }],
+    conveyors: [{ seg: [240, 420, 640, 420], wheel: 'c' }],
+    balls: [{ type: 'ball', x: 440, y: 370, target: true }],
+    statics: [FLOOR, LWALL, RWALL],
+    goal: { x: 70, y: 525, w: 110, h: 65, cup: true },
+    hint: {"parts": [{"kind": "gearS", "x": 755, "y": 420}, {"kind": "gearS", "x": 704.11, "y": 409.3}], "links": []},
+    inv: { gearS: 2, gearL: 1 }
+  },
+  {
+    id: 'eje', name: 'La correa',
+    goalText: 'La cinta tiene una polea. Las poleas se unen con correas, y una polea puede compartir eje con otra rueda.',
+    wheels: [{ id: 'motor', type: 'gearM', x: 160, y: 260, motor: 2.5, role: 'motor' }, { id: 'c', type: 'pulleyL', x: 500, y: 430, role: 'conveyor' }],
+    conveyors: [{ seg: [500, 430, 820, 430], wheel: 'c' }],
+    balls: [{ type: 'ball', x: 640, y: 380, target: true }],
+    statics: [FLOOR, LWALL, RWALL],
+    goal: { x: 835, y: 525, w: 110, h: 65, cup: true },
+    hint: {"parts": [{"kind": "pulleyS", "x": 160, "y": 260}], "links": [{"a": "p1", "b": "c", "crossed": false}]},
+    inv: { gearS: 1, pulleyS: 1, correa: 1 }
+  },
+  {
+    id: 'cintas', name: 'Dos cintas',
+    goalText: 'La cinta de arriba debe ir a la derecha y la de abajo a la izquierda. Una correa cruzada invierte el giro.',
+    wheels: [{ id: 'motor', type: 'pulleyL', x: 150, y: 250, motor: 2.5, role: 'motor' }, { id: 'u', type: 'pulleyL', x: 400, y: 250, role: 'conveyor' }, { id: 'd', type: 'pulleyL', x: 820, y: 430, role: 'conveyor' }],
+    conveyors: [{ seg: [400, 250, 620, 250], wheel: 'u' }, { seg: [300, 430, 820, 430], wheel: 'd' }],
+    balls: [{ type: 'ball', x: 470, y: 200, target: true }],
+    statics: [FLOOR, LWALL, RWALL],
+    goal: { x: 185, y: 525, w: 110, h: 65, cup: true },
+    hint: {"parts": [{"kind": "pulleyS", "x": 400, "y": 250}], "links": [{"a": "motor", "b": "u", "crossed": false}, {"a": "p1", "b": "d", "crossed": true}]},
+    inv: { pulleyS: 1, correa: 2 }
+  },
+  {
+    id: 'lanzadora', name: 'La lanzadora',
+    goalText: 'La rueda lanzadora debe girar muy deprisa para lanzar la pelota por encima del muro. Multiplica la velocidad.',
+    wheels: [{ id: 'motor', type: 'gearL', x: 120, y: 470, motor: 2.5, role: 'motor' }, { id: 'l', type: 'gearS', x: 240, y: 390, role: 'launcher' }],
+    launchers: [{ wheel: 'l', r: 34 }],
+    balls: [{ type: 'ball', x: 240, y: 200, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [560, 595, 560, 500]],
+    goal: { x: 580, y: 525, w: 180, h: 65, cup: true },
+    hint: {"parts": [{"kind": "gearS", "x": 163.51, "y": 405.26}, {"kind": "gearL", "x": 163.51, "y": 405.26}], "links": []},
+    inv: { gearS: 1, gearM: 1, gearL: 1 }
+  },
+  {
+    id: 'ascensor', name: 'El ascensor',
+    goalText: 'Sube la pelota con el ascensor hasta la repisa. El tambor tiene que girar en el sentido de las agujas del reloj.',
+    wheels: [{ id: 'motor', type: 'pulleyL', x: 200, y: 120, motor: 2.5, role: 'motor' }, { id: 'd', type: 'gearM', x: 700, y: 120, role: 'lift' }],
+    lifts: [{ wheel: 'd', x: 700, w: 100, yBottom: 560, yTop: 330, tilt: 25 }],
+    balls: [{ type: 'ball', x: 700, y: 530, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [755, 354, 956, 354]],
+    goal: { x: 860, y: 255, w: 96, h: 90, cup: false },
+    hint: {"parts": [{"kind": "gearS", "x": 635, "y": 120}, {"kind": "pulleyS", "x": 635, "y": 120}], "links": [{"a": "motor", "b": "p2", "crossed": true}]},
+    inv: { gearS: 1, gearM: 1, pulleyS: 1, correa: 1 }
+  },
+  {
+    id: 'compuerta', name: 'La compuerta',
+    goalText: 'Un mismo motor debe abrir la compuerta y mover la cinta. Las dos ruedas tienen que girar a la derecha.',
+    wheels: [{ id: 'motor', type: 'gearM', x: 480, y: 470, motor: 2.5, role: 'motor' }, { id: 'g', type: 'gearM', x: 262, y: 470, role: 'gate' }, { id: 'c', type: 'gearM', x: 700, y: 330, role: 'conveyor' }],
+    gates: [{ wheel: 'g', seg: [262, 150, 262, 262], rise: 150 }],
+    conveyors: [{ seg: [250, 330, 700, 330], wheel: 'c' }],
+    balls: [{ type: 'ball', x: 90, y: 150, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [20, 180, 250, 250]],
+    goal: { x: 730, y: 525, w: 110, h: 65, cup: true },
+    hint: {"parts": [{"kind": "gearS", "x": 415, "y": 470}, {"kind": "gearS", "x": 371, "y": 497.71}, {"kind": "gearS", "x": 327, "y": 470}, {"kind": "pulleyS", "x": 480, "y": 470}, {"kind": "pulleyS", "x": 700, "y": 330}], "links": [{"a": "p4", "b": "p5", "crossed": false}]},
+    inv: { gearS: 3, pulleyS: 2, correa: 1 }
+  },
+  {
+    id: 'fabrica', name: 'La gran fábrica',
+    goalText: 'Ascensor y lanzadora con un solo motor: sube la pelota y dispárala por encima del muro.',
+    wheels: [{ id: 'motor', type: 'gearL', x: 480, y: 520, motor: 2.5, role: 'motor' }, { id: 'd', type: 'gearM', x: 150, y: 110, role: 'lift' }, { id: 'l', type: 'gearS', x: 440, y: 390, role: 'launcher' }],
+    lifts: [{ wheel: 'd', x: 150, w: 100, yBottom: 560, yTop: 260, tilt: 25 }],
+    launchers: [{ wheel: 'l', r: 34 }],
+    balls: [{ type: 'ball', x: 150, y: 530, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [205, 300, 400, 345], [700, 595, 700, 480]],
+    goal: { x: 720, y: 525, w: 180, h: 65, cup: true },
+    hint: {"parts": [{"kind": "gearS", "x": 423.49, "y": 466.23}, {"kind": "gearL", "x": 423.49, "y": 466.23}, {"kind": "pulleyS", "x": 480, "y": 520}, {"kind": "pulleyS", "x": 150, "y": 110}], "links": [{"a": "p3", "b": "p4", "crossed": false}]},
+    inv: { gearS: 2, gearM: 1, gearL: 2, pulleyS: 2, correa: 1 }
+  }
+];
+const SANDBOX = {
+  id: 'eng-taller', name: 'Taller de engranajes', sandbox: true,
+  goalText: 'Sin meta. Conecta ruedas al motor y observa cómo cambian el sentido de giro y las vueltas por minuto.',
+  balls: [], statics: [], goal: null, hint: { parts: [], links: [] },
+  wheels: [{ id: 'motor', type: 'gearM', x: 480, y: 300, motor: 2.5, role: 'motor' }],
+  inv: { gearS: 12, gearM: 12, gearL: 12, pulleyS: 8, pulleyL: 8, correa: 8 }
+};
+/*ENGINE-END*/
+document.addEventListener('DOMContentLoaded', () => {
+  'use strict';
+  const ALL = LEVELS.concat([SANDBOX]);
+  const STORE = 'maquina-disparatada-engranajes-v1';
+  const KIND_ORDER = ['gearS', 'gearM', 'gearL', 'pulleyS', 'pulleyL', 'correa'];
+  const C = {
+    paper: '#2a2119', grid: 'rgba(243,230,207,0.05)', gridMajor: 'rgba(243,230,207,0.11)',
+    ink: '#f3e6cf', inkDim: 'rgba(243,230,207,0.55)', fill: '#4a3a2a', dark: '#17110b',
+    brass: '#d9a441', brassDark: '#8a6420', steel: '#9fb0b6', steelDark: '#56666c', copper: '#c26a3d', copperDark: '#6e3519',
+    rubber: '#1d1d22', ball: '#5ec8ff', ballDark: '#1d6e99', red: '#ff7b6b', green: '#7ee0a0', amber: '#ffb238', wood: '#b98a55'
+  };
+  const WHEEL_STYLE = {
+    gearS: [C.copper, C.copperDark], gearM: [C.brass, C.brassDark], gearL: [C.steel, C.steelDark],
+    pulleyS: ['#cfc2a8', '#5f533f'], pulleyL: ['#cfc2a8', '#5f533f']
+  };
+  const ROLE_NAME = { motor: 'MOTOR', conveyor: 'CINTA', launcher: 'LANZADORA', lift: 'ASCENSOR', gate: 'COMPUERTA' };
+
+  function gearSvg(n, fill, edge) {
+    const cx = 20, cy = 14, ro = 12.5, ri = 9.5, pts = [];
+    for (let i = 0; i < n * 2; i++) {
+      const a = (i / (n * 2)) * Math.PI * 2, r = i % 2 ? ri : ro;
+      pts.push((cx + Math.cos(a) * r).toFixed(1) + ',' + (cy + Math.sin(a) * r).toFixed(1));
+    }
+    return '<svg viewBox="0 0 40 28"><polygon points="' + pts.join(' ') + '" fill="' + fill + '" stroke="' + edge + '" stroke-width="1.2" stroke-linejoin="round"/><circle cx="20" cy="14" r="2.6" fill="' + edge + '"/></svg>';
+  }
+  const ICONS = {
+    gearS: gearSvg(8, C.copper, C.dark), gearM: gearSvg(11, C.brass, C.dark), gearL: gearSvg(14, C.steel, C.dark),
+    pulleyS: '<svg viewBox="0 0 40 28"><circle cx="20" cy="14" r="8" fill="#cfc2a8" stroke="#17110b" stroke-width="1.5"/><circle cx="20" cy="14" r="5" fill="none" stroke="#5f533f" stroke-width="1.5"/><circle cx="20" cy="14" r="1.8" fill="#17110b"/></svg>',
+    pulleyL: '<svg viewBox="0 0 40 28"><circle cx="20" cy="14" r="12.5" fill="#cfc2a8" stroke="#17110b" stroke-width="1.5"/><circle cx="20" cy="14" r="9" fill="none" stroke="#5f533f" stroke-width="1.5"/><path d="M20 6 v16 M12 14 h16" stroke="#5f533f" stroke-width="1.4"/><circle cx="20" cy="14" r="2" fill="#17110b"/></svg>',
+    correa: '<svg viewBox="0 0 40 28"><circle cx="9" cy="14" r="6" fill="none" stroke="#cfc2a8" stroke-width="2"/><circle cx="31" cy="14" r="6" fill="none" stroke="#cfc2a8" stroke-width="2"/><path d="M9 8 H31 M9 20 H31" stroke="#f3e6cf" stroke-width="2.5"/></svg>'
+  };
+  const PART_NAME = Object.assign({}, ...Object.keys(WHEEL_TYPES).map(k => ({ [k]: WHEEL_TYPES[k].name })), { correa: 'Correa' });
+
+  const $ = sel => document.querySelector(sel);
+  const cv = $('#board');
+  const ctx = cv.getContext('2d');
+  const els = {
+    num: $('#lvNum'), name: $('#lvName'), goal: $('#lvGoal'), status: $('#status'),
+    inv: $('#inv'), levels: $('#levels'), run: $('#btnRun'), hint: $('#btnHint'), clear: $('#btnClear'),
+    link: $('#btnLink'), cross: $('#btnCross'), unlink: $('#btnUnlink'), del: $('#btnDel'), selName: $('#selName'),
+    overlay: $('#overlay'), ovTitle: $('#ovTitle'), ovText: $('#ovText'), ovNext: $('#ovNext'), ovRetry: $('#ovRetry'),
+    sound: $('#btnSound'), readout: $('#readout')
+  };
+
+  let progress = {};
+  try { progress = JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { progress = {}; }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ } }
+
+  const S = {
+    li: 0, placed: [], links: [], selected: null, armed: null, linkFrom: null, mode: 'build', world: null, drag: null,
+    hover: null, hintShown: 0, acc: 0, last: 0, anim: 0, wonShown: false, nextId: 1, sound: true, ang: {}, mech: null, lastReadout: ''
+  };
+
+  /* ---------- Audio ---------- */
+  let ac = null, lastSound = 0;
+  function ensureAudio() {
+    if (ac || !S.sound) return;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+  }
+  function tone(f0, f1, dur, type, vol) {
+    if (!ac || !S.sound) return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function sfx(name) {
+    const now = performance.now();
+    if (name !== 'win' && now - lastSound < 80) return;
+    lastSound = now;
+    if (name === 'hit') tone(160, 90, 0.07, 'triangle', 0.12);
+    else if (name === 'whir') tone(300, 900, 0.18, 'sawtooth', 0.06);
+    else if (name === 'clack') { tone(1200, 700, 0.04, 'square', 0.05); }
+    else if (name === 'jam') tone(110, 70, 0.3, 'sawtooth', 0.12);
+    else if (name === 'win') [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, f, 0.16, 'square', 0.06), i * 110));
+  }
+
+  /* ---------- Helpers ---------- */
+  const level = () => ALL[S.li];
+  const isWheelKind = k => !!WHEEL_TYPES[k];
+  const used = kind => kind === 'correa' ? S.links.length : S.placed.filter(p => p.kind === kind).length;
+  const remaining = kind => (level().inv[kind] || 0) - used(kind);
+  const byId = id => S.placed.find(p => p.id === id) || null;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mid = p => 'p' + p.id;
+  const rpm = w => Math.round(Math.abs(w) * 60 / (2 * Math.PI));
+  function coaxGroup(p) { return S.placed.filter(q => Math.hypot(q.x - p.x, q.y - p.y) < COAX_TOL); }
+  function wheelById(id) { return S.mech ? S.mech.byId[id] : null; }
+  function linkOf(id) { return S.links.find(l => l.a === id || l.b === id) || null; }
+
+  function toWorld(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function touchTol() { return 10 * W / cv.getBoundingClientRect().width; }
+
+  function hitWheel(pt, pulleysOnly, includeFixed) {
+    const list = S.mech ? S.mech.wheels.slice() : [];
+    list.sort((a, b) => a.r - b.r);
+    const tol = touchTol();
+    for (const w of list) {
+      if (pulleysOnly && w.gear) continue;
+      if (w.fixed && !includeFixed) continue;
+      if (Math.hypot(pt.x - w.x, pt.y - w.y) < w.r + tol) return w;
+    }
+    return null;
+  }
+
+  function recompute() { S.mech = solveMech(level(), S.placed, S.links); }
+
+  /* ---------- Drawing ---------- */
+  function resize() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  function capsule(ax, ay, bx, by, th, fill, edge) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = edge; ctx.lineWidth = th + 3;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = fill; ctx.lineWidth = th - 1;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  function hand(size) { return size + 'px "Architects Daughter", "Comic Sans MS", cursive'; }
+
+  function drawBoard() {
+    ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 20) { ctx.strokeStyle = x % 100 === 0 ? C.gridMajor : C.grid; ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 20) { ctx.strokeStyle = y % 100 === 0 ? C.gridMajor : C.grid; ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+    const L = level();
+    ctx.fillStyle = C.inkDim; ctx.font = hand(15); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(L.sandbox ? 'TALLER DE ENGRANAJES' : 'PLANO ' + (S.li + 1) + '/' + LEVELS.length + ' · ' + L.name.toUpperCase(), 16, 14);
+  }
+
+  function gearPath(r, teeth) {
+    const ro = r + 4, ri = r - 4, n = teeth;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * Math.PI * 2, step = Math.PI * 2 / n;
+      const pts = [[ri, a0], [ro, a0 + step * 0.18], [ro, a0 + step * 0.48], [ri, a0 + step * 0.66]];
+      pts.forEach((q, k) => { const x = Math.cos(q[1]) * q[0], y = Math.sin(q[1]) * q[0]; if (i === 0 && k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    }
+    ctx.closePath();
+  }
+
+  function drawWheel(w, opt) {
+    const T = WHEEL_TYPES[w.type];
+    const ghost = opt && opt.ghost;
+    const [fill, edge] = WHEEL_STYLE[w.type];
+    const ang = S.ang[w.id] || 0;
+    ctx.save(); ctx.translate(w.x, w.y);
+    if (ghost) ctx.globalAlpha = 0.65;
+    ctx.rotate(ang);
+    if (T.gear) {
+      gearPath(T.r, T.teeth);
+      ctx.fillStyle = ghost ? 'transparent' : fill; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = ghost ? C.amber : C.dark; if (ghost) ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+      if (!ghost) {
+        ctx.strokeStyle = edge; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, T.r - 9, 0, Math.PI * 2); ctx.stroke();
+        const holes = T.r > 30 ? 4 : 3;
+        ctx.fillStyle = edge;
+        for (let i = 0; i < holes; i++) { const a = i / holes * Math.PI * 2; ctx.beginPath(); ctx.arc(Math.cos(a) * T.r * 0.48, Math.sin(a) * T.r * 0.48, T.r * 0.13, 0, Math.PI * 2); ctx.fill(); }
+      }
+    } else {
+      ctx.fillStyle = ghost ? 'transparent' : fill; ctx.strokeStyle = ghost ? C.amber : C.dark; ctx.lineWidth = 2;
+      if (ghost) ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(0, 0, T.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      if (!ghost) {
+        ctx.strokeStyle = edge; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, T.r - 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 4, Math.sin(a) * 4); ctx.lineTo(Math.cos(a) * (T.r - 7), Math.sin(a) * (T.r - 7)); ctx.stroke(); }
+      }
+    }
+    ctx.rotate(-ang);
+    ctx.fillStyle = C.dark; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+    if (w.fixed && !ghost) { ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill(); }
+    if (opt && opt.sel) { ctx.setLineDash([6, 5]); ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, T.r + (T.gear ? 10 : 7), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+    if (opt && opt.linkFrom) { ctx.strokeStyle = C.green; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, T.r + 8, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function beltTangents(a, b, crossed) {
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    if (d < 1) return null;
+    const ra = a.r + 2, rb = b.r + 2;
+    const base = Math.atan2(dy, dx);
+    const res = [];
+    if (!crossed) {
+      if (d <= Math.abs(ra - rb)) return null;
+      const phi = Math.acos((ra - rb) / d);
+      [1, -1].forEach(s => { const t = base + s * phi; res.push([a.x + Math.cos(t) * ra, a.y + Math.sin(t) * ra, b.x + Math.cos(t) * rb, b.y + Math.sin(t) * rb]); });
+    } else {
+      if (d <= ra + rb) return null;
+      const phi = Math.acos((ra + rb) / d);
+      [1, -1].forEach(s => { const t = base + s * phi; res.push([a.x + Math.cos(t) * ra, a.y + Math.sin(t) * ra, b.x - Math.cos(t) * rb, b.y - Math.sin(t) * rb]); });
+    }
+    return res;
+  }
+
+  function drawBelt(a, b, crossed, ghost, speed) {
+    const tg = beltTangents(a, b, crossed);
+    if (!tg) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (ghost) { ctx.globalAlpha = 0.7; ctx.setLineDash([7, 6]); ctx.strokeStyle = C.amber; ctx.lineWidth = 3; }
+    else { ctx.strokeStyle = C.rubber; ctx.lineWidth = 5; }
+    tg.forEach(t => { ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(t[2], t[3]); ctx.stroke(); });
+    if (!ghost) {
+      ctx.setLineDash([3, 9]); ctx.lineDashOffset = -S.anim * speed; ctx.strokeStyle = 'rgba(243,230,207,0.5)'; ctx.lineWidth = 2;
+      tg.forEach(t => { ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(t[2], t[3]); ctx.stroke(); });
+    }
+    ctx.restore();
+  }
+
+  function drawSpin(w, omega) {
+    if (!omega) return;
+    const r = w.r + 12, cw = omega > 0;
+    ctx.save(); ctx.translate(w.x, w.y);
+    ctx.strokeStyle = cw ? C.green : C.amber; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    const a0 = -Math.PI * 0.85, a1 = -Math.PI * 0.35;
+    ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
+    const tip = cw ? a1 : a0, dir = cw ? 1 : -1;
+    const tx = Math.cos(tip) * r, ty = Math.sin(tip) * r;
+    const hx = -Math.sin(tip) * dir, hy = Math.cos(tip) * dir;
+    ctx.beginPath();
+    ctx.moveTo(tx + hx * 7, ty + hy * 7);
+    ctx.lineTo(tx - Math.cos(tip) * 5, ty - Math.sin(tip) * 5);
+    ctx.moveTo(tx + hx * 7, ty + hy * 7);
+    ctx.lineTo(tx + Math.cos(tip) * 5, ty + Math.sin(tip) * 5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function rpmTag(w, omega) {
+    const txt = (omega > 0 ? '↻ ' : '↺ ') + rpm(omega) + ' rpm';
+    ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
+    const tw = ctx.measureText(txt).width + 10;
+    const x = w.x - tw / 2, y = w.y + w.r + 10;
+    ctx.fillStyle = 'rgba(23,17,11,0.82)'; ctx.fillRect(x, y, tw, 17);
+    ctx.fillStyle = omega > 0 ? C.green : C.amber; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, w.x, y + 9);
+  }
+
+  function roleTag(w) {
+    const name = ROLE_NAME[w.role]; if (!name) return;
+    ctx.font = hand(14); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = C.ink;
+    ctx.fillText(name, w.x, w.y - w.r - 8);
+  }
+
+  function drawGoal(g) {
+    if (!g) return;
+    ctx.save();
+    if (g.cup) {
+      ctx.fillStyle = 'rgba(255,178,56,0.12)'; ctx.fillRect(g.x, g.y, g.w, g.h);
+      cupSegs(g).forEach(s => capsule(s.ax, s.ay, s.bx, s.by, s.th, C.amber, C.dark));
+      ctx.fillStyle = C.amber; ctx.font = hand(16); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('META', g.x + g.w / 2, g.y + g.h / 2 + 6);
+    } else {
+      ctx.setLineDash([8, 6]); ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.fillStyle = 'rgba(255,178,56,0.10)';
+      ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeRect(g.x + 1, g.y + 1, g.w - 2, g.h - 2); ctx.setLineDash([]);
+      const fx = g.x + g.w / 2 - 6, fy = g.y + g.h - 18;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 40); ctx.stroke();
+      ctx.fillStyle = C.amber; ctx.beginPath(); ctx.moveTo(fx + 1, fy - 40); ctx.lineTo(fx + 28, fy - 32); ctx.lineTo(fx + 1, fy - 24); ctx.closePath(); ctx.fill();
+      ctx.font = hand(15); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('META', fx + 6, fy - 8);
+    }
+    ctx.restore();
+  }
+
+  function convSpeed(c) { return S.mech ? (S.mech.omega[c.wheel] || 0) * CONV_K : 0; }
+
+  function drawConveyor(c) {
+    const s = c.seg, sp = convSpeed(c);
+    capsule(s[0], s[1], s[2], s[3], 16, C.rubber, C.ink);
+    const len = Math.hypot(s[2] - s[0], s[3] - s[1]), ux = (s[2] - s[0]) / len, uy = (s[3] - s[1]) / len;
+    ctx.fillStyle = '#6b6152';
+    for (let i = 0; i <= 6; i++) { const t = i / 6; ctx.beginPath(); ctx.arc(s[0] + (s[2] - s[0]) * t, s[1] + (s[3] - s[1]) * t, 3.5, 0, Math.PI * 2); ctx.fill(); }
+    if (!sp) return;
+    const dir = Math.sign(sp);
+    const off = ((S.anim * Math.abs(sp) * 0.35) % 28) * dir;
+    ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let d = 14; d < len - 14; d += 28) {
+      let p = d + off; if (p > len - 14) p -= len - 28; if (p < 14) p += len - 28;
+      const x = s[0] + ux * p, y = s[1] + uy * p - 4;
+      ctx.beginPath(); ctx.moveTo(x - 3 * dir, y - 3); ctx.lineTo(x + 2 * dir, y); ctx.lineTo(x - 3 * dir, y + 3); ctx.stroke();
+    }
+  }
+
+  function drawLiftsAndGates(L) {
+    (L.lifts || []).forEach((d, i) => {
+      const drum = wheelById(d.wheel); if (!drum) return;
+      const st = S.mode === 'run' && S.world ? S.world.lifts[i] : null;
+      const y = st ? st.y : d.yBottom, tilt = st ? st.tilt * Math.sign(d.tilt) : 0;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(drum.x + drum.r * 0.6, drum.y); ctx.lineTo(d.x + d.w / 2 - 10, y - 4); ctx.moveTo(drum.x - drum.r * 0.6, drum.y); ctx.lineTo(d.x - d.w / 2 + 10, y - 4); ctx.stroke();
+      const a = tilt * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), hw = d.w / 2;
+      capsule(d.x - c * hw, y - s * hw, d.x + c * hw, y + s * hw, 10, C.wood, C.dark);
+      ctx.setLineDash([3, 6]); ctx.strokeStyle = C.inkDim; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(d.x, d.yTop - 8); ctx.lineTo(d.x, d.yBottom); ctx.stroke(); ctx.setLineDash([]);
+    });
+    (L.gates || []).forEach((d, i) => {
+      const drum = wheelById(d.wheel); if (!drum) return;
+      const off = S.mode === 'run' && S.world ? S.world.gates[i].off : 0;
+      const g = d.seg, top = Math.min(g[1], g[3]) - off;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(drum.x, drum.y - drum.r); ctx.lineTo(drum.x, drum.y - drum.r - 20); ctx.lineTo(g[0], g[1] - off - 20); ctx.lineTo(g[0], top); ctx.stroke(); ctx.setLineDash([]);
+      capsule(g[0], g[1] - off, g[2], g[3] - off, 12, C.red, C.dark);
+      ctx.fillStyle = C.ink; ctx.font = hand(13); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('compuerta', g[0], top - 24);
+    });
+  }
+
+  function drawLaunchers(L) {
+    (L.launchers || []).forEach(d => {
+      const w = wheelById(d.wheel); if (!w) return;
+      const ang = S.ang[w.id] || 0;
+      ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(ang);
+      ctx.strokeStyle = C.rubber; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(0, 0, d.r - 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = C.red; ctx.lineWidth = 2;
+      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.arc(0, 0, d.r - 4, a, a + 0.25); ctx.stroke(); }
+      ctx.restore();
+    });
+  }
+
+  function drawBall(b) {
+    const r = BALL_TYPES[b.type].r;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot || 0);
+    ctx.fillStyle = C.ball; ctx.strokeStyle = C.ballDark; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(0, -r * 1.6, r * 1.35, 0.95, Math.PI - 0.95); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, r * 1.6, r * 1.35, Math.PI + 0.95, -0.95); ctx.stroke();
+    ctx.restore();
+  }
+
+  function hintWheel(L, ref) {
+    const h = L.hint;
+    if (ref[0] === 'p') { const p = h.parts[Number(ref.slice(1)) - 1]; return p ? { x: p.x, y: p.y, r: WHEEL_TYPES[p.kind].r } : null; }
+    const w = (L.wheels || []).find(q => q.id === ref);
+    return w ? { x: w.x, y: w.y, r: WHEEL_TYPES[w.type].r } : null;
+  }
+
+  function draw() {
+    const scale = cv.width / W;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    const L = level();
+    drawBoard();
+    const mech = S.mech;
+    const om = id => (mech && mech.omega[id]) || 0;
+    // ruedas (grandes detrás)
+    const wheels = mech ? mech.wheels.slice().sort((a, b) => b.r - a.r) : [];
+    wheels.forEach(w => drawWheel(w, { sel: S.mode === 'build' && w.id === 'p' + S.selected, linkFrom: S.linkFrom === w.id }));
+    // correas
+    (mech ? mech.links : []).forEach(l => {
+      const a = mech.byId[l.a], b = mech.byId[l.b];
+      if (a && b) drawBelt(a, b, l.crossed, false, Math.abs(om(l.a)) * a.r);
+    });
+    drawLaunchers(L);
+    // pistas
+    if (S.mode === 'build' && L.hint && S.hintShown > 0) {
+      L.hint.parts.slice(0, S.hintShown).forEach((p, i) => drawWheel({ id: 'hint' + i, type: p.kind, x: p.x, y: p.y, r: WHEEL_TYPES[p.kind].r }, { ghost: true }));
+      if (S.hintShown >= L.hint.parts.length) L.hint.links.forEach(l => { const a = hintWheel(L, l.a), b = hintWheel(L, l.b); if (a && b) drawBelt(a, b, l.crossed, true, 0); });
+    }
+    // escenario
+    drawGoal(L.goal);
+    (L.statics || []).forEach(s => capsule(s[0], s[1], s[2], s[3], 10, C.fill, C.ink));
+    (L.conveyors || []).forEach(drawConveyor);
+    drawLiftsAndGates(L);
+    // etiquetas
+    wheels.forEach(w => { if (w.fixed) roleTag(w); });
+    wheels.forEach(w => { const o = om(w.id); if (o) { drawSpin(w, o); } });
+    const shown = new Set();
+    wheels.slice().sort((a, b) => a.r - b.r).forEach(w => {
+      const o = om(w.id); const key = Math.round(w.x) + ',' + Math.round(w.y);
+      if (o && !shown.has(key)) { shown.add(key); rpmTag(w, o); }
+    });
+    if (mech && mech.jam) {
+      ctx.fillStyle = 'rgba(255,123,107,' + (0.55 + 0.25 * Math.sin(S.anim * 8)) + ')';
+      ctx.font = '400 30px "Bungee", "Arial Black", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('¡ATASCO!', W / 2, 60);
+    }
+    // bolas
+    if (S.mode === 'build') (L.balls || []).forEach(b => drawBall(b));
+    else if (S.world) S.world.balls.forEach(b => { if (!b.lost) drawBall(b); });
+    // vista previa al colocar
+    if (S.mode === 'build' && S.armed && S.armed !== 'correa' && S.hover) {
+      drawWheel({ id: 'ghost', type: S.armed, x: S.hover.x, y: S.hover.y, r: WHEEL_TYPES[S.armed].r }, { ghost: true });
+    }
+  }
+
+  /* ---------- Acciones ---------- */
+  function newPart(kind, pt) {
+    return { id: S.nextId++, kind, x: clamp(pt.x, 10, W - 10), y: clamp(pt.y, 10, H - 10) };
+  }
+  function placeWithSnap(group, px, py) {
+    const snap = snapGroup(level(), S.placed, group, px, py);
+    const x = snap ? snap.x : px, y = snap ? snap.y : py;
+    group.forEach(p => { p.x = clamp(x, 10, W - 10); p.y = clamp(y, 10, H - 10); });
+    return !!snap;
+  }
+
+  function select(id) { S.selected = id; refreshTools(); }
+  function deleteSel() {
+    const p = byId(S.selected); if (!p || S.mode !== 'build') return;
+    S.placed = S.placed.filter(q => q.id !== p.id);
+    S.links = S.links.filter(l => l.a !== mid(p) && l.b !== mid(p));
+    S.selected = null; recompute(); sfx('clack'); refreshAll(); setStatus('Pieza devuelta a la caja.');
+  }
+  function startLink() {
+    const p = byId(S.selected);
+    if (!p || WHEEL_TYPES[p.kind].gear) return;
+    if (remaining('correa') <= 0 && !linkOf(mid(p))) { setStatus('No te quedan correas. Quita una para poder unir otras poleas.', 'bad'); return; }
+    S.armed = 'correa'; S.linkFrom = mid(p);
+    setStatus('Ahora toca la otra polea que quieres unir con la correa.'); refreshInv();
+  }
+  function toggleCross() {
+    const p = byId(S.selected); if (!p) return;
+    const l = linkOf(mid(p)); if (!l) return;
+    l.crossed = !l.crossed; recompute(); sfx('clack'); refreshTools();
+    setStatus(l.crossed ? 'Correa cruzada: las dos poleas giran en sentidos contrarios.' : 'Correa abierta: las dos poleas giran en el mismo sentido.');
+  }
+  function unlinkSel() {
+    const p = byId(S.selected); if (!p) return;
+    S.links = S.links.filter(l => l.a !== mid(p) && l.b !== mid(p));
+    recompute(); sfx('clack'); refreshAll(); setStatus('Correa devuelta a la caja.');
+  }
+  function makeLink(a, b) {
+    if (a === b) return;
+    const wa = S.mech.byId[a], wb = S.mech.byId[b];
+    if (!wa || !wb || wa.gear || wb.gear) { setStatus('Las correas solo se ponen en poleas, no en engranajes.', 'bad'); return; }
+    if (Math.hypot(wa.x - wb.x, wa.y - wb.y) < wa.r + wb.r + 6) { setStatus('Esas poleas están demasiado juntas para poner una correa.', 'bad'); return; }
+    S.links = S.links.filter(l => l.a !== a && l.b !== a && l.a !== b && l.b !== b);
+    if (remaining('correa') <= 0) { setStatus('No te quedan correas.', 'bad'); return; }
+    S.links.push({ a, b, crossed: false });
+    recompute(); sfx('clack');
+    setStatus('Correa puesta. Selecciona una de sus poleas para cruzarla si necesitas invertir el giro.');
+  }
+
+  /* ---------- Refresco de la interfaz ---------- */
+  function setStatus(t, tone) { els.status.textContent = t; els.status.dataset.tone = tone || ''; }
+
+  function refreshInv() {
+    const L = level();
+    els.inv.innerHTML = '';
+    KIND_ORDER.filter(k => L.inv[k]).forEach(k => {
+      const n = remaining(k);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'part'; b.dataset.kind = k;
+      b.disabled = (n <= 0 && S.armed !== k) || S.mode !== 'build';
+      b.setAttribute('aria-pressed', S.armed === k ? 'true' : 'false');
+      const extra = WHEEL_TYPES[k] && WHEEL_TYPES[k].gear ? WHEEL_TYPES[k].teeth + ' dientes · ' : '';
+      b.innerHTML = ICONS[k] + '<span class="pname">' + PART_NAME[k] + '</span><span class="pcount">' + extra + '×' + n + '</span>';
+      els.inv.appendChild(b);
+    });
+  }
+
+  function refreshTools() {
+    const p = S.mode === 'build' ? byId(S.selected) : null;
+    const pulley = p && !WHEEL_TYPES[p.kind].gear;
+    const l = p ? linkOf(mid(p)) : null;
+    els.link.disabled = !pulley || !level().inv.correa;
+    els.cross.disabled = !l;
+    els.unlink.disabled = !l;
+    els.del.disabled = !p;
+    if (!p) { els.selName.textContent = 'Ninguna pieza seleccionada'; return; }
+    const T = WHEEL_TYPES[p.kind];
+    const o = S.mech ? S.mech.omega[mid(p)] || 0 : 0;
+    els.selName.textContent = T.name + (T.gear ? ' (' + T.teeth + ' dientes)' : '') + ' · ' + (o ? (o > 0 ? 'gira ↻ ' : 'gira ↺ ') + rpm(o) + ' rpm' : 'parada') + (l ? (l.crossed ? ' · correa cruzada' : ' · correa abierta') : '');
+  }
+
+  function refreshReadout() {
+    const L = level(), mech = S.mech;
+    if (!mech) return;
+    let txt;
+    if (mech.jam) txt = 'Atasco: hay ruedas que quieren girar en sentidos contrarios a la vez.';
+    else {
+      const outs = (mech.wheels || []).filter(w => w.fixed && w.role && w.role !== 'motor');
+      txt = outs.length ? outs.map(w => {
+        const o = mech.omega[w.id] || 0;
+        const nm = ROLE_NAME[w.role].charAt(0) + ROLE_NAME[w.role].slice(1).toLowerCase();
+        return nm + ': ' + (o ? (o > 0 ? '↻ ' : '↺ ') + rpm(o) + ' rpm' : 'parada');
+      }).join('  ·  ') : 'Motor: ↻ ' + rpm(mech.omega.motor || 0) + ' rpm';
+    }
+    if (txt !== S.lastReadout) { S.lastReadout = txt; els.readout.textContent = txt; els.readout.dataset.tone = mech.jam ? 'bad' : ''; }
+  }
+
+  function refreshLevels() {
+    els.levels.innerHTML = '';
+    ALL.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'lv'; b.dataset.i = String(i);
+      if (i === S.li) b.setAttribute('aria-current', 'true');
+      const done = progress[L.id] != null;
+      if (done) b.classList.add('done');
+      b.innerHTML = L.sandbox ? '<span class="lvn">∞</span><span class="lvt">Taller</span>'
+        : '<span class="lvn">' + (i + 1) + '</span><span class="lvt">' + L.name + '</span>' + (done ? '<span class="lvd">Hecho · ' + progress[L.id] + ' p.</span>' : '');
+      els.levels.appendChild(b);
+    });
+  }
+
+  function refreshRun() {
+    const running = S.mode === 'run', L = level();
+    els.run.textContent = running ? 'Parar y ajustar' : 'Soltar la pelota';
+    els.run.classList.toggle('stop', running);
+    els.run.disabled = !!L.sandbox;
+    const total = L.hint ? L.hint.parts.length + (L.hint.links.length ? 1 : 0) : 0;
+    els.hint.disabled = running || L.sandbox || S.hintShown >= total;
+    els.hint.textContent = L.sandbox ? 'Pista' : 'Pista (' + Math.max(0, total - S.hintShown) + ')';
+    els.clear.disabled = running || (S.placed.length === 0 && S.links.length === 0);
+    document.body.classList.toggle('running', running);
+  }
+
+  function refreshAll() { refreshInv(); refreshTools(); refreshLevels(); refreshRun(); refreshReadout(); }
+
+  /* ---------- Flujo de niveles ---------- */
+  function loadLevel(i, keep) {
+    S.li = i; S.mode = 'build'; S.world = null; S.selected = null; S.armed = null; S.linkFrom = null; S.drag = null; S.wonShown = false; S.ang = {};
+    if (!keep) { S.placed = []; S.links = []; S.hintShown = 0; }
+    const L = level();
+    els.num.textContent = L.sandbox ? 'Taller libre' : 'Plano ' + (i + 1) + ' de ' + LEVELS.length;
+    els.name.textContent = L.name;
+    els.goal.textContent = L.goalText;
+    els.overlay.hidden = true;
+    recompute();
+    setStatus('Elige una rueda de la caja y toca el tablero. Si la acercas a otro engranaje, encaja sola.');
+    refreshAll();
+  }
+
+  function startRun() {
+    if (level().sandbox) return;
+    if (S.mech.jam) { sfx('jam'); setStatus('La máquina está atascada. Quita alguna rueda antes de soltar la pelota.', 'bad'); return; }
+    S.mode = 'run'; S.armed = null; S.linkFrom = null; S.drag = null;
+    S.world = makeWorld(level(), S.placed.map(p => Object.assign({}, p)), S.links.map(l => Object.assign({}, l)));
+    S.acc = 0; S.wonShown = false;
+    setStatus('En marcha…'); refreshAll();
+  }
+  function stopRun() {
+    S.mode = 'build'; S.world = null; els.overlay.hidden = true;
+    setStatus('Ajusta las ruedas y vuelve a probar.'); refreshAll();
+  }
+
+  function onWin() {
+    const L = level(), w = S.world;
+    const n = S.placed.length + S.links.length;
+    if (progress[L.id] == null || n < progress[L.id]) { progress[L.id] = n; saveProgress(); }
+    sfx('win');
+    const isLast = S.li >= LEVELS.length - 1;
+    els.ovTitle.textContent = '¡La máquina funciona!';
+    els.ovText.textContent = 'Resuelto con ' + n + (n === 1 ? ' pieza' : ' piezas') + ' (las correas cuentan) en ' + w.t.toFixed(1).replace('.', ',') + ' s.' + (n > 1 ? ' ¿Puedes hacerlo con menos?' : '');
+    els.ovNext.textContent = isLast ? 'Ir al taller libre' : 'Siguiente plano';
+    els.overlay.hidden = false;
+    setStatus('¡Conseguido!', 'good');
+    refreshLevels();
+  }
+
+  /* ---------- Bucle ---------- */
+  function frame(ts) {
+    const dt = S.last ? Math.min((ts - S.last) / 1000, 0.1) : 0;
+    S.last = ts; S.anim += dt;
+    const mech = S.mode === 'run' && S.world ? S.world.mech : S.mech;
+    if (mech) mech.wheels.forEach(w => { S.ang[w.id] = (S.ang[w.id] || 0) + (mech.omega[w.id] || 0) * dt; });
+    if (S.mode === 'run' && S.world) {
+      S.acc += dt;
+      while (S.acc >= 1 / 60) {
+        stepWorld(S.world, 1 / 60); S.acc -= 1 / 60;
+        S.world.events.forEach(sfx); S.world.events.length = 0;
+      }
+      const w = S.world;
+      if (w.won && !S.wonShown) { S.wonShown = true; onWin(); }
+      else if (!w.won && w.lost && els.status.dataset.tone !== 'bad') setStatus('La pelota se ha salido del plano. Para y prueba otra idea.', 'bad');
+      else if (!w.won && !w.lost && w.still > 2 && els.status.dataset.tone !== 'bad') setStatus('Todo se ha detenido. Mira el sentido de giro y las rpm de cada máquina.', 'bad');
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Eventos ---------- */
+  cv.addEventListener('pointerdown', e => {
+    ensureAudio();
+    if (S.mode !== 'build') return;
+    const pt = toWorld(e);
+    if (S.armed === 'correa') {
+      const w = hitWheel(pt, true, true);
+      if (!w) { S.armed = null; S.linkFrom = null; setStatus('Correa cancelada.'); refreshInv(); return; }
+      if (!S.linkFrom) { S.linkFrom = w.id; setStatus('Ahora toca la otra polea.'); return; }
+      makeLink(S.linkFrom, w.id);
+      S.armed = null; S.linkFrom = null; refreshAll();
+      return;
+    }
+    if (S.armed) {
+      if (remaining(S.armed) <= 0) { S.armed = null; refreshInv(); return; }
+      const p = newPart(S.armed, pt);
+      S.placed.push(p);
+      const snapped = placeWithSnap([p], pt.x, pt.y);
+      S.armed = null; S.hover = null;
+      S.drag = { ids: [p.id], dx: p.x - pt.x, dy: p.y - pt.y };
+      cv.setPointerCapture(e.pointerId);
+      recompute(); select(p.id); sfx('clack');
+      setStatus(snapped ? 'Encajada. Arrástrala para moverla.' : 'Arrástrala cerca de otra rueda para que encaje.');
+      refreshInv(); refreshRun(); refreshReadout();
+      return;
+    }
+    const w = hitWheel(pt, false, false);
+    if (w) {
+      const p = byId(Number(w.id.slice(1)));
+      select(p.id);
+      const group = coaxGroup(p);
+      S.drag = { ids: group.map(q => q.id), dx: p.x - pt.x, dy: p.y - pt.y };
+      cv.setPointerCapture(e.pointerId);
+    } else select(null);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (S.mode !== 'build') return;
+    const pt = toWorld(e);
+    if (S.drag) {
+      const group = S.drag.ids.map(byId).filter(Boolean);
+      placeWithSnap(group, pt.x + S.drag.dx, pt.y + S.drag.dy);
+      recompute(); refreshReadout();
+    } else if (S.armed && S.armed !== 'correa') S.hover = pt;
+  });
+  const endDrag = () => { if (S.drag) { S.drag = null; refreshTools(); refreshReadout(); } };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', () => { if (!S.drag) S.hover = null; });
+
+  els.inv.addEventListener('click', e => {
+    const b = e.target.closest('button.part'); if (!b || b.disabled) return;
+    ensureAudio();
+    const k = b.dataset.kind;
+    if (S.armed === k) { S.armed = null; S.linkFrom = null; setStatus('Elige una pieza de la caja.'); refreshInv(); return; }
+    S.armed = k; S.linkFrom = null;
+    setStatus(k === 'correa' ? 'Toca la primera polea que quieres unir.' : 'Toca el tablero para colocar: ' + PART_NAME[k].toLowerCase() + '.');
+    refreshInv();
+  });
+  els.levels.addEventListener('click', e => {
+    const b = e.target.closest('button.lv'); if (!b) return;
+    loadLevel(Number(b.dataset.i));
+  });
+  els.run.addEventListener('click', () => { ensureAudio(); if (S.mode === 'run') stopRun(); else startRun(); });
+  els.hint.addEventListener('click', () => {
+    const L = level(), h = L.hint; if (!h) return;
+    const total = h.parts.length + (h.links.length ? 1 : 0);
+    if (S.hintShown >= total) return;
+    S.hintShown++;
+    if (S.hintShown <= h.parts.length) {
+      const p = h.parts[S.hintShown - 1];
+      const prev = h.parts[S.hintShown - 2];
+      const coax = prev && Math.hypot(prev.x - p.x, prev.y - p.y) < 1;
+      setStatus('Pista: coloca ' + PART_NAME[p.kind].toLowerCase() + ' en la silueta' + (coax ? ', en el mismo eje que la anterior.' : '.'));
+    } else {
+      setStatus('Pista: une las poleas marcadas con ' + (h.links.length > 1 ? 'correas' : 'una correa') + (h.links.some(l => l.crossed) ? '. Fíjate: una va cruzada.' : ' abierta.'));
+    }
+    refreshRun();
+  });
+  els.clear.addEventListener('click', () => { S.placed = []; S.links = []; S.selected = null; S.armed = null; S.linkFrom = null; recompute(); setStatus('Tablero vacío.'); refreshAll(); });
+  els.link.addEventListener('click', startLink);
+  els.cross.addEventListener('click', toggleCross);
+  els.unlink.addEventListener('click', unlinkSel);
+  els.del.addEventListener('click', deleteSel);
+  els.ovRetry.addEventListener('click', stopRun);
+  els.ovNext.addEventListener('click', () => loadLevel(Math.min(S.li + 1, ALL.length - 1)));
+  els.sound.addEventListener('click', () => {
+    S.sound = !S.sound;
+    els.sound.setAttribute('aria-pressed', S.sound ? 'true' : 'false');
+    els.sound.textContent = S.sound ? 'Sonido: sí' : 'Sonido: no';
+    if (S.sound) ensureAudio();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'delete' || k === 'backspace') { if (S.selected) { e.preventDefault(); deleteSel(); } }
+    else if (k === 'c') toggleCross();
+    else if (k === 'escape') { S.armed = null; S.linkFrom = null; select(null); refreshInv(); }
+    else if (k === 'r' && !e.metaKey && !e.ctrlKey) { if (S.mode === 'run') stopRun(); else startRun(); }
+  });
+  window.addEventListener('resize', resize);
+
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(() => ({ li: S.li, placed: S.placed, links: S.links, hintShown: S.hintShown }));
+  function start(data) {
+    resize();
+    if (data && typeof data.li === 'number' && ALL[data.li]) {
+      S.placed = Array.isArray(data.placed) ? data.placed : [];
+      S.links = Array.isArray(data.links) ? data.links : [];
+      S.hintShown = data.hintShown || 0;
+      S.nextId = S.placed.reduce((m, p) => Math.max(m, p.id + 1), 1);
+      loadLevel(data.li, true);
+    } else loadLevel(0);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
+    requestAnimationFrame(frame);
+  }
+  if (hot && hot.ready) hot.ready(start); else start(hot && hot.data ? hot.data : {});
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Máquina Disparatada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Atkinson+Hyperlegible:wght@400;700&family=Bungee&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+/* Layout: plano azul de inventor a todo ancho; caja de piezas y mandos debajo, como un banco de taller. Tema único y deliberado (cianotipo). */
+:root {
+  --paper: #0f3157;
+  --desk: #0a2240;
+  --panel: #12385f;
+  --line: rgba(214, 231, 255, 0.18);
+  --ink: #e9f2ff;
+  --ink-dim: #a9c2e2;
+  --amber: #ffb238;
+  --amber-ink: #3a2300;
+  --red: #ff8a8a;
+  --green: #5ee0a0;
+  --f-display: "Bungee", "Arial Black", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-hand: "Architects Daughter", "Comic Sans MS", cursive;
+  color-scheme: dark;
+}
+html, body { background: var(--desk); color: var(--ink); }
+body {
+  font-family: var(--f-body); font-size: 16px; line-height: 1.45;
+  background-color: var(--desk);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: -1px -1px;
+  padding-inline: 16px; padding-block: 16px 32px;
+}
+.app { max-width: 1040px; margin: 0 auto; display: grid; gap: 12px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+.brand { min-width: 0; }
+.brand h1 {
+  font-family: var(--f-display); font-weight: 400; font-size: clamp(1.6rem, 4.5vw, 2.5rem);
+  line-height: 1; margin: 0; letter-spacing: 0.01em; color: var(--ink);
+  text-shadow: 3px 3px 0 #1d5a96;
+}
+.brand p { margin: 6px 0 0; font-family: var(--f-hand); color: var(--ink-dim); font-size: 1rem; }
+.sound {
+  font: 700 0.85rem var(--f-body); color: var(--ink-dim); background: transparent;
+  border: 1.5px dashed var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+.sound:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+.brief { display: grid; gap: 2px; min-width: 0; }
+.brief .num { font: 700 0.75rem var(--f-body); text-transform: uppercase; letter-spacing: 0.12em; color: var(--amber); }
+.brief h2 { margin: 0; font: 700 1.3rem var(--f-body); text-wrap: balance; }
+.brief p { margin: 0; color: var(--ink-dim); max-width: 65ch; }
+
+.stage {
+  position: relative; width: 100%; aspect-ratio: 960 / 600; max-width: 100%;
+  border: 2px solid var(--ink); border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--line), 0 18px 40px rgba(0, 0, 0, 0.35);
+  background: var(--paper);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+body.running .stage canvas { cursor: default; }
+
+.stage-wrap { position: relative; min-width: 0; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+  background: rgba(10, 34, 64, 0.55);
+}
+.overlay[hidden] { display: none; }
+@media (max-width: 560px) {
+  .overlay { position: static; background: none; padding: 14px 0 0; place-items: stretch; }
+  .stage-wrap .overlay .card { max-width: none; }
+}
+.overlay .card {
+  background: var(--ink); color: var(--desk); border-radius: 6px; padding: 20px 22px; max-width: 360px;
+  display: grid; gap: 12px; text-align: left; box-shadow: 6px 6px 0 var(--amber);
+}
+.overlay h3 { margin: 0; font: 400 1.35rem var(--f-display); text-wrap: balance; }
+.overlay p { margin: 0; }
+.overlay .row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.status {
+  min-height: 1.5em; font-family: var(--f-hand); font-size: 1.05rem; color: var(--ink);
+  padding-left: 12px; border-left: 3px solid var(--ink-dim);
+}
+.status[data-tone="bad"] { border-color: var(--red); color: var(--red); }
+.status[data-tone="good"] { border-color: var(--green); color: var(--green); }
+
+.dock { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+@media (max-width: 760px) { .dock { grid-template-columns: minmax(0, 1fr); } }
+.box {
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  display: grid; gap: 8px; min-width: 0;
+}
+.box h4 { margin: 0; font: 700 0.72rem var(--f-body); text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); }
+
+.inv { display: flex; flex-wrap: wrap; gap: 8px; }
+.part {
+  display: grid; grid-template-columns: 40px auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  text-align: left; padding: 6px 12px 6px 8px; border-radius: 6px; cursor: pointer;
+  background: var(--desk); color: var(--ink); border: 1.5px solid var(--line); font: inherit;
+}
+.part svg { width: 40px; height: 28px; grid-row: 1 / 3; }
+.part .pname { font-weight: 700; font-size: 0.9rem; line-height: 1.1; }
+.part .pcount { font-size: 0.8rem; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.part:hover:not(:disabled) { border-color: var(--ink-dim); }
+.part[aria-pressed="true"] { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); background: #1d4a78; }
+.part:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sel { font-size: 0.85rem; color: var(--ink-dim); flex-basis: 100%; }
+
+.btn {
+  font: 700 0.92rem var(--f-body); border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  background: transparent; color: var(--ink); border: 1.5px solid var(--ink-dim);
+}
+.btn:hover:not(:disabled) { background: rgba(233, 242, 255, 0.08); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn.go { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); padding: 10px 18px; font-size: 1rem; }
+.btn.go:hover { background: #ffc566; }
+.btn.go.stop { background: var(--ink); border-color: var(--ink); color: var(--desk); }
+.overlay .btn { color: var(--desk); border-color: var(--desk); }
+.overlay .btn.go { color: var(--amber-ink); border-color: var(--amber); }
+.runbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.runbar .go { margin-left: auto; }
+
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.lv {
+  display: grid; gap: 2px; text-align: left; padding: 8px 10px; cursor: pointer; border-radius: 6px;
+  background: transparent; color: var(--ink); border: 1.5px dashed var(--line); font: inherit; min-width: 0;
+}
+.lv .lvn { font: 400 1.1rem var(--f-display); color: var(--ink-dim); }
+.lv .lvt { font-size: 0.85rem; font-weight: 700; overflow-wrap: anywhere; }
+.lv .lvd { font-size: 0.72rem; color: var(--green); }
+.lv.done { border-style: solid; border-color: rgba(94, 224, 160, 0.45); }
+.lv.done .lvn { color: var(--green); }
+.lv[aria-current="true"] { border: 1.5px solid var(--amber); background: rgba(255, 178, 56, 0.1); }
+.lv[aria-current="true"] .lvn { color: var(--amber); }
+
+.help { background: var(--panel); border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 14px; }
+.help summary { cursor: pointer; font-weight: 700; }
+.help ul { margin: 8px 0 4px; padding-left: 20px; display: grid; gap: 4px; max-width: 70ch; }
+.help kbd { font: 700 0.8rem var(--f-body); border: 1px solid var(--ink-dim); border-radius: 4px; padding: 0 5px; }
+
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Máquina Disparatada</h1>
+      <p>Inventos en cadena: coloca piezas y pon la máquina en marcha.</p>
+    </div>
+    <button type="button" class="sound" id="btnSound" aria-pressed="true">Sonido: sí</button>
+  </header>
+
+  <section class="brief" aria-live="polite">
+    <span class="num" id="lvNum">Plano 1 de 8</span>
+    <h2 id="lvName">Cuesta abajo</h2>
+    <p id="lvGoal"></p>
+  </section>
+
+  <div class="stage-wrap">
+  <div class="stage">
+    <canvas id="board" aria-label="Tablero del puzle"></canvas>
+  </div>
+    <div class="overlay" id="overlay" hidden>
+      <div class="card" role="dialog" aria-labelledby="ovTitle">
+        <h3 id="ovTitle">¡La máquina funciona!</h3>
+        <p id="ovText"></p>
+        <div class="row">
+          <button type="button" class="btn go" id="ovNext">Siguiente plano</button>
+          <button type="button" class="btn" id="ovRetry">Mejorar mi máquina</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="status" id="status" role="status"></p>
+
+  <div class="dock">
+    <section class="box">
+      <h4>Caja de piezas</h4>
+      <div class="inv" id="inv"></div>
+    </section>
+    <section class="box">
+      <h4>Pieza elegida</h4>
+      <div class="tools">
+        <span class="sel" id="selName">Ninguna pieza seleccionada</span>
+        <button type="button" class="btn" id="btnRotL" aria-label="Girar a la izquierda">↺ Girar</button>
+        <button type="button" class="btn" id="btnRotR" aria-label="Girar a la derecha">Girar ↻</button>
+        <button type="button" class="btn" id="btnFlip">Cambiar sentido</button>
+        <button type="button" class="btn" id="btnDel">Quitar</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="runbar">
+    <button type="button" class="btn" id="btnHint">Pista</button>
+    <button type="button" class="btn" id="btnClear">Vaciar tablero</button>
+    <button type="button" class="btn go" id="btnRun">Poner en marcha</button>
+  </div>
+
+  <nav class="levels" id="levels" aria-label="Planos"></nav>
+
+  <details class="help">
+    <summary>Cómo se juega</summary>
+    <ul>
+      <li>Toca una pieza de la caja y después toca el tablero para colocarla. Arrástrala para moverla.</li>
+      <li>Las líneas blancas del plano son fijas. Solo puedes mover tus piezas.</li>
+      <li>La <b>rampa</b> desvía, el <b>trampolín</b> lanza hacia arriba, la <b>cinta</b> arrastra y el <b>ventilador</b> sopla (el globo vuela con él).</li>
+      <li>Pulsa <b>Poner en marcha</b>. Si falla, pulsa <b>Parar y ajustar</b>: tus piezas se quedan donde estaban.</li>
+      <li>Teclado: <kbd>Q</kbd>/<kbd>E</kbd> girar, <kbd>F</kbd> cambiar sentido, <kbd>Supr</kbd> quitar, <kbd>R</kbd> marcha/parar.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+/*ENGINE-START*/
+const W = 960, H = 600, GRAV = 900, FAN_ACC = 1700, FAN_LEN = 300, FAN_HALF = 52, MAXV = 1400;
+const BALL_TYPES = {
+  ball:    { name: 'Pelota', r: 14, mass: 1, e: 0.55, g: 1, drag: 0.02, fan: 1 },
+  bowl:    { name: 'Bola de bolos', r: 20, mass: 5, e: 0.12, g: 1, drag: 0.01, fan: 0.12 },
+  balloon: { name: 'Globo', r: 22, mass: 0.25, e: 0.3, g: -0.42, drag: 1.6, fan: 0.5 }
+};
+const PART_TYPES = {
+  ramp:    { name: 'Rampa', len: 160, th: 10, step: 15, def: 20 },
+  tramp:   { name: 'Trampolín', len: 96, th: 10, step: 15, def: 0 },
+  belt:    { name: 'Cinta', len: 170, th: 16, step: 15, def: 0, flip: true },
+  fan:     { name: 'Ventilador', size: 46, step: 45, def: 0 },
+  ball:    { name: 'Pelota', isBall: true },
+  bowl:    { name: 'Bola de bolos', isBall: true },
+  balloon: { name: 'Globo', isBall: true }
+};
+const BELT_SPEED = 260;
+
+function rad(d) { return d * Math.PI / 180; }
+
+function segFrom(ax, ay, bx, by, th, kind, extra) {
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const ux = (bx - ax) / len, uy = (by - ay) / len;
+  return Object.assign({ ax, ay, bx, by, th, kind, ux, uy, nx: uy, ny: -ux, fric: 0.0012, speed: 0 }, extra || {});
+}
+
+function partSegs(p) {
+  const T = PART_TYPES[p.kind];
+  if (T.isBall) return [];
+  const a = rad(p.angle || 0), c = Math.cos(a), s = Math.sin(a);
+  if (p.kind === 'fan') {
+    const h = T.size / 2;
+    const pts = [[-h, -h], [h, -h], [h, h], [-h, h]].map(q => [p.x + q[0] * c - q[1] * s, p.y + q[0] * s + q[1] * c]);
+    return pts.map((q, i) => { const r = pts[(i + 1) % 4]; return segFrom(q[0], q[1], r[0], r[1], 6, 'n'); });
+  }
+  const h = T.len / 2;
+  const kind = p.kind === 'tramp' ? 'tramp' : p.kind === 'belt' ? 'belt' : 'n';
+  const extra = p.kind === 'belt' ? { speed: BELT_SPEED * (p.dir || 1) } : null;
+  return [segFrom(p.x - c * h, p.y - s * h, p.x + c * h, p.y + s * h, T.th, kind, extra)];
+}
+
+function cupSegs(g) {
+  return [
+    segFrom(g.x, g.y, g.x, g.y + g.h, 8, 'n'),
+    segFrom(g.x, g.y + g.h, g.x + g.w, g.y + g.h, 8, 'n'),
+    segFrom(g.x + g.w, g.y + g.h, g.x + g.w, g.y, 8, 'n')
+  ];
+}
+
+function newBall(type, x, y, target) {
+  return { type, x, y, vx: 0, vy: 0, rot: 0, target: !!target, lost: false };
+}
+
+function makeWorld(level, placed) {
+  const w = { t: 0, balls: [], segs: [], fans: [], goal: level.goal || null, won: false, winT: 0, lost: false, events: [], still: 0 };
+  (level.statics || []).forEach(s => w.segs.push(segFrom(s[0], s[1], s[2], s[3], 10, 'n')));
+  if (w.goal && w.goal.cup) cupSegs(w.goal).forEach(s => w.segs.push(s));
+  (level.fixed || []).concat(placed).forEach(p => {
+    if (PART_TYPES[p.kind].isBall) { w.balls.push(newBall(p.kind, p.x, p.y, false)); return; }
+    partSegs(p).forEach(s => w.segs.push(s));
+    if (p.kind === 'fan') w.fans.push({ x: p.x, y: p.y, a: rad(p.angle || 0), size: PART_TYPES.fan.size });
+  });
+  (level.balls || []).forEach(b => w.balls.push(newBall(b.type, b.x, b.y, b.target)));
+  return w;
+}
+
+function collideSeg(b, s, bt, w) {
+  const abx = s.bx - s.ax, aby = s.by - s.ay;
+  const l2 = abx * abx + aby * aby;
+  let t = ((b.x - s.ax) * abx + (b.y - s.ay) * aby) / l2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const qx = s.ax + abx * t, qy = s.ay + aby * t;
+  const dx = b.x - qx, dy = b.y - qy;
+  const R = bt.r + s.th / 2;
+  const d2 = dx * dx + dy * dy;
+  if (d2 >= R * R) return;
+  const d = Math.sqrt(d2) || 1e-4;
+  const nx = dx / d, ny = dy / d;
+  b.x += nx * (R - d); b.y += ny * (R - d);
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn >= 0) return;
+  const tx = -ny, ty = nx;
+  let vt = b.vx * tx + b.vy * ty;
+  const top = (nx * s.nx + ny * s.ny) > 0.6;
+  let out;
+  if (s.kind === 'tramp' && top) {
+    out = Math.max(-vn * 0.96, 720);
+    w.events.push('boing');
+  } else {
+    out = -vn * bt.e;
+    if (out < 60) out = 0;
+    if (-vn > 260) w.events.push('hit');
+  }
+  if (s.kind === 'belt' && top) {
+    const target = s.ux * s.speed * tx + s.uy * s.speed * ty;
+    vt += (target - vt) * 0.5;
+  } else {
+    vt *= (1 - s.fric);
+  }
+  b.vx = nx * out + tx * vt;
+  b.vy = ny * out + ty * vt;
+}
+
+function stepWorld(w, dt) {
+  const SUB = 4, h = dt / SUB;
+  for (let k = 0; k < SUB; k++) {
+    for (const b of w.balls) {
+      if (b.lost) continue;
+      const bt = BALL_TYPES[b.type];
+      let ax = 0, ay = GRAV * bt.g;
+      for (const f of w.fans) {
+        const dirx = Math.cos(f.a), diry = Math.sin(f.a);
+        const dx = b.x - f.x, dy = b.y - f.y;
+        const s = dx * dirx + dy * diry;
+        const lat = Math.abs(-dx * diry + dy * dirx);
+        const s0 = f.size / 2;
+        if (s > s0 && s < s0 + FAN_LEN && lat < FAN_HALF) {
+          const kf = FAN_ACC * (1 - (s - s0) / FAN_LEN) * bt.fan;
+          ax += dirx * kf; ay += diry * kf;
+        }
+      }
+      b.vx += ax * h; b.vy += ay * h;
+      const damp = 1 - bt.drag * h;
+      b.vx *= damp; b.vy *= damp;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > MAXV) { b.vx *= MAXV / sp; b.vy *= MAXV / sp; }
+      b.x += b.vx * h; b.y += b.vy * h;
+      b.rot += b.vx / bt.r * h;
+      for (const s of w.segs) collideSeg(b, s, bt, w);
+      if (b.x < -80 || b.x > W + 80 || b.y > H + 80 || b.y < -80) b.lost = true;
+    }
+    const bs = w.balls;
+    for (let i = 0; i < bs.length; i++) {
+      const a = bs[i]; if (a.lost) continue;
+      const ta = BALL_TYPES[a.type];
+      for (let j = i + 1; j < bs.length; j++) {
+        const c = bs[j]; if (c.lost) continue;
+        const tc = BALL_TYPES[c.type];
+        const dx = c.x - a.x, dy = c.y - a.y, R = ta.r + tc.r;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= R * R) continue;
+        const d = Math.sqrt(d2) || 1e-4, nx = dx / d, ny = dy / d;
+        const ia = 1 / ta.mass, ic = 1 / tc.mass, sum = ia + ic;
+        const ov = R - d;
+        a.x -= nx * ov * ia / sum; a.y -= ny * ov * ia / sum;
+        c.x += nx * ov * ic / sum; c.y += ny * ov * ic / sum;
+        const rv = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+        if (rv < 0) {
+          const j2 = -(1 + 0.5) * rv / sum;
+          a.vx -= j2 * ia * nx; a.vy -= j2 * ia * ny;
+          c.vx += j2 * ic * nx; c.vy += j2 * ic * ny;
+          if (-rv > 150) w.events.push('hit');
+        }
+      }
+    }
+  }
+  w.t += dt;
+  const targets = w.balls.filter(b => b.target);
+  if (targets.some(b => b.lost)) w.lost = true;
+  const g = w.goal;
+  if (g && targets.length && !w.won) {
+    const inside = targets.every(b => !b.lost && b.x > g.x && b.x < g.x + g.w && b.y > g.y && b.y < g.y + g.h);
+    w.winT = inside ? w.winT + dt : 0;
+    if (w.winT > 0.35) w.won = true;
+  }
+  const moving = w.balls.some(b => !b.lost && Math.hypot(b.vx, b.vy) > 6);
+  w.still = moving ? 0 : w.still + dt;
+}
+
+function distSeg(px, py, s) {
+  const abx = s.bx - s.ax, aby = s.by - s.ay;
+  let t = ((px - s.ax) * abx + (py - s.ay) * aby) / (abx * abx + aby * aby);
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (s.ax + abx * t), py - (s.ay + aby * t));
+}
+
+function partBlocked(level, p) {
+  const segs = partSegs(p);
+  return (level.balls || []).some(b => {
+    const r = BALL_TYPES[b.type].r;
+    if (p.kind === 'fan' && Math.hypot(b.x - p.x, b.y - p.y) < r + 30) return true;
+    return segs.some(s => distSeg(b.x, b.y, s) < r + s.th / 2 + 4);
+  });
+}
+
+const FLOOR = [0, 595, 960, 595];
+const LWALL = [4, 0, 4, 600];
+const RWALL = [956, 0, 956, 600];
+
+const LEVELS = [
+  {
+    id: 'cuesta', name: 'Cuesta abajo',
+    goalText: 'Lleva la pelota hasta la cesta. El muro del centro no la deja pasar rodando.',
+    balls: [{ type: 'ball', x: 110, y: 60, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [400, 595, 400, 450]],
+    goal: { x: 600, y: 525, w: 120, h: 65, cup: true },
+    hint: [{kind: 'ramp', x: 115, y: 349, angle: 30}],
+    inv: { ramp: 2 }
+  },
+  {
+    id: 'salto', name: 'Supersalto',
+    goalText: 'La pelota cae en un pozo. Hazla saltar hasta la cesta de la repisa.',
+    balls: [{ type: 'ball', x: 130, y: 60, target: true }],
+    statics: [LWALL, RWALL, [0, 595, 300, 595], [300, 595, 300, 330], [300, 330, 956, 330]],
+    goal: { x: 690, y: 255, w: 110, h: 70, cup: true },
+    hint: [{kind: 'tramp', x: 127, y: 217, angle: 30}],
+    inv: { tramp: 1, ramp: 1 }
+  },
+  {
+    id: 'cinta', name: 'La cinta',
+    goalText: 'La pelota cae al suelo y se queda quieta. Súbela a la plataforma y llévala hasta la bandera.',
+    balls: [{ type: 'ball', x: 100, y: 430, target: true }],
+    statics: [LWALL, RWALL, [0, 595, 620, 595], [620, 595, 620, 515], [620, 515, 956, 515]],
+    goal: { x: 830, y: 420, w: 126, h: 90, cup: false },
+    hint: [{kind: 'belt', x: 180, y: 560, angle: -15, dir: 1}, {kind: 'belt', x: 344, y: 516, angle: -15, dir: 1}, {kind: 'ramp', x: 510, y: 495, angle: 0}],
+    inv: { belt: 2, ramp: 1 }
+  },
+  {
+    id: 'choque', name: 'Choque en cadena',
+    goalText: 'La bola de bolos empuja a la pelota. Solo cuenta la pelota naranja en la cesta.',
+    balls: [{ type: 'bowl', x: 60, y: 70, target: false }, { type: 'ball', x: 400, y: 186, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [10, 120, 290, 210], [290, 210, 430, 210], [500, 300, 956, 540]],
+    goal: { x: 120, y: 520, w: 110, h: 70, cup: true },
+    hint: [{kind: 'ramp', x: 496, y: 207, angle: -60}],
+    inv: { ramp: 2 }
+  },
+  {
+    id: 'viento', name: 'Ventarrón',
+    goalText: 'Hay un barranco. Usa el viento para que la pelota cruce hasta la cesta.',
+    balls: [{ type: 'ball', x: 70, y: 60, target: true }],
+    statics: [LWALL, RWALL, [10, 110, 260, 210], [260, 210, 330, 210], [700, 600, 700, 470], [700, 470, 956, 470]],
+    goal: { x: 820, y: 405, w: 100, h: 60, cup: true },
+    hint: [{kind: 'fan', x: 546, y: 390, angle: 270}],
+    inv: { fan: 1 }
+  },
+  {
+    id: 'globo', name: 'El globo',
+    goalText: 'El globo sube y se atasca en el techo. Llévalo hasta la nube de la derecha.',
+    balls: [{ type: 'balloon', x: 140, y: 545, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [0, 140, 400, 140], [400, 10, 956, 10]],
+    goal: { x: 580, y: 10, w: 376, h: 120, cup: false },
+    hint: [{kind: 'fan', x: 60, y: 200, angle: 0}, {kind: 'ramp', x: 480, y: 70, angle: -15}],
+    inv: { fan: 1, ramp: 1 }
+  },
+  {
+    id: 'zigzag', name: 'Zigzag',
+    goalText: 'Las repisas cortan el camino. Haz que la pelota baje en zigzag hasta la cesta.',
+    balls: [{ type: 'ball', x: 480, y: 40, target: true }],
+    statics: [FLOOR, LWALL, RWALL, [300, 190, 660, 190], [180, 380, 956, 380], [0, 270, 230, 270]],
+    goal: { x: 20, y: 520, w: 110, h: 70, cup: true },
+    hint: [{kind: 'ramp', x: 511, y: 98, angle: -30}, {kind: 'ramp', x: 353, y: 311, angle: -45}],
+    inv: { ramp: 3 }
+  },
+  {
+    id: 'gran', name: 'La gran máquina',
+    goalText: 'La bola de bolos pone todo en marcha. Encesta la pelota naranja. ¿Lo consigues con menos piezas?',
+    balls: [{ type: 'bowl', x: 60, y: 70, target: false }, { type: 'ball', x: 395, y: 186, target: true }],
+    statics: [LWALL, RWALL, [10, 120, 290, 210], [290, 210, 420, 210], [0, 595, 600, 595], [600, 595, 600, 300], [600, 300, 956, 300], [380, 0, 380, 120]],
+    goal: { x: 820, y: 225, w: 100, h: 70, cup: true },
+    hint: [{kind: 'tramp', x: 486, y: 376, angle: 15}],
+    inv: { belt: 1, tramp: 1, ramp: 1 }
+  }
+];
+const SANDBOX = {
+  id: 'taller', name: 'Taller libre', sandbox: true,
+  goalText: 'Sin reglas ni meta. Coloca pelotas, globos y piezas, y mira qué pasa.',
+  balls: [], statics: [FLOOR, LWALL, RWALL], goal: null, hint: [],
+  inv: { ramp: 20, tramp: 20, belt: 20, fan: 20, ball: 20, bowl: 20, balloon: 20 }
+};
+/*ENGINE-END*/
+document.addEventListener('DOMContentLoaded', () => {
+  'use strict';
+  const ALL = LEVELS.concat([SANDBOX]);
+  const STORE = 'maquina-disparatada-v1';
+  const KIND_ORDER = ['ramp', 'tramp', 'belt', 'fan', 'ball', 'bowl', 'balloon'];
+  const C = {
+    paper: '#0f3157', grid: 'rgba(214,231,255,0.07)', gridMajor: 'rgba(214,231,255,0.15)',
+    ink: '#e9f2ff', inkDim: 'rgba(233,242,255,0.55)', fill: '#1a4677', dark: '#0a2240',
+    amber: '#ffb238', amberDark: '#b86e00', red: '#ff6b6b', green: '#5ee0a0',
+    card: '#f2e3c2', cardEdge: '#8a6a35', rubber: '#25303e', fan: '#c9d6e8',
+    bowl: '#2b2f48', balloon: '#ff6b8a'
+  };
+  const ICONS = {
+    ramp: '<svg viewBox="0 0 40 28"><rect x="3" y="10" width="34" height="7" rx="3.5" transform="rotate(18 20 13.5)" fill="#f2e3c2" stroke="#0a2240" stroke-width="1.5"/></svg>',
+    tramp: '<svg viewBox="0 0 40 28"><path d="M8 12 L6 24 M32 12 L34 24" stroke="#e9f2ff" stroke-width="2"/><path d="M12 13 l3 4 l3 -4 l3 4 l3 -4 l3 4 l3 -4" fill="none" stroke="#e9f2ff" stroke-width="1.5"/><rect x="4" y="8" width="32" height="5" rx="2.5" fill="#ff6b6b"/></svg>',
+    belt: '<svg viewBox="0 0 40 28"><rect x="3" y="9" width="34" height="10" rx="5" fill="#25303e" stroke="#e9f2ff" stroke-width="1.5"/><circle cx="8" cy="14" r="3" fill="#c9d6e8"/><circle cx="32" cy="14" r="3" fill="#c9d6e8"/><path d="M17 12 l3 2 l-3 2 M22 12 l3 2 l-3 2" stroke="#ffb238" stroke-width="1.5" fill="none"/></svg>',
+    fan: '<svg viewBox="0 0 40 28"><rect x="4" y="4" width="20" height="20" rx="3" fill="#c9d6e8" stroke="#0a2240" stroke-width="1.5"/><circle cx="14" cy="14" r="6" fill="none" stroke="#0a2240" stroke-width="1.5"/><path d="M14 8 v12 M8 14 h12" stroke="#0a2240" stroke-width="1.5"/><path d="M27 10 h8 M27 14 h10 M27 18 h8" stroke="#e9f2ff" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    ball: '<svg viewBox="0 0 40 28"><circle cx="20" cy="14" r="9" fill="#ffb238" stroke="#b86e00" stroke-width="1.5"/><path d="M12 11 q8 5 16 0" stroke="#b86e00" fill="none" stroke-width="1.3"/></svg>',
+    bowl: '<svg viewBox="0 0 40 28"><circle cx="20" cy="14" r="11" fill="#2b2f48" stroke="#e9f2ff" stroke-width="1.5"/><circle cx="17" cy="10" r="1.7" fill="#e9f2ff"/><circle cx="22" cy="9" r="1.7" fill="#e9f2ff"/><circle cx="20" cy="14" r="1.7" fill="#e9f2ff"/></svg>',
+    balloon: '<svg viewBox="0 0 40 28"><ellipse cx="20" cy="11" rx="8" ry="9" fill="#ff6b8a"/><path d="M20 20 q-3 4 0 7" stroke="#e9f2ff" fill="none" stroke-width="1.2"/></svg>'
+  };
+
+  const $ = sel => document.querySelector(sel);
+  const cv = $('#board');
+  const ctx = cv.getContext('2d');
+  const els = {
+    num: $('#lvNum'), name: $('#lvName'), goal: $('#lvGoal'), status: $('#status'),
+    inv: $('#inv'), levels: $('#levels'), run: $('#btnRun'), hint: $('#btnHint'), clear: $('#btnClear'),
+    rotL: $('#btnRotL'), rotR: $('#btnRotR'), flip: $('#btnFlip'), del: $('#btnDel'), selName: $('#selName'),
+    overlay: $('#overlay'), ovTitle: $('#ovTitle'), ovText: $('#ovText'), ovNext: $('#ovNext'), ovRetry: $('#ovRetry'),
+    sound: $('#btnSound')
+  };
+
+  let progress = {};
+  try { progress = JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { progress = {}; }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ } }
+
+  const S = {
+    li: 0, placed: [], selected: null, armed: null, mode: 'build', world: null, drag: null,
+    hover: null, hintShown: 0, acc: 0, last: 0, anim: 0, wonShown: false, nextId: 1, sound: true
+  };
+
+  /* ---------- Audio ---------- */
+  let ac = null, lastSound = 0;
+  function ensureAudio() {
+    if (ac || !S.sound) return;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+  }
+  function tone(f0, f1, dur, type, vol) {
+    if (!ac || !S.sound) return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function sfx(name) {
+    const now = performance.now();
+    if (name !== 'win' && now - lastSound < 70) return;
+    lastSound = now;
+    if (name === 'boing') tone(220, 660, 0.18, 'sine', 0.18);
+    else if (name === 'hit') tone(160, 90, 0.07, 'triangle', 0.12);
+    else if (name === 'win') [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, f, 0.16, 'square', 0.06), i * 110));
+    else if (name === 'click') tone(880, 660, 0.05, 'sine', 0.06);
+  }
+
+  /* ---------- Helpers ---------- */
+  const level = () => ALL[S.li];
+  const used = kind => S.placed.filter(p => p.kind === kind).length;
+  const remaining = kind => (level().inv[kind] || 0) - used(kind);
+  const byId = id => S.placed.find(p => p.id === id) || null;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function normAngle(a) { a = ((a % 360) + 360) % 360; return a > 180 ? a - 360 : a; }
+  function isBlocked(p) { return !PART_TYPES[p.kind].isBall && partBlocked(level(), p); }
+
+  function toWorld(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function touchTol() { return 16 * W / cv.getBoundingClientRect().width; }
+
+  function hitTest(pt) {
+    const tol = touchTol();
+    for (let i = S.placed.length - 1; i >= 0; i--) {
+      const p = S.placed[i], T = PART_TYPES[p.kind];
+      if (T.isBall) { if (Math.hypot(pt.x - p.x, pt.y - p.y) < BALL_TYPES[p.kind].r + tol) return p; continue; }
+      if (p.kind === 'fan') {
+        const a = rad(p.angle), dx = pt.x - p.x, dy = pt.y - p.y;
+        const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
+        if (Math.abs(lx) < T.size / 2 + tol && Math.abs(ly) < T.size / 2 + tol) return p;
+        continue;
+      }
+      const s = partSegs(p)[0];
+      if (distSeg(pt.x, pt.y, s) < s.th / 2 + tol) return p;
+    }
+    return null;
+  }
+
+  /* ---------- Drawing ---------- */
+  function resize() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+
+  function capsule(ax, ay, bx, by, th, fill, edge) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = edge; ctx.lineWidth = th + 3;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = fill; ctx.lineWidth = th - 1;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+
+  function drawBoard() {
+    ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 20) {
+      ctx.strokeStyle = x % 100 === 0 ? C.gridMajor : C.grid;
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+    }
+    for (let y = 0; y <= H; y += 20) {
+      ctx.strokeStyle = y % 100 === 0 ? C.gridMajor : C.grid;
+      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke();
+    }
+    const L = level();
+    ctx.fillStyle = C.inkDim; ctx.font = '15px "Architects Daughter", "Comic Sans MS", cursive';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const label = L.sandbox ? 'TALLER LIBRE · escala 1:10' : 'PLANO ' + (S.li + 1) + '/' + LEVELS.length + ' · ' + L.name.toUpperCase();
+    ctx.fillText(label, 16, 14);
+  }
+
+  function drawGoal(g) {
+    if (!g) return;
+    ctx.save();
+    if (g.cup) {
+      ctx.fillStyle = 'rgba(255,178,56,0.12)'; ctx.fillRect(g.x, g.y, g.w, g.h);
+      cupSegs(g).forEach(s => capsule(s.ax, s.ay, s.bx, s.by, s.th, C.amber, C.dark));
+      ctx.fillStyle = C.amber; ctx.font = '16px "Architects Daughter", cursive';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('META', g.x + g.w / 2, g.y + g.h / 2 + 6);
+    } else {
+      ctx.setLineDash([8, 6]); ctx.strokeStyle = C.amber; ctx.lineWidth = 2;
+      ctx.fillStyle = 'rgba(255,178,56,0.10)';
+      ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeRect(g.x + 1, g.y + 1, g.w - 2, g.h - 2);
+      ctx.setLineDash([]);
+      const fx = g.x + g.w / 2, fy = g.y + g.h / 2 + 22;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx - 18, fy); ctx.lineTo(fx - 18, fy - 40); ctx.stroke();
+      ctx.fillStyle = C.amber;
+      ctx.beginPath(); ctx.moveTo(fx - 17, fy - 40); ctx.lineTo(fx + 10, fy - 32); ctx.lineTo(fx - 17, fy - 24); ctx.closePath(); ctx.fill();
+      ctx.font = '16px "Architects Daughter", cursive'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('META', fx + 2, fy - 8);
+    }
+    ctx.restore();
+  }
+
+  function drawStatics(L) {
+    (L.statics || []).forEach(s => capsule(s[0], s[1], s[2], s[3], 10, C.fill, C.ink));
+  }
+
+  function drawPart(p, opt) {
+    const T = PART_TYPES[p.kind];
+    const ghost = opt && opt.ghost;
+    ctx.save();
+    if (ghost) ctx.globalAlpha = 0.55;
+    if (T.isBall) {
+      drawBallShape(p.kind, p.x, p.y, 0, ghost);
+      if (opt && opt.sel) ring(p.x, p.y, BALL_TYPES[p.kind].r + 8, opt.bad);
+      ctx.restore(); return;
+    }
+    ctx.translate(p.x, p.y); ctx.rotate(rad(p.angle || 0));
+    if (p.kind === 'fan') {
+      const h = T.size / 2;
+      ctx.save();
+      ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(233,242,255,0.25)'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(h, -FAN_HALF, FAN_LEN, FAN_HALF * 2);
+      ctx.setLineDash([]);
+      const running = S.mode === 'run';
+      ctx.strokeStyle = 'rgba(233,242,255,' + (running ? 0.45 : 0.3) + ')'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (let i = 0; i < 4; i++) {
+        const ly = -FAN_HALF + 14 + i * ((FAN_HALF * 2 - 28) / 3);
+        const off = running ? (S.anim * 220 + i * 70) % FAN_LEN : 30 + i * 40;
+        const len = 34 * (1 - off / FAN_LEN) + 8;
+        ctx.beginPath(); ctx.moveTo(h + off, ly); ctx.lineTo(h + off + len, ly); ctx.stroke();
+      }
+      ctx.restore();
+      if (!ghost) { ctx.fillStyle = C.fan; ctx.fillRect(-h, -h, T.size, T.size); }
+      ctx.strokeStyle = ghost ? C.amber : C.dark; ctx.lineWidth = 2.5; ctx.strokeRect(-h, -h, T.size, T.size);
+      ctx.beginPath(); ctx.arc(0, 0, h - 7, 0, Math.PI * 2); ctx.stroke();
+      const spin = S.mode === 'run' ? S.anim * 25 : 0.4;
+      for (let i = 0; i < 3; i++) {
+        const a = spin + i * Math.PI * 2 / 3;
+        ctx.beginPath(); ctx.ellipse(Math.cos(a) * 8, Math.sin(a) * 8, 8, 3.5, a, 0, Math.PI * 2);
+        ctx.fillStyle = ghost ? 'transparent' : '#5c7088'; ctx.fill(); ctx.stroke();
+      }
+      ctx.fillStyle = C.dark; ctx.beginPath(); ctx.moveTo(h + 2, -7); ctx.lineTo(h + 12, 0); ctx.lineTo(h + 2, 7); ctx.closePath();
+      ctx.fillStyle = C.amber; ctx.fill();
+      if (opt && opt.sel) selBox(-h - 7, -h - 7, T.size + 14, T.size + 14, opt.bad);
+      ctx.restore(); return;
+    }
+    const L2 = T.len / 2, th = T.th;
+    if (p.kind === 'ramp') {
+      if (ghost) { ghostLine(L2, th); }
+      else {
+        capsule(-L2, 0, L2, 0, th, C.card, C.dark);
+        ctx.strokeStyle = 'rgba(138,106,53,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-L2 + 8, -1); ctx.lineTo(L2 - 30, -1); ctx.moveTo(-L2 + 40, 1.5); ctx.lineTo(L2 - 6, 1.5); ctx.stroke();
+      }
+    } else if (p.kind === 'tramp') {
+      ctx.strokeStyle = ghost ? C.amber : C.ink; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-L2 + 8, 2); ctx.lineTo(-L2 + 2, 26); ctx.moveTo(L2 - 8, 2); ctx.lineTo(L2 - 2, 26); ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-L2 + 14, 6);
+      for (let i = 0; i < 8; i++) ctx.lineTo(-L2 + 14 + (i + 0.5) * ((T.len - 28) / 8), i % 2 ? 6 : 15);
+      ctx.lineTo(L2 - 14, 6); ctx.stroke();
+      if (ghost) ghostLine(L2, th); else capsule(-L2, 0, L2, 0, th, C.red, C.dark);
+    } else if (p.kind === 'belt') {
+      if (ghost) ghostLine(L2, th);
+      else {
+        capsule(-L2, 0, L2, 0, th, C.rubber, C.ink);
+        ctx.fillStyle = C.fan;
+        for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(-L2 + 2 + i * (T.len - 4) / 4, 0, 3.4, 0, Math.PI * 2); ctx.fill(); }
+        const dir = p.dir || 1;
+        const off = S.mode === 'run' ? (S.anim * BELT_SPEED * 0.25 * dir) % 24 : 0;
+        ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        for (let x = -L2 + 12; x < L2 - 12; x += 24) {
+          let cx = x + off; if (cx > L2 - 14) cx -= T.len - 28; if (cx < -L2 + 12) cx += T.len - 28;
+          ctx.beginPath(); ctx.moveTo(cx - 3 * dir, -th / 2 + 2); ctx.lineTo(cx + 2 * dir, -th / 2 + 4.5); ctx.lineTo(cx - 3 * dir, -th / 2 + 7); ctx.stroke();
+        }
+      }
+    }
+    if (opt && opt.sel) selBox(-L2 - th, -th - 6, T.len + th * 2, th * 2 + (p.kind === 'tramp' ? 34 : 12), opt.bad);
+    ctx.restore();
+  }
+  function ghostLine(L2, th) {
+    ctx.setLineDash([7, 5]); ctx.strokeStyle = C.amber; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-L2 - th / 2, -th / 2, L2 * 2 + th, th, th / 2) : ctx.rect(-L2 - th / 2, -th / 2, L2 * 2 + th, th);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function selBox(x, y, w, h, bad) {
+    ctx.setLineDash([6, 5]); ctx.strokeStyle = bad ? C.red : C.amber; ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+  }
+  function ring(x, y, r, bad) {
+    ctx.setLineDash([6, 5]); ctx.strokeStyle = bad ? C.red : C.amber; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  function drawBallShape(type, x, y, rot, ghost) {
+    const r = BALL_TYPES[type].r;
+    ctx.save(); ctx.translate(x, y);
+    if (type === 'balloon') {
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(0, r + 2);
+      const sway = Math.sin(S.anim * 4) * 4;
+      ctx.bezierCurveTo(-6 + sway, r + 14, 6 - sway, r + 24, sway, r + 34); ctx.stroke();
+      ctx.fillStyle = ghost ? 'transparent' : C.balloon;
+      ctx.beginPath(); ctx.ellipse(0, 0, r - 2, r + 1, 0, 0, Math.PI * 2); ctx.fill();
+      if (ghost) { ctx.strokeStyle = C.amber; ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(-4, r + 4); ctx.lineTo(4, r + 4); ctx.lineTo(0, r - 1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(-7, -8, 4, 7, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); return;
+    }
+    ctx.rotate(rot);
+    if (type === 'bowl') {
+      ctx.fillStyle = C.bowl; ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.ink;
+      [[-5, -7], [4, -9], [0, -1]].forEach(q => { ctx.beginPath(); ctx.arc(q[0], q[1], 2.6, 0, Math.PI * 2); ctx.fill(); });
+    } else {
+      ctx.fillStyle = C.amber; ctx.strokeStyle = C.amberDark; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(0, -r * 1.6, r * 1.35, 0.95, Math.PI - 0.95); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, r * 1.6, r * 1.35, Math.PI + 0.95, -0.95); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    const scale = cv.width / W;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    const L = level();
+    drawBoard();
+    drawGoal(L.goal);
+    drawStatics(L);
+    if (S.mode === 'build') {
+      (L.hint || []).slice(0, S.hintShown).forEach(p => drawPart(Object.assign({ dir: 1 }, p), { ghost: true }));
+    }
+    S.placed.forEach(p => {
+      if (S.mode === 'run' && PART_TYPES[p.kind].isBall) return;
+      const sel = S.mode === 'build' && p.id === S.selected;
+      const bad = S.mode === 'build' && isBlocked(p);
+      drawPart(p, { sel: sel || bad, bad });
+    });
+    if (S.mode === 'build') {
+      (L.balls || []).forEach(b => {
+        drawBallShape(b.type, b.x, b.y, 0, false);
+        if (b.target && L.balls.length > 1) ring(b.x, b.y, BALL_TYPES[b.type].r + 6, false);
+      });
+      if (S.armed && S.hover) {
+        const g = newPart(S.armed, S.hover);
+        drawPart(g, { ghost: true });
+      }
+    } else if (S.world) {
+      S.world.balls.forEach(b => { if (!b.lost) drawBallShape(b.type, b.x, b.y, b.rot, false); });
+    }
+  }
+
+  /* ---------- Parts ---------- */
+  function newPart(kind, pt) {
+    const T = PART_TYPES[kind];
+    return { id: S.nextId++, kind, x: clamp(Math.round(pt.x), 10, W - 10), y: clamp(Math.round(pt.y), 10, H - 10), angle: T.isBall ? 0 : T.def, dir: 1 };
+  }
+
+  function select(id) { S.selected = id; refreshTools(); }
+
+  function rotateSel(sign) {
+    const p = byId(S.selected); if (!p || S.mode !== 'build') return;
+    const T = PART_TYPES[p.kind]; if (!T.step) return;
+    p.angle = normAngle(p.angle + sign * T.step); sfx('click'); refreshTools();
+  }
+  function flipSel() {
+    const p = byId(S.selected); if (!p || p.kind !== 'belt' || S.mode !== 'build') return;
+    p.dir = -(p.dir || 1); sfx('click'); refreshTools();
+  }
+  function deleteSel() {
+    const p = byId(S.selected); if (!p || S.mode !== 'build') return;
+    S.placed = S.placed.filter(q => q.id !== p.id); S.selected = null; sfx('click');
+    refreshInv(); refreshTools(); setStatus('Pieza devuelta a la caja.');
+  }
+
+  /* ---------- UI refresh ---------- */
+  function setStatus(t, tone) { els.status.textContent = t; els.status.dataset.tone = tone || ''; }
+
+  function refreshInv() {
+    const L = level();
+    els.inv.innerHTML = '';
+    KIND_ORDER.filter(k => L.inv[k]).forEach(k => {
+      const n = remaining(k);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'part'; b.dataset.kind = k;
+      b.disabled = n <= 0 || S.mode !== 'build';
+      b.setAttribute('aria-pressed', S.armed === k ? 'true' : 'false');
+      b.innerHTML = ICONS[k] + '<span class="pname">' + PART_TYPES[k].name + '</span><span class="pcount">' + (L.sandbox ? '' : '×' + n) + '</span>';
+      els.inv.appendChild(b);
+    });
+  }
+
+  function refreshTools() {
+    const p = S.mode === 'build' ? byId(S.selected) : null;
+    const T = p ? PART_TYPES[p.kind] : null;
+    els.rotL.disabled = els.rotR.disabled = !p || !T.step;
+    els.flip.disabled = !p || p.kind !== 'belt';
+    els.del.disabled = !p;
+    els.selName.textContent = p ? T.name + (T.step ? ' · ' + p.angle + '°' : '') + (p.kind === 'belt' ? (p.dir > 0 ? ' · →' : ' · ←') : '') : 'Ninguna pieza seleccionada';
+  }
+
+  function refreshLevels() {
+    els.levels.innerHTML = '';
+    ALL.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'lv'; b.dataset.i = String(i);
+      if (i === S.li) b.setAttribute('aria-current', 'true');
+      const done = progress[L.id] != null;
+      if (done) b.classList.add('done');
+      b.innerHTML = L.sandbox ? '<span class="lvn">∞</span><span class="lvt">Taller</span>'
+        : '<span class="lvn">' + (i + 1) + '</span><span class="lvt">' + L.name + '</span>' + (done ? '<span class="lvd">Hecho · ' + progress[L.id] + ' p.</span>' : '');
+      els.levels.appendChild(b);
+    });
+  }
+
+  function refreshRun() {
+    const running = S.mode === 'run';
+    els.run.textContent = running ? 'Parar y ajustar' : 'Poner en marcha';
+    els.run.classList.toggle('stop', running);
+    const L = level();
+    els.hint.disabled = running || L.sandbox || S.hintShown >= (L.hint || []).length;
+    els.hint.textContent = L.sandbox ? 'Pista' : 'Pista (' + ((L.hint || []).length - S.hintShown) + ')';
+    els.clear.disabled = running || S.placed.length === 0;
+    document.body.classList.toggle('running', running);
+  }
+
+  function refreshAll() { refreshInv(); refreshTools(); refreshLevels(); refreshRun(); }
+
+  /* ---------- Level flow ---------- */
+  function loadLevel(i, keep) {
+    S.li = i; S.mode = 'build'; S.world = null; S.selected = null; S.armed = null; S.drag = null; S.wonShown = false;
+    if (!keep) { S.placed = []; S.hintShown = 0; }
+    const L = level();
+    els.num.textContent = L.sandbox ? 'Taller libre' : 'Plano ' + (i + 1) + ' de ' + LEVELS.length;
+    els.name.textContent = L.name;
+    els.goal.textContent = L.goalText;
+    els.overlay.hidden = true;
+    setStatus('Elige una pieza de la caja y toca el tablero para colocarla.');
+    refreshAll();
+  }
+
+  function startRun() {
+    const bad = S.placed.find(isBlocked);
+    if (bad) { select(bad.id); setStatus('Hay una pieza encima de una pelota. Muévela antes de empezar.', 'bad'); return; }
+    S.mode = 'run'; S.armed = null; S.drag = null;
+    S.world = makeWorld(level(), S.placed.map(p => Object.assign({}, p)));
+    S.acc = 0; S.wonShown = false;
+    setStatus('En marcha…'); refreshAll();
+  }
+  function stopRun() {
+    S.mode = 'build'; S.world = null; els.overlay.hidden = true;
+    setStatus('Ajusta las piezas y vuelve a probar.'); refreshAll();
+  }
+
+  function onWin() {
+    const L = level(), w = S.world;
+    const n = S.placed.length;
+    if (progress[L.id] == null || n < progress[L.id]) { progress[L.id] = n; saveProgress(); }
+    sfx('win');
+    const isLast = S.li >= LEVELS.length - 1;
+    els.ovTitle.textContent = '¡La máquina funciona!';
+    els.ovText.textContent = 'Resuelto con ' + n + (n === 1 ? ' pieza' : ' piezas') + ' en ' + w.t.toFixed(1).replace('.', ',') + ' s.' + (n > 1 ? ' ¿Puedes hacerlo con menos?' : '');
+    els.ovNext.textContent = isLast ? 'Ir al taller libre' : 'Siguiente plano';
+    els.overlay.hidden = false;
+    setStatus('¡Conseguido!', 'good');
+    refreshLevels();
+  }
+
+  /* ---------- Loop ---------- */
+  function frame(ts) {
+    const dt = S.last ? Math.min((ts - S.last) / 1000, 0.1) : 0;
+    S.last = ts; S.anim += dt;
+    if (S.mode === 'run' && S.world) {
+      S.acc += dt;
+      while (S.acc >= 1 / 60) {
+        stepWorld(S.world, 1 / 60); S.acc -= 1 / 60;
+        S.world.events.forEach(sfx); S.world.events.length = 0;
+      }
+      const w = S.world, L = level();
+      if (!L.sandbox) {
+        if (w.won && !S.wonShown) { S.wonShown = true; onWin(); }
+        else if (!w.won && w.lost && els.status.dataset.tone !== 'bad') setStatus('La pelota se ha salido del plano. Para y prueba otra idea.', 'bad');
+        else if (!w.won && !w.lost && w.still > 2 && els.status.dataset.tone !== 'bad') setStatus('Todo se ha detenido. Para y ajusta las piezas.', 'bad');
+      }
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Events ---------- */
+  cv.addEventListener('pointerdown', e => {
+    ensureAudio();
+    if (S.mode !== 'build') return;
+    const pt = toWorld(e);
+    if (S.armed) {
+      if (remaining(S.armed) <= 0) { S.armed = null; refreshInv(); return; }
+      const p = newPart(S.armed, pt);
+      S.placed.push(p); S.armed = null; S.hover = null;
+      S.drag = { id: p.id, dx: 0, dy: 0 };
+      cv.setPointerCapture(e.pointerId);
+      select(p.id); sfx('click');
+      setStatus('Arrástrala para moverla. Usa los botones para girarla.');
+      refreshInv(); refreshRun();
+      return;
+    }
+    const hit = hitTest(pt);
+    if (hit) {
+      select(hit.id);
+      S.drag = { id: hit.id, dx: hit.x - pt.x, dy: hit.y - pt.y };
+      cv.setPointerCapture(e.pointerId);
+    } else select(null);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (S.mode !== 'build') return;
+    const pt = toWorld(e);
+    if (S.drag) {
+      const p = byId(S.drag.id);
+      if (p) { p.x = clamp(Math.round(pt.x + S.drag.dx), 10, W - 10); p.y = clamp(Math.round(pt.y + S.drag.dy), 10, H - 10); }
+    } else if (S.armed) S.hover = pt;
+  });
+  const endDrag = () => { S.drag = null; };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', () => { if (!S.drag) S.hover = null; });
+
+  els.inv.addEventListener('click', e => {
+    const b = e.target.closest('button.part'); if (!b || b.disabled) return;
+    ensureAudio();
+    const k = b.dataset.kind;
+    S.armed = S.armed === k ? null : k;
+    setStatus(S.armed ? 'Toca el tablero donde quieras colocar: ' + PART_TYPES[k].name.toLowerCase() + '.' : 'Elige una pieza de la caja.');
+    refreshInv();
+  });
+  els.levels.addEventListener('click', e => {
+    const b = e.target.closest('button.lv'); if (!b) return;
+    loadLevel(Number(b.dataset.i));
+  });
+  els.run.addEventListener('click', () => { ensureAudio(); if (S.mode === 'run') stopRun(); else startRun(); });
+  els.hint.addEventListener('click', () => {
+    const L = level(); if (S.hintShown >= (L.hint || []).length) return;
+    S.hintShown++;
+    const p = L.hint[S.hintShown - 1];
+    setStatus('Pista: coloca la pieza «' + PART_TYPES[p.kind].name + '» donde ves la silueta, girada ' + p.angle + '°.');
+    refreshRun();
+  });
+  els.clear.addEventListener('click', () => { S.placed = []; S.selected = null; S.armed = null; setStatus('Tablero vacío.'); refreshAll(); });
+  els.rotL.addEventListener('click', () => rotateSel(-1));
+  els.rotR.addEventListener('click', () => rotateSel(1));
+  els.flip.addEventListener('click', flipSel);
+  els.del.addEventListener('click', deleteSel);
+  els.ovRetry.addEventListener('click', stopRun);
+  els.ovNext.addEventListener('click', () => loadLevel(Math.min(S.li + 1, ALL.length - 1)));
+  els.sound.addEventListener('click', () => {
+    S.sound = !S.sound;
+    els.sound.setAttribute('aria-pressed', S.sound ? 'true' : 'false');
+    els.sound.textContent = S.sound ? 'Sonido: sí' : 'Sonido: no';
+    if (S.sound) ensureAudio();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'q') rotateSel(-1);
+    else if (k === 'e') rotateSel(1);
+    else if (k === 'f') flipSel();
+    else if (k === 'delete' || k === 'backspace') { if (S.selected) { e.preventDefault(); deleteSel(); } }
+    else if (k === 'escape') { S.armed = null; select(null); refreshInv(); }
+    else if (k === 'r' && !e.metaKey && !e.ctrlKey) { if (S.mode === 'run') stopRun(); else startRun(); }
+  });
+
+  window.addEventListener('resize', resize);
+
+  /* ---------- Hot reload (estado del visor) ---------- */
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(() => ({ li: S.li, placed: S.placed, hintShown: S.hintShown }));
+  function start(data) {
+    resize();
+    if (data && typeof data.li === 'number' && ALL[data.li]) {
+      S.placed = Array.isArray(data.placed) ? data.placed : [];
+      S.hintShown = data.hintShown || 0;
+      S.nextId = S.placed.reduce((m, p) => Math.max(m, p.id + 1), 1);
+      loadLevel(data.li, true);
+    } else loadLevel(0);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
+    requestAnimationFrame(frame);
+  }
+  if (hot && hot.ready) hot.ready(start); else start(hot && hot.data ? hot.data : {});
+});
+</script>
+</body>
+</html>

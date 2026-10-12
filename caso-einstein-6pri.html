@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caso Einstein</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: tablero de fieltro (casas en columnas, categorías en filas) a la izquierda; carpeta de pistas a la derecha. En móvil se apilan. */
+:root{
+  --felt:#13302a; --felt-hi:#1b4036; --felt-line:#2b5547;
+  --paper:#eef0e4; --paper-hi:#fbfcf4; --paper-dim:#d8ddc9;
+  --ink:#18201b; --ink-soft:#56665b;
+  --brass:#dcab40; --brass-deep:#8c6a1f;
+  --bad:#e0573f; --good:#6cc08a;
+  --text:#e9efe7; --text-dim:#a5bcae;
+  --f-display:"Special Elite","Courier New",monospace;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-emoji:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;
+  background:var(--felt);
+  background-image:radial-gradient(ellipse at 30% 0%,var(--felt-hi),transparent 70%);
+  color:var(--text);font-family:var(--f-body);font-size:15px;line-height:1.45;
+}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:8px 96px}
+button{font-family:inherit;color:inherit}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+
+/* Cabecera */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;padding-block:16px 12px;border-bottom:1px dashed var(--felt-line)}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,5vw,42px);line-height:1;margin:0;letter-spacing:.02em;color:var(--paper);text-wrap:balance}
+.brand h1 b{color:var(--brass);font-weight:400}
+.brand p{margin:6px 0 0;color:var(--text-dim);font-size:13px}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:rgba(0,0,0,.25);border:1px solid var(--felt-line);border-radius:8px;padding:4px 10px;text-align:center;min-width:64px}
+.stat span{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.stat strong{font-family:var(--f-display);font-weight:400;font-size:20px;font-variant-numeric:tabular-nums;color:var(--paper)}
+
+/* Barra de partida */
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding-block:12px}
+.seg{display:inline-flex;background:rgba(0,0,0,.28);border:1px solid var(--felt-line);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:7px 12px;border-radius:7px;font-weight:700;font-size:14px;cursor:pointer;color:var(--text-dim)}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+.btn{border:1px solid var(--felt-line);background:rgba(0,0,0,.22);padding:8px 14px;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;color:var(--text)}
+.btn:hover{border-color:var(--brass)}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:var(--ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.code{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.code label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.code input{width:104px;background:var(--paper);color:var(--ink);border:0;border-radius:8px;padding:8px 10px;font-family:var(--f-display);font-size:15px;text-transform:uppercase}
+
+/* Zona de juego */
+.game{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:880px){.game{grid-template-columns:minmax(0,1fr)}}
+.panel-title{font-family:var(--f-display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin:0 0 8px}
+
+.board{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:5px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.colhead{text-align:center;font-family:var(--f-display);font-size:13px;color:var(--text-dim);padding-bottom:2px}
+.rowlab{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin-top:6px;display:flex;align-items:center;gap:8px}
+.rowlab::after{content:"";flex:1;border-top:1px solid var(--felt-line)}
+.cell{background:var(--paper);border-radius:7px;aspect-ratio:1/0.92;display:grid;grid-template-columns:repeat(var(--mc),minmax(0,1fr));grid-auto-rows:1fr;padding:3px;gap:1px;position:relative;min-width:0}
+.cand{border:0;background:transparent;font-family:var(--f-emoji);font-size:var(--cfs,18px);line-height:1;border-radius:5px;cursor:pointer;padding:0;display:grid;place-items:center;min-width:0;min-height:0;touch-action:manipulation}
+.cand:hover{background:var(--paper-dim)}
+.mode-ok .cand:hover{background:rgba(108,192,138,.4)}
+.mode-x .cand:hover{background:rgba(224,87,63,.22)}
+.cand.gone{cursor:default;pointer-events:none}
+.cell.solo{grid-template-columns:1fr;place-items:center;background:var(--paper-hi);box-shadow:inset 0 0 0 2px var(--brass)}
+.cell.solo .big{font-family:var(--f-emoji);font-size:var(--bfs,34px);line-height:1}
+.cell.wrong{box-shadow:inset 0 0 0 3px var(--bad)}
+.cell.hint{box-shadow:inset 0 0 0 3px var(--good);animation:pulse 1s ease-in-out 3}
+.cell.shake{animation:shake .35s}
+.cand.flash{background:rgba(108,192,138,.55)}
+@keyframes pulse{50%{transform:scale(1.05)}}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}
+.tools .seg button{font-size:14px}
+.mode-ok-btn[aria-pressed="true"]{background:var(--good)!important;color:var(--ink)!important}
+.mode-x-btn[aria-pressed="true"]{background:var(--bad)!important;color:var(--paper-hi)!important}
+.switch{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dim);cursor:pointer}
+.switch input{accent-color:var(--brass);width:16px;height:16px}
+.tip{font-size:12.5px;color:var(--text-dim);margin:10px 0 0;max-width:62ch}
+
+/* Pistas */
+.clues{display:flex;flex-direction:column;gap:16px}
+.cluegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.clue{background:var(--paper);color:var(--ink);border:0;border-radius:9px;padding:8px 8px 9px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;text-align:center;transition:opacity .2s}
+.clue:hover{background:var(--paper-hi)}
+.clue.used{opacity:.35}
+.clue.hint{box-shadow:0 0 0 3px var(--good);opacity:1}
+.clue .vis{display:flex;align-items:center;justify-content:center;gap:5px;font-family:var(--f-emoji);font-size:24px;line-height:1;min-height:56px}
+.clue .txt{font-size:12px;color:var(--ink-soft);line-height:1.25}
+.vt{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--paper-dim);border-radius:7px;padding:4px 7px;position:relative}
+.join{display:flex;align-items:center;gap:3px;background:var(--paper-dim);border-radius:7px;padding:4px 6px;position:relative}
+.join .mid{background:var(--paper-hi);border-radius:5px;padding:2px;box-shadow:0 0 0 2px var(--brass)}
+.neg::after{content:"";position:absolute;left:8%;right:8%;top:50%;height:3px;margin-top:-1.5px;background:var(--bad);transform:rotate(-38deg);border-radius:2px}
+.op{font-family:var(--f-display);font-size:20px;color:var(--brass-deep);position:relative;padding:0 2px}
+.op.neg::after{left:-2px;right:-2px;transform:rotate(-60deg)}
+.posn{font-family:var(--f-display);font-size:14px;color:var(--paper-hi);background:var(--ink);border-radius:5px;padding:2px 6px}
+.rev{font-family:var(--f-display);font-size:13px;color:var(--brass-deep)}
+
+details.help{background:rgba(0,0,0,.22);border:1px solid var(--felt-line);border-radius:10px;padding:10px 14px;margin-top:4px}
+details.help summary{cursor:pointer;font-weight:800;color:var(--paper)}
+details.help p,details.help li{font-size:13.5px;color:var(--text-dim);max-width:66ch}
+details.help ul{padding-left:18px;margin:6px 0}
+details.help strong{color:var(--paper)}
+
+/* Avisos y final */
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--paper-hi);color:var(--ink);padding:10px 16px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.45);font-weight:600;font-size:14px;max-width:min(560px,calc(100% - 32px));z-index:20}
+.overlay{position:fixed;inset:0;background:rgba(5,15,12,.72);display:grid;place-items:center;padding:16px;z-index:30}
+.dialog{background:var(--paper);color:var(--ink);border-radius:14px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 0 3px var(--brass),0 20px 60px rgba(0,0,0,.5)}
+.dialog h2{font-family:var(--f-display);font-weight:400;font-size:30px;margin:0 0 6px}
+.dialog p{margin:6px 0;color:var(--ink-soft)}
+.dialog .row{display:flex;justify-content:center;gap:18px;margin:14px 0;font-variant-numeric:tabular-nums}
+.dialog .row b{display:block;font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--ink)}
+.dialog .btn{color:var(--ink);border-color:var(--ink-soft);background:transparent}
+.dialog .btn.primary{background:var(--brass);border-color:var(--brass)}
+.dialog .acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.loading{color:var(--text-dim);font-family:var(--f-display);padding:40px 0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Caso <b>Einstein</b></h1>
+      <p>Deducción pura al estilo de Sherlock (1991) y Logix (1993). Ninguna pista sobra y ninguna falta.</p>
+    </div>
+    <div class="stats" aria-live="off">
+      <div class="stat"><span>Tiempo</span><strong id="st-time">0:00</strong></div>
+      <div class="stat"><span>Errores</span><strong id="st-err">0</strong></div>
+      <div class="stat"><span>Ayudas</span><strong id="st-hint">0</strong></div>
+      <div class="stat"><span>Récord</span><strong id="st-best">—</strong></div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="seg" id="diff" role="group" aria-label="Dificultad">
+      <button type="button" data-d="F" aria-pressed="false">Fácil 4×4</button>
+      <button type="button" data-d="M" aria-pressed="true">Medio 5×5</button>
+      <button type="button" data-d="D" aria-pressed="false">Difícil 6×6</button>
+    </div>
+    <button type="button" class="btn primary" id="btn-new">Nuevo caso</button>
+    <form class="code" id="code-form">
+      <label for="code-in">Código del caso</label>
+      <input id="code-in" type="text" autocomplete="off" spellcheck="false" maxlength="9" placeholder="M-1234">
+      <button type="submit" class="btn">Cargar</button>
+    </form>
+  </div>
+
+  <div class="game">
+    <section aria-label="Tablero">
+      <h2 class="panel-title">El tablero · cada columna es una casa</h2>
+      <div id="board" class="board mode-x"><div class="loading">Preparando el caso…</div></div>
+
+      <div class="tools">
+        <div class="seg" role="group" aria-label="Acción al tocar">
+          <button type="button" class="mode-x-btn" id="mode-x" aria-pressed="true">✕ Descartar</button>
+          <button type="button" class="mode-ok-btn" id="mode-ok" aria-pressed="false">✓ Fijar</button>
+        </div>
+        <button type="button" class="btn" id="btn-undo">Deshacer</button>
+        <button type="button" class="btn" id="btn-hint">Pista guiada</button>
+        <button type="button" class="btn" id="btn-check">Comprobar</button>
+        <button type="button" class="btn" id="btn-reset">Empezar de nuevo</button>
+        <label class="switch"><input type="checkbox" id="warn" checked> Avisar de errores al momento</label>
+      </div>
+      <p class="tip">Toca un dibujo para descartarlo. Para fijarlo, cambia a <strong>✓ Fijar</strong>, mantén pulsado o usa el clic derecho. Cuando fijas algo, desaparece del resto de la fila.</p>
+    </section>
+
+    <section class="clues" aria-label="Pistas">
+      <div>
+        <h2 class="panel-title">Pistas de columna</h2>
+        <div class="cluegrid" id="clues-v"></div>
+      </div>
+      <div>
+        <h2 class="panel-title">Pistas de izquierda y derecha</h2>
+        <div class="cluegrid" id="clues-h"></div>
+      </div>
+      <details class="help">
+        <summary>Cómo se juega</summary>
+        <p>Hay varias casas en fila, numeradas de izquierda a derecha. En cada fila del tablero hay una categoría (color, mascota, bebida…). Cada dibujo va en <strong>una sola casa</strong>, y cada casa tiene <strong>un solo dibujo</strong> de cada fila.</p>
+        <p>Usa las pistas para descartar lo que es imposible. No hace falta adivinar: siempre hay un paso lógico.</p>
+        <ul>
+          <li><strong>Dos dibujos uno encima del otro:</strong> están en la misma casa.</li>
+          <li><strong>Con una raya roja:</strong> la pista es al revés (no están juntos, no están al lado).</li>
+          <li><strong>Un número oscuro:</strong> ese dibujo está en esa casa.</li>
+          <li><strong>↔</strong> están en casas vecinas, a un lado o al otro.</li>
+          <li><strong>···</strong> el primero está en algún lugar a la izquierda del segundo.</li>
+          <li><strong>Dos dibujos pegados:</strong> el primero está justo a la izquierda del segundo.</li>
+          <li><strong>Tres pegados con ⇄:</strong> el del centro está justo entre los otros dos, en ese orden o al revés.</li>
+        </ul>
+        <p>Toca una pista para tacharla cuando ya la hayas usado del todo. Comparte el <strong>código del caso</strong> para que toda la clase resuelva el mismo.</p>
+      </details>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<div class="overlay" id="win" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="win-title">
+    <h2 id="win-title">¡Caso resuelto!</h2>
+    <p id="win-msg">Has encontrado la casa de cada cosa usando solo la lógica.</p>
+    <div class="row">
+      <div>Tiempo<b id="win-time">0:00</b></div>
+      <div>Errores<b id="win-err">0</b></div>
+      <div>Ayudas<b id="win-hint">0</b></div>
+    </div>
+    <div class="acts">
+      <button type="button" class="btn primary" id="win-new">Otro caso</button>
+      <button type="button" class="btn" id="win-close">Ver tablero</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // LOGIC-START
+  const CATS = [
+    { name: 'Color', items: [['🟥', 'el rojo'], ['🟦', 'el azul'], ['🟩', 'el verde'], ['🟨', 'el amarillo'], ['🟪', 'el morado'], ['🟧', 'el naranja']] },
+    { name: 'Mascota', items: [['🐶', 'el perro'], ['🐱', 'el gato'], ['🐟', 'el pez'], ['🐦', 'el pájaro'], ['🐢', 'la tortuga'], ['🐰', 'el conejo']] },
+    { name: 'Bebida', items: [['🥛', 'la leche'], ['☕', 'el café'], ['🧃', 'el zumo'], ['🍵', 'el té'], ['💧', 'el agua'], ['🥤', 'el refresco']] },
+    { name: 'Fruta', items: [['🍎', 'la manzana'], ['🍌', 'el plátano'], ['🍐', 'la pera'], ['🍓', 'la fresa'], ['🍉', 'la sandía'], ['🍍', 'la piña']] },
+    { name: 'Deporte', items: [['⚽', 'el fútbol'], ['🏀', 'el baloncesto'], ['🎾', 'el tenis'], ['🏊', 'la natación'], ['🚴', 'el ciclismo'], ['🏐', 'el voleibol']] },
+    { name: 'Instrumento', items: [['🎸', 'la guitarra'], ['🥁', 'el tambor'], ['🎹', 'el piano'], ['🎺', 'la trompeta'], ['🎻', 'el violín'], ['🎷', 'el saxofón']] }
+  ];
+
+  const DIFFS = {
+    F: { n: 4, label: 'Fácil', w: { same: 3, notSame: 1, nextTo: 2, notNext: 0, leftOf: 2, immLeft: 1, between: 0, pos: 2 } },
+    M: { n: 5, label: 'Medio', w: { same: 2, notSame: 1, nextTo: 2, notNext: 1, leftOf: 2, immLeft: 1, between: 1, pos: 0.8 } },
+    D: { n: 6, label: 'Difícil', w: { same: 1, notSame: 2, nextTo: 2, notNext: 2, leftOf: 2, immLeft: 1, between: 2, pos: 0.3 } }
+  };
+
+  const VERT = new Set(['same', 'notSame', 'pos']);
+
+  const REL = {
+    same: (a, b) => a === b,
+    notSame: (a, b) => a !== b,
+    nextTo: (a, b) => Math.abs(a - b) === 1,
+    notNext: (a, b) => Math.abs(a - b) !== 1,
+    leftOf: (a, b) => a < b,
+    immLeft: (a, b) => b === a + 1,
+    between: (a, b, c) => (b === a + 1 && c === b + 1) || (b === a - 1 && c === b - 1)
+  };
+
+  function rngFrom(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+  function pickW(w, rng) {
+    const e = Object.entries(w).filter((x) => x[1] > 0);
+    let t = e.reduce((s, x) => s + x[1], 0) * rng();
+    for (const [k, v] of e) { t -= v; if (t < 0) return k; }
+    return e[e.length - 1][0];
+  }
+  function popc(x) { let n = 0; while (x) { x &= x - 1; n++; } return n; }
+  function bitIdx(x) { return 31 - Math.clz32(x); }
+  function bitsum(cand) { let s = 0; for (const row of cand) for (const v of row) s += popc(v); return s; }
+  function cloneCand(cand) { return cand.map((r) => r.slice()); }
+
+  // Eliminaciones que se deducen de una sola pista. null = contradicción.
+  function clueElims(cand, N, cl) {
+    const its = cl.it;
+    if (cl.t === 'pos') {
+      const [r, k] = its[0];
+      if (!((cand[r][cl.c] >> k) & 1)) return null;
+      const out = [];
+      for (let c = 0; c < N; c++) if (c !== cl.c && ((cand[r][c] >> k) & 1)) out.push([r, c, k]);
+      return out;
+    }
+    const rel = REL[cl.t];
+    const m = its.length;
+    const P = its.map(([r, k]) => { const p = []; for (let c = 0; c < N; c++) if ((cand[r][c] >> k) & 1) p.push(c); return p; });
+    const sup = its.map(() => new Set());
+    const cols = new Array(m);
+    const rec = (i) => {
+      if (i === m) {
+        if (!rel.apply(null, cols)) return;
+        for (let x = 0; x < m; x++) for (let y = x + 1; y < m; y++) if (its[x][0] === its[y][0] && cols[x] === cols[y]) return;
+        for (let x = 0; x < m; x++) sup[x].add(cols[x]);
+        return;
+      }
+      for (const c of P[i]) { cols[i] = c; rec(i + 1); }
+    };
+    rec(0);
+    const out = [];
+    for (let i = 0; i < m; i++) {
+      if (sup[i].size === 0) return null;
+      for (const c of P[i]) if (!sup[i].has(c)) out.push([its[i][0], c, its[i][1]]);
+    }
+    return out;
+  }
+
+  // Regla de la fila: un dibujo fijado sale del resto; si un dibujo solo cabe en una casa, se fija.
+  function rowDeduce(cand, N) {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const v = cand[r][c];
+        if (v === 0) return { bad: true };
+        if (popc(v) === 1) {
+          const k = bitIdx(v); const el = [];
+          for (let c2 = 0; c2 < N; c2++) if (c2 !== c && (cand[r][c2] & v)) el.push([r, c2, k]);
+          if (el.length) return { kind: 'naked', r, c, k, elims: el };
+        }
+      }
+      for (let k = 0; k < N; k++) {
+        let cnt = 0, last = -1;
+        for (let c = 0; c < N; c++) if ((cand[r][c] >> k) & 1) { cnt++; last = c; }
+        if (cnt === 0) return { bad: true };
+        if (cnt === 1 && popc(cand[r][last]) > 1) {
+          const el = [];
+          for (let k2 = 0; k2 < N; k2++) if (k2 !== k && ((cand[r][last] >> k2) & 1)) el.push([r, last, k2]);
+          return { kind: 'hidden', r, c: last, k, elims: el };
+        }
+      }
+    }
+    return null;
+  }
+  function applyElims(cand, el) { for (const [r, c, k] of el) cand[r][c] &= ~(1 << k); }
+
+  function propagate(cand, N, clues) {
+    for (let guard = 0; guard < 20000; guard++) {
+      const d = rowDeduce(cand, N);
+      if (d) { if (d.bad) return 'bad'; applyElims(cand, d.elims); continue; }
+      let any = false;
+      for (const cl of clues) {
+        const el = clueElims(cand, N, cl);
+        if (el === null) return 'bad';
+        if (el.length) { applyElims(cand, el); any = true; }
+      }
+      if (!any) break;
+    }
+    for (const row of cand) for (const v of row) if (popc(v) !== 1) return 'stuck';
+    return 'solved';
+  }
+
+  function makeClue(t, sol, N, rng) {
+    const R = () => Math.floor(rng() * N);
+    const item = (r, c) => [r, sol[r][c]];
+    switch (t) {
+      case 'same': { const c = R(), r1 = R(), r2 = R(); if (r1 === r2) return null; return { t, it: [item(r1, c), item(r2, c)] }; }
+      case 'notSame': { const r1 = R(), r2 = R(), c1 = R(), c2 = R(); if (r1 === r2 || c1 === c2) return null; return { t, it: [item(r1, c1), item(r2, c2)] }; }
+      case 'nextTo': { const c1 = R(); const c2 = c1 + (rng() < 0.5 ? -1 : 1); if (c2 < 0 || c2 >= N) return null; return { t, it: [item(R(), c1), item(R(), c2)] }; }
+      case 'notNext': { const c1 = R(), c2 = R(); if (Math.abs(c1 - c2) < 2) return null; return { t, it: [item(R(), c1), item(R(), c2)] }; }
+      case 'leftOf': { const c1 = R(), c2 = R(); if (c1 >= c2) return null; return { t, it: [item(R(), c1), item(R(), c2)] }; }
+      case 'immLeft': { const c1 = R(); if (c1 + 1 >= N) return null; return { t, it: [item(R(), c1), item(R(), c1 + 1)] }; }
+      case 'between': { const b = 1 + Math.floor(rng() * (N - 2)); const d = rng() < 0.5 ? -1 : 1; return { t, it: [item(R(), b - d), item(R(), b), item(R(), b + d)] }; }
+      case 'pos': { const r = R(), c = R(); return { t, it: [item(r, c)], c }; }
+    }
+    return null;
+  }
+  function clueKey(cl) { return cl.t + ':' + cl.it.map((x) => x.join('.')).join('|') + (cl.t === 'pos' ? '@' + cl.c : ''); }
+
+  function generate(diffKey, seed) {
+    const rng = rngFrom(seed * 7919 + diffKey.charCodeAt(0));
+    const D = DIFFS[diffKey]; const N = D.n;
+    const cat = shuffle([0, 1, 2, 3, 4, 5], rng).slice(0, N).sort((a, b) => a - b);
+    const items = cat.map(() => shuffle([0, 1, 2, 3, 4, 5], rng).slice(0, N));
+    const sol = cat.map(() => shuffle([...Array(N).keys()], rng));
+    const full = (1 << N) - 1;
+    const fresh = () => Array.from({ length: N }, () => Array(N).fill(full));
+    const clues = []; const seen = new Set();
+    let state = fresh(); let st = propagate(state, N, clues); let tries = 0;
+    while (st !== 'solved') {
+      tries++;
+      const t = tries > 4000 ? 'pos' : pickW(D.w, rng);
+      const cl = makeClue(t, sol, N, rng);
+      if (!cl) continue;
+      const key = clueKey(cl);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const test = cloneCand(state);
+      const s2 = propagate(test, N, clues.concat([cl]));
+      if (bitsum(test) < bitsum(state)) { clues.push(cl); state = test; st = s2; }
+    }
+    let keep = clues.slice();
+    for (const i of shuffle(clues.map((_, i) => i), rng)) {
+      const rest = keep.filter((x) => x !== clues[i]);
+      if (propagate(fresh(), N, rest) === 'solved') keep = rest;
+    }
+    const vert = keep.filter((c) => VERT.has(c.t)).sort((a, b) => (a.t > b.t ? 1 : -1));
+    const horiz = keep.filter((c) => !VERT.has(c.t)).sort((a, b) => (a.t > b.t ? 1 : -1));
+    return { diff: diffKey, seed, N, cat, items, sol, clues: vert.concat(horiz) };
+  }
+  // LOGIC-END
+
+  const $ = (s) => document.querySelector(s);
+  const ui = {
+    board: $('#board'), cv: $('#clues-v'), ch: $('#clues-h'), toast: $('#toast'),
+    time: $('#st-time'), err: $('#st-err'), hint: $('#st-hint'), best: $('#st-best'),
+    codeIn: $('#code-in'), win: $('#win'), warn: $('#warn')
+  };
+
+  let P = null;     // puzzle
+  let S = null;     // estado del jugador
+  let mode = 'x';
+  let diff = 'M';
+  let toastTimer = 0;
+  let suppressClick = false;
+  let pressTimer = 0;
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } }
+  };
+
+  const emo = (r, k) => CATS[P.cat[r]].items[P.items[r][k]][0];
+  const nam = (r, k) => CATS[P.cat[r]].items[P.items[r][k]][1];
+  const de = (s) => (s.startsWith('el ') ? 'del ' + s.slice(3) : 'de ' + s);
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const fmt = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const codeOf = () => P.diff + '-' + P.seed;
+
+  function clueText(cl) {
+    const n = cl.it.map(([r, k]) => nam(r, k));
+    switch (cl.t) {
+      case 'same': return cap(n[0]) + ' y ' + n[1] + ' están en la misma casa.';
+      case 'notSame': return cap(n[0]) + ' y ' + n[1] + ' no están en la misma casa.';
+      case 'pos': return cap(n[0]) + ' está en la casa ' + (cl.c + 1) + '.';
+      case 'nextTo': return cap(n[0]) + ' está al lado ' + de(n[1]) + '.';
+      case 'notNext': return cap(n[0]) + ' no está al lado ' + de(n[1]) + '.';
+      case 'leftOf': return cap(n[0]) + ' está más a la izquierda que ' + n[1] + '.';
+      case 'immLeft': return cap(n[0]) + ' está justo a la izquierda ' + de(n[1]) + '.';
+      case 'between': return cap(n[1]) + ' está justo entre ' + n[0] + ' y ' + n[2] + '.';
+    }
+    return '';
+  }
+  function clueVis(cl) {
+    const e = cl.it.map(([r, k]) => '<span>' + emo(r, k) + '</span>');
+    switch (cl.t) {
+      case 'same': return '<div class="vt">' + e[0] + e[1] + '</div>';
+      case 'notSame': return '<div class="vt neg">' + e[0] + e[1] + '</div>';
+      case 'pos': return '<div class="vt">' + e[0] + '<span class="posn">' + (cl.c + 1) + '</span></div>';
+      case 'nextTo': return e[0] + '<span class="op">↔</span>' + e[1];
+      case 'notNext': return e[0] + '<span class="op neg">↔</span>' + e[1];
+      case 'leftOf': return e[0] + '<span class="op">···</span>' + e[1];
+      case 'immLeft': return '<div class="join">' + e[0] + e[1] + '</div>';
+      case 'between': return '<div class="join">' + e[0] + '<span class="mid">' + emo(cl.it[1][0], cl.it[1][1]) + '</span>' + e[2] + '</div><span class="rev">⇄</span>';
+    }
+    return '';
+  }
+
+  // ---------- Partida ----------
+  function startGame(d, seed, restore) {
+    diff = d;
+    P = generate(d, seed);
+    const full = (1 << P.N) - 1;
+    S = {
+      cand: Array.from({ length: P.N }, () => Array(P.N).fill(full)),
+      hist: [], used: new Set(), errors: 0, hints: 0, elapsed: 0, won: false,
+      wrong: new Set(), hintCells: new Set(), hintClue: -1, flash: ''
+    };
+    if (restore && Array.isArray(restore.cand) && restore.cand.length === P.N) {
+      S.cand = restore.cand.map((r) => r.slice());
+      S.used = new Set(restore.used || []);
+      S.errors = restore.errors | 0; S.hints = restore.hints | 0; S.elapsed = restore.elapsed | 0;
+      S.won = !!restore.won;
+    }
+    ui.codeIn.value = codeOf();
+    document.querySelectorAll('#diff button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.d === d)));
+    ui.board.style.setProperty('--n', P.N);
+    ui.board.style.setProperty('--mc', P.N === 4 ? 2 : 3);
+    renderClues();
+    render();
+    sizeBoard();
+    updateStats();
+  }
+
+  function newRandom(d) { startGame(d, 1 + Math.floor(Math.random() * 99999)); }
+
+  function render() {
+    const N = P.N;
+    let h = '';
+    for (let c = 0; c < N; c++) h += '<div class="colhead">Casa ' + (c + 1) + '</div>';
+    for (let r = 0; r < N; r++) {
+      h += '<div class="rowlab">' + CATS[P.cat[r]].name + '</div>';
+      for (let c = 0; c < N; c++) {
+        const v = S.cand[r][c];
+        const cls = ['cell'];
+        if (S.wrong.has(r + ',' + c)) cls.push('wrong');
+        if (S.hintCells.has(r + ',' + c)) cls.push('hint');
+        if (popc(v) === 1) {
+          const k = bitIdx(v);
+          cls.push('solo');
+          h += '<div class="' + cls.join(' ') + '" role="img" aria-label="Casa ' + (c + 1) + ': ' + nam(r, k) + '"><span class="big">' + emo(r, k) + '</span></div>';
+        } else {
+          h += '<div class="' + cls.join(' ') + '">';
+          for (let k = 0; k < N; k++) {
+            if ((v >> k) & 1) {
+              const fl = S.flash === r + ',' + c + ',' + k ? ' flash' : '';
+              h += '<button type="button" class="cand' + fl + '" data-r="' + r + '" data-c="' + c + '" data-k="' + k + '" aria-label="' + cap(nam(r, k)) + ' en la casa ' + (c + 1) + '">' + emo(r, k) + '</button>';
+            } else {
+              h += '<span class="cand gone" aria-hidden="true"></span>';
+            }
+          }
+          h += '</div>';
+        }
+      }
+    }
+    ui.board.innerHTML = h;
+    document.querySelectorAll('.clue').forEach((b) => {
+      const i = +b.dataset.i;
+      b.classList.toggle('used', S.used.has(i));
+      b.classList.toggle('hint', S.hintClue === i);
+      b.setAttribute('aria-pressed', String(S.used.has(i)));
+    });
+  }
+
+  function renderClues() {
+    let v = '', hz = '';
+    P.clues.forEach((cl, i) => {
+      const b = '<button type="button" class="clue" data-i="' + i + '" aria-pressed="false"><div class="vis">' + clueVis(cl) + '</div><div class="txt">' + clueText(cl) + '</div></button>';
+      if (VERT.has(cl.t)) v += b; else hz += b;
+    });
+    ui.cv.innerHTML = v || '<p class="tip">Este caso no tiene pistas de columna.</p>';
+    ui.ch.innerHTML = hz || '<p class="tip">Este caso no tiene pistas de izquierda y derecha.</p>';
+  }
+
+  function sizeBoard() {
+    if (!P) return;
+    const w = ui.board.clientWidth;
+    const cs = (w - (P.N - 1) * 5) / P.N;
+    const mc = P.N === 4 ? 2 : 3;
+    ui.board.style.setProperty('--cfs', Math.max(11, Math.min(28, (cs / mc) * 0.62)).toFixed(1) + 'px');
+    ui.board.style.setProperty('--bfs', Math.max(20, Math.min(54, cs * 0.5)).toFixed(1) + 'px');
+  }
+
+  function updateStats() {
+    ui.time.textContent = fmt(S.elapsed);
+    ui.err.textContent = S.errors;
+    ui.hint.textContent = S.hints;
+    const best = store.get('caso-einstein-best') || {};
+    ui.best.textContent = best[P.diff] != null ? fmt(best[P.diff]) : '—';
+  }
+
+  function toast(msg) {
+    ui.toast.textContent = msg;
+    ui.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { ui.toast.hidden = true; }, 3800);
+  }
+
+  function clearMarks() { S.wrong.clear(); S.hintCells.clear(); S.hintClue = -1; S.flash = ''; }
+  function pushHist() { S.hist.push(S.cand.map((r) => r.slice())); if (S.hist.length > 300) S.hist.shift(); }
+
+  function autoRow() {
+    for (let g = 0; g < 500; g++) {
+      const d = rowDeduce(S.cand, P.N);
+      if (!d || d.bad) return;
+      applyElims(S.cand, d.elims);
+    }
+  }
+
+  function shakeCell(r, c) {
+    const idx = P.N + r * (P.N + 1) + 1 + c; // cabeceras + etiqueta de cada fila
+    const cell = ui.board.children[idx];
+    if (!cell) return;
+    cell.classList.remove('shake'); void cell.offsetWidth; cell.classList.add('shake');
+  }
+
+  function act(r, c, k, confirm) {
+    if (S.won) return;
+    const v = S.cand[r][c];
+    if (!((v >> k) & 1)) return;
+    if (!confirm && popc(v) === 1) return;
+    const truth = P.sol[r][c] === k;
+    if (ui.warn.checked && (confirm ? !truth : truth)) {
+      S.errors++;
+      updateStats();
+      shakeCell(r, c);
+      toast(confirm
+        ? 'Eso no encaja: ' + nam(r, k) + ' no va en la casa ' + (c + 1) + '. Revisa las pistas.'
+        : 'Cuidado: todavía no puedes descartar ' + nam(r, k) + ' en la casa ' + (c + 1) + '.');
+      return;
+    }
+    clearMarks();
+    pushHist();
+    if (confirm) S.cand[r][c] = 1 << k; else S.cand[r][c] = v & ~(1 << k);
+    autoRow();
+    render();
+    checkWin();
+  }
+
+  function checkWin() {
+    for (const row of S.cand) for (const v of row) if (popc(v) !== 1) return;
+    for (let r = 0; r < P.N; r++) for (let c = 0; c < P.N; c++) {
+      if (bitIdx(S.cand[r][c]) !== P.sol[r][c]) { toast('El tablero está completo, pero algo no encaja. Pulsa Comprobar.'); return; }
+    }
+    S.won = true;
+    const best = store.get('caso-einstein-best') || {};
+    let rec = false;
+    if (S.hints === 0 && (best[P.diff] == null || S.elapsed < best[P.diff])) { best[P.diff] = S.elapsed; store.set('caso-einstein-best', best); rec = true; }
+    updateStats();
+    $('#win-time').textContent = fmt(S.elapsed);
+    $('#win-err').textContent = S.errors;
+    $('#win-hint').textContent = S.hints;
+    $('#win-msg').textContent = rec
+      ? '¡Nuevo récord en ' + DIFFS[P.diff].label.toLowerCase() + '! Código del caso: ' + codeOf() + '.'
+      : 'Has encontrado la casa de cada cosa usando solo la lógica. Código del caso: ' + codeOf() + '.';
+    ui.win.hidden = false;
+    $('#win-new').focus();
+  }
+
+  function findWrong() {
+    const out = [];
+    for (let r = 0; r < P.N; r++) for (let c = 0; c < P.N; c++) if (!((S.cand[r][c] >> P.sol[r][c]) & 1)) out.push(r + ',' + c);
+    return out;
+  }
+
+  function check() {
+    clearMarks();
+    const w = findWrong();
+    w.forEach((x) => S.wrong.add(x));
+    render();
+    toast(w.length ? 'Hay ' + w.length + (w.length === 1 ? ' casilla' : ' casillas') + ' con un error (en rojo). Usa Deshacer.' : 'Todo correcto hasta ahora. ¡Sigue así!');
+  }
+
+  function hint() {
+    if (S.won) return;
+    clearMarks();
+    const w = findWrong();
+    if (w.length) { w.forEach((x) => S.wrong.add(x)); render(); toast('Antes de seguir, corrige las casillas en rojo con Deshacer.'); return; }
+    const d = rowDeduce(S.cand, P.N);
+    if (d && !d.bad) {
+      pushHist(); applyElims(S.cand, d.elims); autoRow();
+      S.hints++; S.hintCells.add(d.r + ',' + d.c);
+      render(); updateStats();
+      toast('En la fila ' + CATS[P.cat[d.r]].name.toLowerCase() + ', ' + nam(d.r, d.k) + ' solo puede ir en la casa ' + (d.c + 1) + '.');
+      checkWin();
+      return;
+    }
+    const order = P.clues.map((_, i) => i).sort((a, b) => (S.used.has(a) ? 1 : 0) - (S.used.has(b) ? 1 : 0));
+    for (const i of order) {
+      const el = clueElims(S.cand, P.N, P.clues[i]);
+      if (el && el.length) {
+        const [r, c, k] = el[0];
+        pushHist();
+        S.cand[r][c] &= ~(1 << k);
+        autoRow();
+        S.hints++; S.hintClue = i; S.hintCells.add(r + ',' + c);
+        render(); updateStats();
+        toast('Fíjate en la pista resaltada: por ella, ' + nam(r, k) + ' no puede estar en la casa ' + (c + 1) + '.');
+        const tile = document.querySelector('.clue[data-i="' + i + '"]');
+        if (tile && tile.scrollIntoView) tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        checkWin();
+        return;
+      }
+    }
+    toast('No encuentro un paso directo. Pulsa Comprobar.');
+  }
+
+  function undo() {
+    if (!S.hist.length || S.won) return;
+    clearMarks();
+    S.cand = S.hist.pop();
+    render();
+  }
+
+  function reset() {
+    const full = (1 << P.N) - 1;
+    pushHist();
+    clearMarks();
+    S.cand = Array.from({ length: P.N }, () => Array(P.N).fill(full));
+    S.used.clear();
+    S.won = false;
+    render();
+    toast('Tablero limpio. El reloj sigue en marcha.');
+  }
+
+  function setMode(m) {
+    mode = m;
+    $('#mode-x').setAttribute('aria-pressed', String(m === 'x'));
+    $('#mode-ok').setAttribute('aria-pressed', String(m === 'ok'));
+    ui.board.classList.toggle('mode-x', m === 'x');
+    ui.board.classList.toggle('mode-ok', m === 'ok');
+  }
+
+  function candFrom(t) {
+    const b = t.closest && t.closest('.cand[data-k]');
+    return b ? [+b.dataset.r, +b.dataset.c, +b.dataset.k] : null;
+  }
+
+  // ---------- Eventos ----------
+  function bind() {
+    ui.board.addEventListener('click', (e) => {
+      if (suppressClick) { suppressClick = false; return; }
+      const x = candFrom(e.target); if (!x) return;
+      act(x[0], x[1], x[2], mode === 'ok');
+    });
+    ui.board.addEventListener('contextmenu', (e) => {
+      const x = candFrom(e.target); if (!x) return;
+      e.preventDefault();
+      act(x[0], x[1], x[2], true);
+    });
+    ui.board.addEventListener('pointerdown', (e) => {
+      const x = candFrom(e.target); if (!x || e.button > 0) return;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => { suppressClick = true; act(x[0], x[1], x[2], true); }, 480);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => ui.board.addEventListener(ev, () => clearTimeout(pressTimer)));
+    ui.board.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' && (Math.abs(e.movementX) + Math.abs(e.movementY)) > 6) clearTimeout(pressTimer); });
+
+    document.querySelector('.clues').addEventListener('click', (e) => {
+      const b = e.target.closest('.clue'); if (!b) return;
+      const i = +b.dataset.i;
+      if (S.used.has(i)) S.used.delete(i); else S.used.add(i);
+      if (S.hintClue === i) S.hintClue = -1;
+      render();
+    });
+
+    $('#diff').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-d]'); if (!b) return;
+      newRandom(b.dataset.d);
+    });
+    $('#btn-new').addEventListener('click', () => newRandom(diff));
+    $('#code-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const m = /^\s*([FMD])\s*-?\s*(\d{1,6})\s*$/i.exec(ui.codeIn.value);
+      if (!m || +m[2] < 1) { toast('Escribe un código como M-1234 (F fácil, M medio, D difícil).'); return; }
+      startGame(m[1].toUpperCase(), +m[2]);
+      toast('Caso ' + codeOf() + ' cargado.');
+    });
+    $('#mode-x').addEventListener('click', () => setMode('x'));
+    $('#mode-ok').addEventListener('click', () => setMode('ok'));
+    $('#btn-undo').addEventListener('click', undo);
+    $('#btn-hint').addEventListener('click', hint);
+    $('#btn-check').addEventListener('click', check);
+    $('#btn-reset').addEventListener('click', reset);
+    $('#win-new').addEventListener('click', () => { ui.win.hidden = true; newRandom(diff); });
+    $('#win-close').addEventListener('click', () => { ui.win.hidden = true; });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !ui.win.hidden) ui.win.hidden = true;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+    });
+
+    if (window.ResizeObserver) new ResizeObserver(sizeBoard).observe(ui.board);
+    else window.addEventListener('resize', sizeBoard);
+
+    setInterval(() => {
+      if (!S || S.won || document.hidden) return;
+      S.elapsed++;
+      ui.time.textContent = fmt(S.elapsed);
+    }, 1000);
+  }
+
+  function snapshot() {
+    if (!P) return {};
+    return { diff: P.diff, seed: P.seed, cand: S.cand, used: [...S.used], errors: S.errors, hints: S.hints, elapsed: S.elapsed, won: S.won, mode: mode, warn: ui.warn.checked };
+  }
+
+  function start(data) {
+    bind();
+    data = data || {};
+    if (data.diff && DIFFS[data.diff] && data.seed) {
+      ui.warn.checked = data.warn !== false;
+      setMode(data.mode === 'ok' ? 'ok' : 'x');
+      startGame(data.diff, data.seed, data);
+    } else {
+      newRandom('M');
+    }
+    if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(snapshot);
+  }
+
+  const boot = () => {
+    const hot = window.claude && window.claude.hot;
+    if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
+
+</body>
+</html>
