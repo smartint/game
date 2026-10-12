@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101a3d">
+<title>Números mágicos 2048 con problemas</title>
+<style>
+:root{--ink:#fff;--panel:#18264d;--gold:#ffd04d;--gap:8px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);overscroll-behavior:none}
+body{background:
+linear-gradient(#07122acc,#07122acc),
+repeating-linear-gradient(90deg,#23345d 0 2px,#18284a 2px 72px),
+repeating-linear-gradient(0deg,transparent 0 70px,#0d1735 70px 73px);
+background-color:#0b1430;
+display:flex;justify-content:center}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.app{width:min(100%,520px);min-height:100dvh;padding:14px 14px 30px;position:relative}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:47px;height:47px;border-radius:15px;background:linear-gradient(135deg,#8b2cff,#ff3c9d);display:grid;place-items:center;font-size:23px;box-shadow:0 6px 0 #0a1025}
+h1{font-size:clamp(18px,5vw,25px);margin:0;line-height:1}.sub{font-size:12px;opacity:.7;margin-top:5px}
+.iconbtn{width:45px;height:45px;border-radius:14px;background:#ffffff14;font-size:22px;box-shadow:inset 0 0 0 1px #ffffff1c}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.stat{background:#ffffff0e;border:1px solid #ffffff18;border-radius:14px;text-align:center;padding:8px 3px}
+.stat b{display:block;font-size:21px}.stat span{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.7px}
+.goalrow{display:flex;align-items:center;justify-content:center;gap:16px;margin:4px 0 12px}
+.goal{width:82px;height:82px;border-radius:20px;display:grid;place-items:center;background:linear-gradient(145deg,#e14e3e,#a62d50);box-shadow:0 7px 0 #0a1028,0 0 25px #f14a5a30;font-weight:900;font-size:27px}
+.goalwrap{text-align:center}.goalwrap small{display:block;margin-top:8px;opacity:.75;letter-spacing:1.5px}
+.meterbox{flex:1;max-width:230px}.metertext{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}
+.meter{height:14px;background:#080f27;border-radius:99px;padding:3px}.meter>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7adb11,#d1fa39);transition:width .35s}
+.board{width:100%;max-width:492px;margin:0 auto;aspect-ratio:1/1;background:#101b3b;border:10px solid #1c2852;border-radius:22px;padding:var(--gap);display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:var(--gap);touch-action:none;box-shadow:0 12px 28px #0008;overflow:hidden;user-select:none;-webkit-user-select:none}
+@supports not (aspect-ratio:1/1){.board{height:calc(100vw - 28px);max-height:492px}}
+.tile{position:relative;border-radius:14px;display:grid;place-items:center;font-weight:900;font-size:clamp(22px,7vw,37px);text-shadow:0 2px 0 #0003;box-shadow:inset 0 -5px 0 #0002,0 3px 4px #0004;transition:transform .12s,filter .12s;user-select:none;-webkit-user-select:none;min-width:0;min-height:0}
+.tile.selected{transform:scale(.89);filter:brightness(1.35);outline:4px solid #fff;z-index:2}
+.tile.hint{animation:hint .65s infinite alternate}
+.tile.pop{animation:pop .25s}.tile.new{animation:drop .24s}
+@keyframes hint{to{transform:scale(.9);box-shadow:0 0 16px #fff}}
+@keyframes pop{50%{transform:scale(1.32)}}@keyframes drop{from{transform:translateY(-28px);opacity:.1}}
+.v2{background:#41469c}.v4{background:#286391}.v8{background:#05879a}.v16{background:#009681}.v32{background:#af4639}.v64{background:#8b9524}.v128{background:#279338}.v256{background:#673997}.v512{background:#ad3185}.v1024{background:#a52f55}.v2048,.v4096{background:linear-gradient(135deg,#ff9d19,#ef3d58);font-size:clamp(18px,6vw,31px)}
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.action{min-height:58px;border-radius:15px;background:#ffffff10;border:1px solid #ffffff18;padding:5px;font-weight:750;font-size:12px}
+.action em{display:block;font-style:normal;font-size:24px;line-height:25px}.action:disabled{opacity:.35;cursor:default}
+.primary{background:linear-gradient(135deg,#22b965,#05a58f)}
+.tip{background:#ffffff0d;border-radius:13px;text-align:center;padding:9px;margin-top:11px;font-size:13px;color:#dce6ff}
+.overlay{position:fixed;inset:0;background:#050b1bd9;display:grid;place-items:center;padding:20px;z-index:20}
+.overlay.hidden{display:none}.modal{width:min(100%,430px);max-height:calc(100dvh - 40px);overflow:auto;background:#18254d;border:1px solid #ffffff2b;border-radius:25px;padding:24px;text-align:center;box-shadow:0 22px 70px #000}
+.modal h2{font-size:29px;margin:4px}.modal p{line-height:1.5;color:#d9e1f5}.bigicon{font-size:55px}
+.modalbtn{width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,#79d614,#27ad61);font-weight:900;font-size:18px;margin-top:8px}
+.secondary{background:#ffffff13}.levelgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:48vh;overflow:auto;margin:15px 0}
+.problemTag{display:inline-block;background:#ffd04d;color:#17203d;padding:5px 10px;border-radius:99px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+.problemText{font-size:19px;line-height:1.45;color:#fff!important;margin:16px 0;text-align:left}
+.answerInput{width:100%;border:2px solid #ffffff35;background:#0c1737;color:#fff;border-radius:14px;padding:13px 14px;font-family:inherit;font-weight:700;font-size:18px;outline:none}
+.answerInput:focus{border-color:#ffd04d}.choiceRow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choiceBtn{padding:14px 8px;border-radius:14px;background:#31446f;font-weight:900;font-size:17px}.choiceBtn:hover{filter:brightness(1.15)}
+.feedback{min-height:24px;margin:10px 0 0;font-weight:800}.feedback.ok{color:#8ff58a}.feedback.bad{color:#ffaaa3}
+.level{aspect-ratio:1/1;min-height:40px;border-radius:11px;background:#263761;font-weight:800}.level.done{background:#198a67}.level.current{outline:3px solid var(--gold)}.level.locked{opacity:.3;cursor:default}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,120px);background:#fff;color:#10182e;padding:11px 18px;border-radius:99px;font-weight:800;z-index:30;transition:.3s;white-space:nowrap;pointer-events:none}.toast.show{transform:translate(-50%,0)}
+@media(max-width:360px){.app{padding:9px}.board{border-width:7px;gap:5px;padding:5px}.stats{margin:8px 0}.tile{border-radius:10px}.actions{gap:5px}}
+</style>
+</head>
+<body>
+<main class="app">
+ <header class="top">
+  <div class="brand"><div class="logo">✦</div><div><h1>Números mágicos</h1><div class="sub">Une, duplica y alcanza la meta</div></div></div>
+  <button class="iconbtn" id="sound" type="button" aria-label="Sonido">🔊</button>
+ </header>
+ <section class="stats">
+  <div class="stat"><b id="levelNo">1</b><span>Fase</span></div>
+  <div class="stat"><b id="moves">30</b><span>Movimientos</span></div>
+  <div class="stat"><b id="best">0</b><span>Mejor</span></div>
+ </section>
+ <section class="goalrow">
+  <div class="goalwrap"><div class="goal" id="goal">32</div><small>META</small></div>
+  <div class="meterbox"><div class="metertext"><span>Progreso</span><b id="progressTxt">0%</b></div><div class="meter"><i id="meter" style="width:0"></i></div></div>
+ </section>
+ <div class="board" id="board" aria-label="Tablero de juego"></div>
+ <section class="actions">
+  <button class="action" id="levels" type="button"><em>▦</em>Fases</button>
+  <button class="action" id="undo" type="button"><em>↶</em>Deshacer</button>
+  <button class="action" id="shuffle" type="button"><em>⤨</em>Mezclar <span id="shuffleN">2</span></button>
+  <button class="action primary" id="hint" type="button"><em>💡</em>Pista <span id="hintN">3</span></button>
+ </section>
+ <div class="tip" id="tip">Une fichas iguales. Desde 16, cada nuevo número abre un reto.</div>
+</main>
+<div class="overlay hidden" id="modal" role="dialog" aria-modal="true"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<script>
+(function(){
+'use strict';
+const N=5;
+const MAX_LEVEL=50;
+const STORAGE_KEY='numerosMagicos2048_v2';
+const DEFAULT_TIP='Une fichas iguales. Desde 16, cada nuevo número abre un reto.';
+const $=function(s){return document.querySelector(s);};
+const boardEl=$('#board');
+const modalEl=$('#modal');
+const modalBody=$('#modalBody');
+const goals=[32,64,128,256,512,1024,2048];
+const problems=[
+ ['Escribe el menor múltiplo de 7 que sea mayor que 35.','42'],
+ ['¿Cuál es el quinto múltiplo positivo de 9?','45'],
+ ['¿Qué número es el primer múltiplo de 8 después de 40?','48'],
+ ['Calcula el noveno múltiplo positivo de 6.','54'],
+ ['¿Cuál es el menor múltiplo de 7 mayor que 49?','56'],
+ ['Calcula el séptimo múltiplo positivo de 9.','63'],
+ ['¿Cuál es el undécimo múltiplo positivo de 6?','66'],
+ ['Calcula el sexto múltiplo positivo de 12.','72'],
+ ['¿Cuál es el mayor divisor propio de 77?','11'],
+ ['¿Cuántos divisores positivos tiene 81?','5'],
+ ['Dos autobuses salen juntos. Uno pasa cada 9 minutos y otro cada 12. ¿Cuántos minutos pasarán hasta que vuelvan a coincidir?','36'],
+ ['Una luz parpadea cada 7 segundos y otra cada 12 segundos. ¿Cada cuántos segundos parpadearán a la vez?','84'],
+ ['Una campana suena cada 10 minutos y otra cada 9. ¿Cuánto tardarán en sonar juntas de nuevo?','90'],
+ ['Un corredor completa una vuelta en 32 minutos y otro en 6. Si parten juntos, ¿a los cuántos minutos coincidirán en la salida?','96'],
+ ['Una alarma se activa cada 15 minutos y otra cada 7. ¿Cuánto tardarán en activarse simultáneamente?','105'],
+ ['¿Cuál es el m.c.m. de 8 y 15?','120'],
+ ['¿Cuál es el m.c.m. de 8 y 27?','216'],
+ ['¿Cuál es el m.c.m. de 14 y 18?','126'],
+ ['¿Cuál es el m.c.m. de 11 y 12?','132'],
+ ['¿Cuál es el m.c.m. de 16 y 9?','144'],
+ ['Se reparten 24 lápices y 36 gomas en el mayor número posible de lotes iguales, sin que sobre nada. ¿Cuántos lotes se pueden hacer?','12'],
+ ['Hay 45 naranjas y 60 manzanas. Se preparan bolsas idénticas usando toda la fruta. ¿Cuál es el mayor número de bolsas?','15'],
+ ['¿Cuál es el M.C.D. de 54 y 72?','18'],
+ ['Se tienen cintas de 80 cm y 100 cm. Se cortan en trozos iguales lo más largos posible. ¿Cuánto medirá cada trozo?','20'],
+ ['Un docente tiene 63 tarjetas rojas y 84 azules. Quiere formar el máximo número de paquetes iguales. ¿Cuántos paquetes podrá hacer?','21'],
+ ['¿Cuál es el M.C.D. de 72 y 96?','24'],
+ ['Se reparten 75 galletas y 100 zumos en grupos iguales, sin sobrantes. ¿Cuál es el mayor número de grupos?','25'],
+ ['¿Cuál es el M.C.D. de 81 y 108?','27'],
+ ['Hay 56 niñas y 70 niños. Se quieren formar equipos con la misma cantidad de niñas y de niños en cada uno. ¿Cuál es el mayor número de equipos?','14'],
+ ['¿Cuál es el M.C.D. de 90 y 120?','30'],
+ ['¿Cuál es el menor número de esta lista divisible por 2: 201, 202, 203?','202'],
+ ['¿Cuál de estos números es divisible por 3: 204, 205, 206?','204'],
+ ['¿Cuál es el único número divisible por 5: 203, 204, 205?','205'],
+ ['¿Cuál de estos números es divisible por 10: 208, 209, 210?','210'],
+ ['¿Cuál es divisible por 4: 206, 208, 210?','208'],
+ ['¿Cuál es divisible por 9: 205, 207, 208?','207'],
+ ['¿Cuál es divisible por 6: 220, 222, 225?','222'],
+ ['¿Cuál de estos números es divisible por 8: 222, 224, 230?','224'],
+ ['¿Cuál es divisible por 3 y por 5 a la vez: 220, 225, 230?','225'],
+ ['¿Cuál es divisible por 2, 3 y 5: 240, 242, 245?','240'],
+ ['¿El número 101 es primo o compuesto?','primo','choice'],
+ ['Clasifica el número 102 como primo o compuesto.','compuesto','choice'],
+ ['¿Es primo o compuesto el número 103?','primo','choice'],
+ ['Clasifica el número 104.','compuesto','choice'],
+ ['¿El 107 es primo o compuesto?','primo','choice'],
+ ['¿Qué clase de número es 111: primo o compuesto?','compuesto','choice'],
+ ['Clasifica el número 109.','primo','choice'],
+ ['¿El número 115 es primo o compuesto?','compuesto','choice'],
+ ['Clasifica el número 113.','primo','choice'],
+ ['¿El número 117 es primo o compuesto?','compuesto','choice']
+];
+
+let state=null;
+let drag=false;
+let dragged=false;
+let busy=false;
+let path=[];
+let soundOn=true;
+let history=null;
+let hintTimer=null;
+let toastTimer=null;
+let audioCtx=null;
+let problemBag=[];
+let modalActions={};
+
+/* ---------- Almacenamiento ---------- */
+function storageGet(){
+ try{return window.localStorage?window.localStorage.getItem(STORAGE_KEY):null;}catch(error){return null;}
+}
+function storageSet(value){
+ try{if(window.localStorage)window.localStorage.setItem(STORAGE_KEY,value);}catch(error){}
+}
+function storageRemove(){
+ try{if(window.localStorage)window.localStorage.removeItem(STORAGE_KEY);}catch(error){}
+}
+function loadSaved(){
+ try{
+  const data=JSON.parse(storageGet()||'{}');
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
+ }catch(error){
+  storageRemove();
+  return {};
+ }
+}
+function clampLevel(l){
+ const n=Number(l);
+ return isFinite(n)?Math.max(1,Math.min(MAX_LEVEL,Math.floor(n))):1;
+}
+
+let saved=loadSaved();
+let unlocked=typeof saved.unlocked==='number'?clampLevel(saved.unlocked):1;
+let bests=saved.bests&&typeof saved.bests==='object'&&!Array.isArray(saved.bests)?saved.bests:{};
+let level=typeof saved.level==='number'?clampLevel(saved.level):1;
+if(level>unlocked)level=unlocked;
+
+function save(){
+ storageSet(JSON.stringify({unlocked:unlocked,bests:bests,level:level,tutorial:!!saved.tutorial}));
+}
+
+/* ---------- Tablero ---------- */
+function config(l){
+ const band=Math.floor((l-1)/8);
+ return {
+  goal:goals[Math.min(band,goals.length-1)],
+  moves:Math.max(13,30-Math.floor((l-1)*0.28)),
+  maxStart:Math.min(2+Math.floor((l-1)/6),8)
+ };
+}
+function valClass(v){return 'v'+Math.min(v,4096);}
+function randTile(max){
+ const r=Math.random();
+ const exp=r<0.52?1:r<0.84?2:r<0.96?3:4;
+ return Math.pow(2,Math.min(exp,max));
+}
+function normalizeGrid(g,max){
+ const clean=[];
+ for(let i=0;i<N*N;i++){
+  const v=Number(g[i]);
+  clean.push(isFinite(v)&&v>=2&&(v&(v-1))===0?v:randTile(max));
+ }
+ g.length=0;
+ for(let i=0;i<clean.length;i++)g.push(clean[i]);
+ return g;
+}
+function makeSolvable(g,max){
+ normalizeGrid(g,max);
+ for(let i=0;i<4;i++){
+  const p=Math.floor(Math.random()*N*N);
+  const neighbors=[];
+  if(p%N<N-1)neighbors.push(p+1);
+  if(p%N>0)neighbors.push(p-1);
+  if(p<N*(N-1))neighbors.push(p+N);
+  if(p>=N)neighbors.push(p-N);
+  const q=neighbors[Math.floor(Math.random()*neighbors.length)];
+  const v=randTile(Math.min(max,3));
+  g[p]=v;g[q]=v;
+ }
+}
+function adjacent(a,b){
+ return Math.abs(a-b)===N||(Math.abs(a-b)===1&&Math.floor(a/N)===Math.floor(b/N));
+}
+function findPair(){
+ for(let i=0;i<N*N;i++){
+  if(i%N<N-1&&state.grid[i]===state.grid[i+1])return [i,i+1];
+  if(i+N<N*N&&state.grid[i]===state.grid[i+N])return [i,i+N];
+ }
+ return null;
+}
+
+function newLevel(l){
+ level=clampLevel(typeof l==='undefined'?level:l);
+ const c=config(level);
+ const grid=[];
+ for(let i=0;i<N*N;i++)grid.push(randTile(c.maxStart));
+ makeSolvable(grid,c.maxStart);
+ state={grid:grid,moves:c.moves,score:0,goal:c.goal,shuffle:2,hints:3,won:false};
+ history=null;path=[];drag=false;dragged=false;busy=false;
+ clearHint();
+ hideModal();
+ save();
+ render();
+ showIntroIfNeeded();
+}
+
+function render(fx){
+ fx=fx||{};
+ if(!state||typeof state!=='object'||!Array.isArray(state.grid)){newLevel(level);return;}
+ const c=config(level);
+ normalizeGrid(state.grid,Math.min(c.maxStart,3));
+ if(!findPair())makeSolvable(state.grid,c.maxStart);
+ boardEl.innerHTML='';
+ state.grid.forEach(function(v,i){
+  const d=document.createElement('div');
+  let cls='tile '+valClass(v);
+  if(fx.pop===i)cls+=' pop';
+  else if(fx.drop&&fx.drop.indexOf(i)>=0)cls+=' new';
+  if(path.indexOf(i)>=0)cls+=' selected';
+  d.className=cls;
+  d.textContent=v;
+  d.setAttribute('data-i',i);
+  d.setAttribute('role','button');
+  d.setAttribute('aria-label','Ficha '+v);
+  boardEl.appendChild(d);
+ });
+ $('#levelNo').textContent=level;
+ $('#moves').textContent=state.moves;
+ $('#goal').textContent=state.goal;
+ $('#best').textContent=Number(bests[level])||0;
+ $('#shuffleN').textContent=state.shuffle;
+ $('#hintN').textContent=state.hints;
+ $('#shuffle').disabled=!state.shuffle;
+ $('#hint').disabled=!state.hints;
+ $('#undo').disabled=!history;
+ const mx=Math.max.apply(Math,state.grid);
+ const p=Math.min(100,Math.round(mx/state.goal*100));
+ $('#meter').style.width=p+'%';
+ $('#progressTxt').textContent=p+'%';
+}
+
+/* ---------- Selección (arrastrar o tocar) ---------- */
+function canExtend(i){
+ if(!path.length||path.indexOf(i)>=0)return false;
+ return adjacent(path[path.length-1],i)&&state.grid[i]===state.grid[path[0]];
+}
+function pressTile(i){
+ if(busy||!state||state.won)return;
+ clearHint();
+ if(path.length>=2&&i===path[path.length-1]){
+  drag=false;
+  doMerge();
+  return;
+ }
+ if(canExtend(i)){
+  path.push(i);
+  drag=true;dragged=false;
+  paintPath();tone(280+path.length*50);buzz(10);
+  return;
+ }
+ path=[i];
+ drag=true;dragged=false;
+ paintPath();buzz(10);
+}
+function extend(i){
+ if(!drag||busy||!canExtend(i))return;
+ path.push(i);
+ dragged=true;
+ paintPath();
+ tone(280+path.length*50);
+}
+function release(){
+ if(!drag)return;
+ drag=false;
+ if(dragged&&path.length>=2)doMerge();
+ else paintPath();
+}
+function paintPath(){
+ Array.prototype.forEach.call(boardEl.children,function(e,i){e.classList.toggle('selected',path.indexOf(i)>=0);});
+ const tip=$('#tip');
+ if(!path.length)tip.textContent=DEFAULT_TIP;
+ else if(path.length===1)tip.textContent='Arrastra o toca una ficha igual que esté al lado';
+ else if(drag&&dragged)tip.textContent='Suelta para unir '+path.length+' fichas de '+state.grid[path[0]];
+ else tip.textContent=path.length+' fichas de '+state.grid[path[0]]+': toca otra igual o vuelve a tocar la última para unir';
+}
+
+function doMerge(){
+ const cells=path.slice();
+ path=[];
+ history=JSON.parse(JSON.stringify(state));
+ const target=cells[cells.length-1];
+ const newVal=state.grid[target]*2;
+ const cols=[];
+ cells.forEach(function(i){
+  state.grid[i]=0;
+  if(cols.indexOf(i%N)<0)cols.push(i%N);
+ });
+ state.grid[target]=newVal;
+ const tCol=target%N,tRow=Math.floor(target/N);
+ let below=0;
+ cells.forEach(function(i){if(i%N===tCol&&Math.floor(i/N)>tRow)below++;});
+ const popIndex=(tRow+below)*N+tCol;
+ state.score+=newVal*cells.length;
+ state.moves--;
+ const fill=Math.min(config(level).maxStart,3);
+ const drops=[];
+ cols.forEach(function(col){
+  const arr=[];
+  for(let r=N-1;r>=0;r--){const v=state.grid[r*N+col];if(v)arr.push(v);}
+  for(let r=N-1,k=0;r>=0;r--,k++){
+   if(k<arr.length)state.grid[r*N+col]=arr[k];
+   else{state.grid[r*N+col]=randTile(fill);drops.push(r*N+col);}
+  }
+ });
+ bests[level]=Math.max(Number(bests[level])||0,state.score);
+ tone(520);buzz(35);save();
+ render({pop:popIndex,drop:drops});
+ paintPath();
+ busy=true;
+ const continueGame=function(){
+  if(newVal>=state.goal){setTimeout(win,220);return;}
+  if(state.moves<=0){setTimeout(lose,220);return;}
+  busy=false;
+  if(!findPair())setTimeout(function(){shuffle(false);},180);
+ };
+ if(newVal>=16)setTimeout(function(){askProblem(newVal,continueGame);},280);
+ else continueGame();
+}
+
+/* ---------- Retos matemáticos ---------- */
+function nextProblem(){
+ if(!problemBag.length){
+  for(let n=0;n<problems.length;n++)problemBag.push(n);
+  for(let i=problemBag.length-1;i>0;i--){
+   const j=Math.floor(Math.random()*(i+1));
+   const t=problemBag[i];problemBag[i]=problemBag[j];problemBag[j]=t;
+  }
+ }
+ return problems[problemBag.pop()];
+}
+function askProblem(formed,onDone){
+ const p=nextProblem();
+ const isChoice=p[2]==='choice';
+ let solved=false;
+ const controls=isChoice
+  ?'<div class="choiceRow"><button class="choiceBtn" type="button" data-action="answer" data-answer="primo">Primo</button><button class="choiceBtn" type="button" data-action="answer" data-answer="compuesto">Compuesto</button></div>'
+  :'<input class="answerInput" id="problemAnswer" inputmode="numeric" autocomplete="off" placeholder="Escribe la respuesta"><button class="modalbtn" type="button" data-action="check">Comprobar</button>';
+ function check(value){
+  if(solved)return;
+  let clean=String(value).trim().toLowerCase();
+  if(!isChoice)clean=clean.replace(/[^0-9]/g,'');
+  const f=$('#problemFeedback');
+  if(clean===p[1]){
+   solved=true;
+   f.className='feedback ok';
+   f.textContent='¡Correcto! Continúa jugando.';
+   tone(760);
+   setTimeout(function(){hideModal();onDone();},650);
+  }else{
+   f.className='feedback bad';
+   f.textContent='Todavía no. Revísalo e inténtalo de nuevo.';
+   tone(180);
+  }
+ }
+ modal('<span class="problemTag">Has formado '+formed+'</span><h2>Reto matemático</h2><p class="problemText">'+p[0]+'</p>'+controls+'<div class="feedback" id="problemFeedback" aria-live="polite"></div>',{
+  answer:function(btn){check(btn.getAttribute('data-answer'));},
+  check:function(){check($('#problemAnswer').value);}
+ });
+ if(!isChoice){
+  const input=$('#problemAnswer');
+  input.addEventListener('keydown',function(e){
+   if(e.key==='Enter'||e.keyCode===13){e.preventDefault();check(input.value);}
+  });
+  setTimeout(function(){input.focus();},50);
+ }
+}
+
+/* ---------- Acciones ---------- */
+function shuffle(cost){
+ if(typeof cost==='undefined')cost=true;
+ if(!state||state.won)return;
+ if(cost&&(busy||state.shuffle<1))return;
+ if(cost)state.shuffle--;
+ path=[];drag=false;clearHint();
+ for(let i=state.grid.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  const tmp=state.grid[i];state.grid[i]=state.grid[j];state.grid[j]=tmp;
+ }
+ if(!findPair())makeSolvable(state.grid,config(level).maxStart);
+ render();paintPath();
+ toast('Tablero mezclado');
+}
+function hint(){
+ if(busy||!state||state.won||state.hints<1)return;
+ path=[];drag=false;
+ let p=findPair();
+ if(!p){shuffle(false);p=findPair();}
+ state.hints--;
+ render();paintPath();
+ if(!p)return;
+ p.forEach(function(i){boardEl.children[i].classList.add('hint');});
+ clearTimeout(hintTimer);
+ hintTimer=setTimeout(clearHint,1800);
+ toast('Estas fichas pueden unirse');
+}
+function clearHint(){
+ clearTimeout(hintTimer);
+ Array.prototype.forEach.call(document.querySelectorAll('.tile.hint'),function(e){e.classList.remove('hint');});
+}
+function undo(){
+ if(busy||!history)return;
+ state=history;history=null;path=[];drag=false;
+ render();paintPath();
+ toast('Movimiento deshecho');
+}
+function win(){
+ state.won=true;
+ unlocked=Math.max(unlocked,Math.min(MAX_LEVEL,level+1));
+ save();
+ modal('<div class="bigicon">🏆</div><h2>¡Fase superada!</h2><p>Has creado el <b>'+state.goal+'</b> con '+state.moves+' movimientos restantes.<br>Puntuación: <b>'+state.score+'</b></p><button class="modalbtn" type="button" data-action="next">'+(level===MAX_LEVEL?'Jugar de nuevo':'Siguiente fase')+'</button><button class="modalbtn secondary" type="button" data-action="pick">Elegir fase</button>',{
+  next:function(){newLevel(level===MAX_LEVEL?1:level+1);},
+  pick:openLevels
+ });
+ tone(760);
+}
+function lose(){
+ modal('<div class="bigicon">⏳</div><h2>Sin movimientos</h2><p>Estuviste cerca. Prueba a formar primero los números pequeños.</p><button class="modalbtn" type="button" data-action="again">Repetir fase</button><button class="modalbtn secondary" type="button" data-action="pick">Elegir fase</button>',{
+  again:function(){newLevel(level);},
+  pick:openLevels
+ });
+}
+function openLevels(){
+ if(busy&&state&&!state.won&&state.moves>0)return;
+ let html='<h2>'+MAX_LEVEL+' fases</h2><p>El progreso se guarda automáticamente.</p><div class="levelgrid">';
+ for(let i=1;i<=MAX_LEVEL;i++){
+  const cls='level'+(i<unlocked?' done':'')+(i===level?' current':'')+(i>unlocked?' locked':'');
+  html+='<button class="'+cls+'" type="button" data-action="level" data-l="'+i+'"'+(i>unlocked?' disabled':'')+'>'+i+'</button>';
+ }
+ html+='</div><button class="modalbtn secondary" type="button" data-action="close">Volver</button>';
+ modal(html,{
+  level:function(btn){newLevel(+btn.getAttribute('data-l'));},
+  close:function(){
+   if(state&&state.won)newLevel(level===MAX_LEVEL?1:level+1);
+   else if(state&&state.moves<=0)newLevel(level);
+   else hideModal();
+  }
+ });
+}
+function showIntroIfNeeded(){
+ if(saved.tutorial)return;
+ modal('<div class="bigicon">🔢</div><h2>¿Cómo se juega?</h2><p><b>Arrastra el dedo</b> sobre dos o más fichas <b>iguales y contiguas</b> y suelta para unirlas: su valor se duplica. También puedes <b>tocarlas una a una</b> y volver a tocar la última para unirlas.<br><br>Cuando formes <b>16, 32, 64 o un número superior</b>, resolverás un reto de divisibilidad. Consigue el número de la meta antes de quedarte sin movimientos.</p><button class="modalbtn" type="button" data-action="play">¡Empezar!</button>',{
+  play:function(){saved.tutorial=true;save();hideModal();}
+ });
+}
+
+/* ---------- Interfaz ---------- */
+function modal(html,actions){
+ modalActions=actions||{};
+ modalBody.innerHTML=html;
+ modalEl.classList.remove('hidden');
+}
+function hideModal(){
+ modalEl.classList.add('hidden');
+ modalActions={};
+}
+function toast(t){
+ const e=$('#toast');
+ e.textContent=t;
+ e.classList.add('show');
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(function(){e.classList.remove('show');},1400);
+}
+function findTile(el){
+ while(el&&el!==boardEl&&el!==document){
+  if(el.classList&&el.classList.contains('tile'))return el;
+  el=el.parentNode;
+ }
+ return null;
+}
+function tileAtPoint(x,y){
+ const el=findTile(document.elementFromPoint(x,y));
+ return el?+el.getAttribute('data-i'):null;
+}
+function tone(freq){
+ if(!soundOn)return;
+ try{
+  if(!audioCtx){
+   const AC=window.AudioContext||window.webkitAudioContext;
+   if(!AC)return;
+   audioCtx=new AC();
+  }
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.frequency.value=freq;
+  g.gain.setValueAtTime(0.045,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start(t);o.stop(t+0.1);
+ }catch(e){}
+}
+function buzz(ms){
+ try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}
+}
+
+/* ---------- Eventos ---------- */
+modalBody.addEventListener('click',function(e){
+ let b=e.target;
+ while(b&&b!==modalBody&&!(b.getAttribute&&b.getAttribute('data-action')))b=b.parentNode;
+ if(!b||b===modalBody||b.disabled)return;
+ const fn=modalActions[b.getAttribute('data-action')];
+ if(fn)fn(b);
+});
+
+if(window.PointerEvent){
+ boardEl.addEventListener('pointerdown',function(e){
+  const t=findTile(e.target);
+  if(!t)return;
+  e.preventDefault();
+  pressTile(+t.getAttribute('data-i'));
+  try{boardEl.setPointerCapture(e.pointerId);}catch(err){}
+ });
+ boardEl.addEventListener('pointermove',function(e){
+  if(!drag)return;
+  const i=tileAtPoint(e.clientX,e.clientY);
+  if(i!==null)extend(i);
+ });
+ boardEl.addEventListener('pointerup',release);
+ boardEl.addEventListener('pointercancel',release);
+}else{
+ boardEl.addEventListener('touchstart',function(e){
+  const t=findTile(e.target);
+  if(!t)return;
+  e.preventDefault();
+  pressTile(+t.getAttribute('data-i'));
+ },{passive:false});
+ boardEl.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  const touch=e.touches[0];
+  const i=touch?tileAtPoint(touch.clientX,touch.clientY):null;
+  if(i!==null)extend(i);
+ },{passive:false});
+ boardEl.addEventListener('touchend',release);
+ boardEl.addEventListener('touchcancel',release);
+ boardEl.addEventListener('mousedown',function(e){
+  const t=findTile(e.target);
+  if(!t)return;
+  e.preventDefault();
+  pressTile(+t.getAttribute('data-i'));
+ });
+ boardEl.addEventListener('mousemove',function(e){
+  if(!drag)return;
+  const i=tileAtPoint(e.clientX,e.clientY);
+  if(i!==null)extend(i);
+ });
+ document.addEventListener('mouseup',release);
+}
+
+$('#shuffle').addEventListener('click',function(){shuffle(true);});
+$('#hint').addEventListener('click',hint);
+$('#undo').addEventListener('click',undo);
+$('#levels').addEventListener('click',openLevels);
+$('#sound').addEventListener('click',function(){
+ soundOn=!soundOn;
+ $('#sound').textContent=soundOn?'🔊':'🔇';
+});
+
+try{
+ newLevel(level);
+}catch(error){
+ storageRemove();
+ saved={};unlocked=1;bests={};level=1;
+ newLevel(1);
+}
+})();
+</script>
+</body>
+</html>

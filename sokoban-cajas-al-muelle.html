@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cajas al Muelle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-screen harbour console — header strip, square-ish canvas stage, control dock beneath. Deliberate single night-dock look. */
+:root {
+  --sea: #0e2533;
+  --sea-deep: #081821;
+  --deck: #17384a;
+  --deck-line: #1f4659;
+  --concrete: #3a5563;
+  --crate: #d9883a;
+  --crate-dark: #9c5a20;
+  --paint: #f4c74a;
+  --ok: #6cd39b;
+  --ink: #e6f0f3;
+  --ink-dim: #93adb8;
+  --panel: #132f3f;
+  --font-display: "Bowlby One SC", "Arial Black", Impact, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--sea-deep);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+.app {
+  height: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+header { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 6vw, 2.1rem);
+  line-height: 1;
+  margin: 0;
+  letter-spacing: .01em;
+  color: var(--paint);
+  text-wrap: balance;
+}
+.level-name { margin: 4px 0 0; color: var(--ink-dim); font-size: .95rem; }
+.level-name b { color: var(--ink); }
+.stats { display: flex; gap: 14px; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; align-items: end; }
+.stat span { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.stat strong { font-size: 1.25rem; }
+.levels { display: flex; gap: 6px; flex-wrap: wrap; }
+.lv {
+  font: 700 .9rem/1 var(--font-body);
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  border: 2px solid var(--deck-line);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  position: relative;
+}
+.lv.done { border-color: var(--ok); color: var(--ok); }
+.lv.current { background: var(--paint); border-color: var(--paint); color: var(--sea-deep); }
+.stage {
+  flex: 1 1 auto;
+  min-height: 300px;
+  position: relative;
+  border-radius: 10px;
+  background: var(--sea);
+  overflow: hidden;
+  touch-action: none;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.dock { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: 700 .95rem/1 var(--font-body);
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 2px solid var(--deck-line);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+.btn:hover, .lv:hover, .pad button:hover { border-color: var(--ink-dim); }
+.btn.primary { background: var(--paint); border-color: var(--paint); color: var(--sea-deep); }
+.btn:disabled { opacity: .4; cursor: default; }
+button:focus-visible { outline: 3px solid var(--ok); outline-offset: 2px; }
+.pad { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 44px); gap: 4px; }
+.pad button {
+  border-radius: 8px;
+  border: 2px solid var(--deck-line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.pad .up { grid-column: 2; grid-row: 1; }
+.pad .left { grid-column: 1; grid-row: 2; }
+.pad .down { grid-column: 2; grid-row: 2; }
+.pad .right { grid-column: 3; grid-row: 2; }
+.help { margin: 0; color: var(--ink-dim); font-size: .85rem; max-width: 65ch; }
+kbd { font-family: var(--font-body); background: var(--panel); border: 1px solid var(--deck-line); border-radius: 4px; padding: 1px 5px; color: var(--ink); }
+.win {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(8, 24, 33, .78);
+  padding: 16px;
+}
+.win-card {
+  background: var(--panel);
+  border: 2px solid var(--ok);
+  border-radius: 12px;
+  padding: 20px 22px;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  max-width: 320px;
+}
+.win-card h2 { font-family: var(--font-display); font-weight: 400; color: var(--ok); margin: 0; font-size: 1.6rem; }
+.win-card p { margin: 0; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.win-card p b { color: var(--ink); }
+@media (max-width: 420px) {
+  .pad { grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(2, 50px); }
+}
+.nojs { position: absolute; inset: 0; display: grid; align-content: center; gap: 8px; padding: 20px; text-align: center; color: #e6f0f3; background: #0e2533; }
+.nojs p { margin: 0; max-width: 42ch; justify-self: center; }
+/* Avisos de error visibles */
+.jserr { margin: 0; padding: 10px 12px; border-radius: 8px; background: #5a1f1f; color: #ffe1e1; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Cajas al Muelle</h1>
+      <p class="level-name">Nivel <b id="lvNum">1</b> · <span id="lvName">Primer turno</span></p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Pasos</span><strong id="moves">0</strong></div>
+      <div class="stat"><span>Empujes</span><strong id="pushes">0</strong></div>
+      <div class="stat"><span>Cajas</span><strong id="boxCount">0/0</strong></div>
+    </div>
+  </header>
+
+  <nav class="levels" id="levels" aria-label="Elegir nivel">
+    <button class="lv current" type="button" data-level="0" aria-label="Nivel 1, Primer turno">1</button>
+    <button class="lv" type="button" data-level="1" aria-label="Nivel 2, Dos cajas">2</button>
+    <button class="lv" type="button" data-level="2" aria-label="Nivel 3, Pasillo">3</button>
+    <button class="lv" type="button" data-level="3" aria-label="Nivel 4, La rosa">4</button>
+    <button class="lv" type="button" data-level="4" aria-label="Nivel 5, Contenedores">5</button>
+    <button class="lv" type="button" data-level="5" aria-label="Nivel 6, La grúa">6</button>
+    <button class="lv" type="button" data-level="6" aria-label="Nivel 7, Cuatro esquinas">7</button>
+    <button class="lv" type="button" data-level="7" aria-label="Nivel 8, El cruce">8</button>
+  </nav>
+
+  <noscript><p class="jserr">Este juego necesita JavaScript. Ábrelo en Chrome, Edge o Firefox, o súbelo a Moodle como recurso Archivo.</p></noscript>
+  <p class="jserr" id="jsError" hidden></p>
+  <div class="stage" id="stage">
+    <canvas id="board" aria-label="Tablero del muelle"></canvas>
+    <div class="nojs" id="nojs">
+      <p><b>El tablero no se ha podido cargar.</b></p>
+      <p>Este sitio no está ejecutando el juego. Descarga el archivo y ábrelo con doble clic en Chrome, Edge o Firefox del ordenador.</p>
+    </div>
+    <div class="win" id="win" hidden>
+      <div class="win-card">
+        <h2>¡Carga lista!</h2>
+        <p id="winText"></p>
+        <button class="btn primary" id="nextBtn" type="button">Siguiente nivel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dock">
+    <div class="tools">
+      <button class="btn" id="undoBtn" type="button">↶ Deshacer</button>
+      <button class="btn" id="resetBtn" type="button">⟲ Reiniciar</button>
+    </div>
+    <div class="pad" aria-label="Mover">
+      <button class="up" type="button" data-dir="up" aria-label="Arriba">▲</button>
+      <button class="left" type="button" data-dir="left" aria-label="Izquierda">◀</button>
+      <button class="down" type="button" data-dir="down" aria-label="Abajo">▼</button>
+      <button class="right" type="button" data-dir="right" aria-label="Derecha">▶</button>
+    </div>
+  </div>
+  <p class="help">Empuja todas las cajas hasta las marcas amarillas. Solo puedes empujar, nunca tirar, y de una en una. Teclas: <kbd>flechas</kbd> o <kbd>WASD</kbd>, <kbd>Z</kbd> deshacer, <kbd>R</kbd> reiniciar. En el móvil, desliza sobre el tablero.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // # muro · espacio suelo · . marca · $ caja · * caja en marca · @ estibador · + estibador en marca
+  // Todos los niveles comprobados con un solucionador antes de publicar.
+  const LEVELS = [
+    { name: 'Primer turno', map: ['#####', '#@$.#', '#####'] },
+    { name: 'Dos cajas', map: ['######', '#    #', '# $$ #', '#.@ .#', '######'] },
+    { name: 'Pasillo', map: ['#######', '#.  @ #', '#  $  #', '## $ ##', '#.    #', '#######'] },
+    { name: 'La rosa', map: [' #######', '##  .  ##', '#  $#   #', '#.$ @ $.#', '#   #$  #', '##  .  ##', ' #######'] },
+    { name: 'Contenedores', map: [' ######', ' #    #', '##$## #', '#  .  #', '# $.$ #', '#  .@##', '######'] },
+    { name: 'La grúa', map: ['  #####', '  #   #', '###$# #', '# @ $ #', '# ..  #', '#######'] },
+    { name: 'Cuatro esquinas', map: ['########', '#      #', '# $##$ #', '#  ..  #', '#  ..  #', '# $  $ #', '#  @   #', '########'] },
+    { name: 'El cruce', map: ['#########', '#   #   #', '# $ . $ #', '#  ###  #', '#.  @  .#', '#  ###  #', '# $ . $ #', '#   #   #', '#########'] }
+  ];
+
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const STORE_KEY = 'cajas-al-muelle-v1';
+  const ANIM_MS = 110;
+
+  const el = (id) => document.getElementById(id);
+  const canvas = el('board');
+  const ctx = canvas.getContext('2d');
+  const stage = el('stage');
+
+  let lvIndex = 0;
+  let W = 0, H = 0;
+  let walls = new Set(), goals = new Set(), floor = new Set();
+  let boxes = new Set();
+  let player = 0;
+  let facing = 'down';
+  let moves = 0, pushes = 0;
+  let history = [];
+  let solved = false;
+  let anim = null; // { from, to, boxFrom, boxTo, t0 }
+  let progress = loadProgress();
+
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveProgress() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  function parse(map) {
+    H = map.length;
+    W = Math.max.apply(null, map.map((r) => r.length));
+    walls = new Set(); goals = new Set(); boxes = new Set(); floor = new Set();
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const c = map[y][x] || ' ';
+        const i = y * W + x;
+        if (c === '#') walls.add(i);
+        if (c === '.' || c === '*' || c === '+') goals.add(i);
+        if (c === '$' || c === '*') boxes.add(i);
+        if (c === '@' || c === '+') player = i;
+      }
+    }
+    // Suelo interior: alcanzable desde el estibador sin cruzar muros
+    const stack = [player];
+    floor.add(player);
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % W, y = Math.floor(i / W);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach((d) => {
+        const nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) return;
+        const n = ny * W + nx;
+        if (!walls.has(n) && !floor.has(n)) { floor.add(n); stack.push(n); }
+      });
+    }
+  }
+
+  function loadLevel(i) {
+    lvIndex = i;
+    parse(LEVELS[i].map);
+    moves = 0; pushes = 0; history = []; solved = false; facing = 'down'; anim = null;
+    el('win').hidden = true;
+    renderLevelButtons();
+    updateHud();
+    resize();
+  }
+
+  function onGoalCount() {
+    let n = 0;
+    boxes.forEach((b) => { if (goals.has(b)) n++; });
+    return n;
+  }
+
+  function updateHud() {
+    el('lvNum').textContent = String(lvIndex + 1);
+    el('lvName').textContent = LEVELS[lvIndex].name;
+    el('moves').textContent = String(moves);
+    el('pushes').textContent = String(pushes);
+    el('boxCount').textContent = onGoalCount() + '/' + goals.size;
+    el('undoBtn').disabled = history.length === 0;
+  }
+
+  function renderLevelButtons() {
+    const wrap = el('levels');
+    wrap.textContent = '';
+    LEVELS.forEach((lv, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lv' + (progress[i] ? ' done' : '') + (i === lvIndex ? ' current' : '');
+      b.textContent = String(i + 1);
+      b.title = lv.name + (progress[i] ? ' · récord: ' + progress[i] + ' pasos' : '');
+      b.setAttribute('aria-label', 'Nivel ' + (i + 1) + ', ' + lv.name + (progress[i] ? ', completado' : ''));
+      b.dataset.level = String(i);
+      wrap.appendChild(b);
+    });
+  }
+
+  function step(dir) {
+    if (solved || anim) return;
+    const d = DIRS[dir];
+    const prevFacing = facing;
+    facing = dir;
+    const x = player % W, y = Math.floor(player / W);
+    const nx = x + d[0], ny = y + d[1];
+    const next = ny * W + nx;
+    if (walls.has(next) || !floor.has(next)) { draw(); return; }
+    let boxFrom = null, boxTo = null;
+    if (boxes.has(next)) {
+      const bx = nx + d[0], by = ny + d[1];
+      const beyond = by * W + bx;
+      if (walls.has(beyond) || boxes.has(beyond) || !floor.has(beyond)) { draw(); return; }
+      boxFrom = next; boxTo = beyond;
+    }
+    history.push({ player: player, boxes: Array.from(boxes), moves: moves, pushes: pushes, facing: prevFacing });
+    if (boxFrom !== null) {
+      boxes.delete(boxFrom); boxes.add(boxTo); pushes++;
+    }
+    anim = { from: player, to: next, boxFrom: boxFrom, boxTo: boxTo, t0: performance.now() };
+    player = next;
+    moves++;
+    updateHud();
+    requestAnimationFrame(tick);
+  }
+
+  function undo() {
+    if (!history.length) return;
+    const h = history.pop();
+    player = h.player; boxes = new Set(h.boxes); moves = h.moves; pushes = h.pushes; facing = h.facing;
+    solved = false; anim = null;
+    el('win').hidden = true;
+    updateHud(); draw();
+  }
+
+  function checkWin() {
+    if (onGoalCount() !== goals.size) return;
+    solved = true;
+    const best = progress[lvIndex];
+    const isRecord = !best || moves < best;
+    if (isRecord) { progress[lvIndex] = moves; saveProgress(); }
+    renderLevelButtons();
+    const last = lvIndex === LEVELS.length - 1;
+    el('winText').innerHTML = '<b>' + moves + '</b> pasos y <b>' + pushes + '</b> empujes' +
+      (isRecord ? '<br>¡Nuevo récord!' : '<br>Récord: ' + best + ' pasos');
+    el('nextBtn').textContent = last ? 'Volver al nivel 1' : 'Siguiente nivel';
+    el('win').hidden = false;
+    el('nextBtn').focus();
+  }
+
+  function tick(now) {
+    if (!anim) return;
+    const t = Math.min(1, (now - anim.t0) / ANIM_MS);
+    draw(t);
+    if (t < 1) { requestAnimationFrame(tick); return; }
+    anim = null;
+    draw();
+    checkWin();
+  }
+
+  // ---------- Dibujo ----------
+  let cell = 32, ox = 0, oy = 0, dpr = 1;
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    const pad = 12;
+    cell = Math.max(8, Math.floor(Math.min((r.width - pad * 2) / W, (r.height - pad * 2) / H, 72)));
+    ox = Math.floor((r.width - cell * W) / 2);
+    oy = Math.floor((r.height - cell * H) / 2);
+    draw();
+  }
+
+  let C = {};
+  // Colores fijos en JS: no dependen de que el navegador resuelva las variables CSS
+  function readColors() {
+    C = {
+      sea: '#0e2533', deck: '#17384a', line: '#1f4659', concrete: '#3a5563',
+      crate: '#d9883a', crateDark: '#9c5a20', paint: '#f4c74a', ok: '#6cd39b',
+      ink: '#e6f0f3', deep: '#081821'
+    };
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function pos(i) { return [i % W, Math.floor(i / W)]; }
+
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawFloor(x, y) {
+    const px = ox + x * cell, py = oy + y * cell;
+    ctx.fillStyle = C.deck;
+    ctx.fillRect(px, py, cell, cell);
+    ctx.strokeStyle = C.line;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + .5, py + .5, cell - 1, cell - 1);
+  }
+
+  function drawWall(x, y) {
+    const px = ox + x * cell, py = oy + y * cell;
+    ctx.fillStyle = C.concrete;
+    ctx.fillRect(px, py, cell, cell);
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fillRect(px, py + cell * .82, cell, cell * .18);
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    ctx.fillRect(px, py, cell, cell * .12);
+    // bolardo: franja de peligro discreta
+    ctx.strokeStyle = 'rgba(0,0,0,.22)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + .5, py + .5, cell - 1, cell - 1);
+  }
+
+  function drawGoal(x, y) {
+    const px = ox + x * cell, py = oy + y * cell;
+    const m = cell * .2;
+    ctx.strokeStyle = C.paint;
+    ctx.lineWidth = Math.max(2, cell * .07);
+    ctx.setLineDash([cell * .12, cell * .08]);
+    ctx.strokeRect(px + m, py + m, cell - m * 2, cell - m * 2);
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(px + cell * .4, py + cell * .4); ctx.lineTo(px + cell * .6, py + cell * .6);
+    ctx.moveTo(px + cell * .6, py + cell * .4); ctx.lineTo(px + cell * .4, py + cell * .6);
+    ctx.stroke();
+  }
+
+  function drawCrate(fx, fy, onGoal) {
+    const px = ox + fx * cell, py = oy + fy * cell;
+    const m = cell * .08, s = cell - m * 2;
+    const body = onGoal ? C.ok : C.crate;
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    rr(px + m + 2, py + m + 3, s, s, cell * .08); ctx.fill();
+    ctx.fillStyle = body;
+    rr(px + m, py + m, s, s, cell * .08); ctx.fill();
+    ctx.strokeStyle = onGoal ? '#2f7a52' : C.crateDark;
+    ctx.lineWidth = Math.max(2, cell * .07);
+    rr(px + m, py + m, s, s, cell * .08); ctx.stroke();
+    // tablas
+    const i = cell * .2;
+    ctx.beginPath();
+    ctx.moveTo(px + m + i * .6, py + m + i * .6); ctx.lineTo(px + cell - m - i * .6, py + cell - m - i * .6);
+    ctx.moveTo(px + m, py + cell * .5); ctx.lineTo(px + cell - m, py + cell * .5);
+    ctx.lineWidth = Math.max(1.5, cell * .05);
+    ctx.stroke();
+  }
+
+  function drawPlayer(fx, fy) {
+    const cx = ox + (fx + .5) * cell, cy = oy + (fy + .5) * cell;
+    const r = cell * .36;
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.beginPath(); ctx.ellipse(cx, cy + r * .9, r * .8, r * .25, 0, 0, Math.PI * 2); ctx.fill();
+    // chaleco
+    ctx.fillStyle = '#ff7a2e';
+    rr(cx - r * .7, cy - r * .1, r * 1.4, r * 1.0, r * .3); ctx.fill();
+    ctx.fillStyle = C.paint;
+    ctx.fillRect(cx - r * .7, cy + r * .3, r * 1.4, r * .14);
+    // cabeza
+    ctx.fillStyle = '#c98d63';
+    ctx.beginPath(); ctx.arc(cx, cy - r * .35, r * .5, 0, Math.PI * 2); ctx.fill();
+    // casco
+    ctx.fillStyle = C.paint;
+    ctx.beginPath(); ctx.arc(cx, cy - r * .45, r * .52, Math.PI, 0); ctx.fill();
+    ctx.fillRect(cx - r * .62, cy - r * .48, r * 1.24, r * .12);
+    // ojos según dirección
+    const d = DIRS[facing];
+    if (facing !== 'up') {
+      ctx.fillStyle = C.deep;
+      const ex = d[0] * r * .18, ey = r * .02 + Math.max(0, d[1]) * r * .06;
+      [-1, 1].forEach((s) => {
+        if (d[0] !== 0 && s === -d[0]) return;
+        ctx.beginPath(); ctx.arc(cx + ex + s * r * .18, cy - r * .3 + ey, Math.max(1.5, r * .07), 0, Math.PI * 2); ctx.fill();
+      });
+    }
+  }
+
+  function draw(t) {
+    const r = stage.getBoundingClientRect();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = C.sea;
+    ctx.fillRect(0, 0, r.width, r.height);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (walls.has(i)) drawWall(x, y);
+        else if (floor.has(i)) { drawFloor(x, y); if (goals.has(i)) drawGoal(x, y); }
+      }
+    }
+    const k = (anim && typeof t === 'number') ? t : 1;
+    boxes.forEach((b) => {
+      let p = pos(b);
+      if (anim && anim.boxTo === b) {
+        const f = pos(anim.boxFrom);
+        p = [lerp(f[0], p[0], k), lerp(f[1], p[1], k)];
+      }
+      drawCrate(p[0], p[1], goals.has(b) && (!anim || anim.boxTo !== b || k === 1));
+    });
+    let pp = pos(player);
+    if (anim) {
+      const f = pos(anim.from);
+      pp = [lerp(f[0], pp[0], k), lerp(f[1], pp[1], k)];
+    }
+    drawPlayer(pp[0], pp[1]);
+  }
+
+  // ---------- Entrada ----------
+  const KEYS = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right'
+  };
+
+  function init() {
+    const nojs = document.getElementById('nojs');
+    if (nojs) nojs.hidden = true;
+    readColors();
+
+    document.addEventListener('keydown', function (e) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (KEYS[e.key]) { e.preventDefault(); step(KEYS[e.key]); return; }
+      if (e.key === 'z' || e.key === 'Z' || e.key === 'u' || e.key === 'U') { e.preventDefault(); undo(); return; }
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); loadLevel(lvIndex); }
+    });
+
+    document.querySelector('.pad').addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-dir]');
+      if (b) step(b.dataset.dir);
+    });
+
+    el('levels').addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-level]');
+      if (b) loadLevel(Number(b.dataset.level));
+    });
+
+    el('undoBtn').addEventListener('click', undo);
+    el('resetBtn').addEventListener('click', function () { loadLevel(lvIndex); });
+    el('nextBtn').addEventListener('click', function () { loadLevel((lvIndex + 1) % LEVELS.length); });
+
+    let sx = 0, sy = 0, tracking = false;
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('.win')) return;
+      tracking = true; sx = e.clientX; sy = e.clientY;
+    });
+    stage.addEventListener('pointerup', function (e) {
+      if (!tracking) return;
+      tracking = false;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+      if (Math.abs(dx) > Math.abs(dy)) step(dx > 0 ? 'right' : 'left');
+      else step(dy > 0 ? 'down' : 'up');
+    });
+    stage.addEventListener('pointercancel', function () { tracking = false; });
+
+    window.addEventListener('resize', resize);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+
+    // Arranque inmediato, sin esperar a ninguna señal externa
+    loadLevel(0);
+    if (window.ResizeObserver) new ResizeObserver(function () { resize(); }).observe(stage);
+    setTimeout(resize, 300);
+  }
+
+  function safeInit() {
+    try { init(); }
+    catch (err) {
+      const box = document.getElementById('jsError');
+      if (box) { box.hidden = false; box.textContent = 'Error al iniciar el juego: ' + (err && err.message ? err.message : err); }
+    }
+  }
+  window.addEventListener('error', function (ev) {
+    const box = document.getElementById('jsError');
+    if (box) { box.hidden = false; box.textContent = 'Error: ' + ev.message; }
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', safeInit);
+  else safeInit();
+})();
+</script>
+</body>
+</html>

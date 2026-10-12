@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Piezas y Pistones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;700&display=swap">
+<style>
+/* Concepto: plano de ingeniería escolar (blueprint). Barra superior con pestañas, lienzo central, paneles de taller. Tema único oscuro, deliberado. */
+:root {
+  --ink: #0e2740;
+  --ink-2: #143553;
+  --ink-3: #1b4468;
+  --line: #3d6a92;
+  --chalk: #e9f2f8;
+  --muted: #9dbbd2;
+  --hazard: #f5c542;
+  --signal: #ff7b47;
+  --ok: #5fd49b;
+  --bad: #ff6b6b;
+  --pink: #ff8fc7;
+  --f-display: "Bungee", "Arial Black", Impact, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { margin: 0; background: var(--ink); color: var(--chalk); }
+[hidden] { display: none !important; }
+body {
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.5;
+  background-image:
+    linear-gradient(rgba(157,187,210,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(157,187,210,.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  min-height: 100%;
+}
+* { box-sizing: border-box; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--hazard); outline-offset: 2px; }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 40px; display: grid; gap: 14px; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 4vw, 32px); line-height: 1; margin: 0; color: var(--hazard); letter-spacing: .5px; text-wrap: balance; }
+.brand h1 span { color: var(--chalk); }
+.brand small { display: block; font-family: var(--f-mono); color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
+.counters { display: flex; gap: 10px; font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.counter { border: 1px solid var(--line); padding: 4px 10px; border-radius: 3px; background: var(--ink-2); white-space: nowrap; }
+.counter b { color: var(--hazard); }
+
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto; }
+.tab { background: transparent; border: 0; border-bottom: 4px solid transparent; padding: 8px 16px 6px; font-family: var(--f-display); font-size: 15px; color: var(--muted); letter-spacing: .5px; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--chalk); border-bottom-color: var(--hazard); }
+.tab:hover { color: var(--chalk); }
+
+.screen { background: var(--ink-2); border: 2px solid var(--line); border-radius: 4px; padding: 12px; display: grid; gap: 10px; }
+.canvas-frame { position: relative; width: 100%; }
+canvas.view { display: block; width: 100%; height: auto; border-radius: 2px; background: var(--ink); touch-action: manipulation; image-rendering: auto; }
+.hint { font-size: 14px; color: var(--muted); margin: 0; }
+.hint kbd { font-family: var(--f-mono); font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 5px; border-radius: 3px; color: var(--chalk); }
+.prompt { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: var(--hazard); color: var(--ink); font-weight: 700; padding: 6px 14px; border-radius: 3px; font-size: 14px; border: 0; box-shadow: 0 3px 0 #b48b1c; max-width: calc(100% - 20px); }
+
+.btn { background: var(--hazard); color: var(--ink); border: 0; border-radius: 3px; padding: 9px 16px; font-weight: 700; box-shadow: 0 3px 0 #b48b1c; }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #b48b1c; }
+.btn.ghost { background: transparent; color: var(--chalk); border: 1px solid var(--line); box-shadow: none; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+
+.label { font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 20px; margin: 0; text-wrap: balance; }
+h3 { font-size: 17px; margin: 0; }
+
+/* Garaje */
+.veh-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.veh-btn { background: var(--ink); border: 2px solid var(--line); border-radius: 3px; padding: 6px 14px; font-weight: 700; }
+.veh-btn[aria-pressed="true"] { border-color: var(--hazard); color: var(--hazard); }
+.garage { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .garage { grid-template-columns: minmax(0,1fr); } }
+.slots { display: grid; gap: 8px; }
+.slot { display: grid; grid-template-columns: 92px minmax(0,1fr); gap: 8px; align-items: center; background: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 8px; }
+.slot select { width: 100%; min-width: 0; background: var(--ink-3); border: 1px solid var(--line); border-radius: 3px; padding: 6px; }
+.slot .mini { grid-column: 2; font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats { display: grid; gap: 10px; align-content: start; }
+.stat { display: grid; gap: 4px; }
+.stat-head { display: flex; justify-content: space-between; font-size: 14px; }
+.stat-head b { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.meter { height: 12px; background: var(--ink); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: repeating-linear-gradient(90deg, var(--hazard) 0 10px, #e2b232 10px 12px); transition: width .4s; }
+.meter.peso i { background: repeating-linear-gradient(90deg, var(--signal) 0 10px, #e0663a 10px 12px); }
+
+/* Carreras */
+.cups { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+@media (max-width: 600px) { .cups { grid-template-columns: minmax(0,1fr); } }
+.cup { background: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 10px; display: grid; gap: 6px; }
+.cup.won { border-color: var(--ok); }
+.cup p { margin: 0; font-size: 14px; color: var(--muted); }
+.results { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.res-row { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 8px; padding: 6px 8px; background: var(--ink); border-radius: 3px; align-items: center; }
+.res-row.me { outline: 2px solid var(--hazard); }
+.res-row span:last-child { font-family: var(--f-mono); }
+.tip { margin: 0; padding: 8px 10px; border-left: 4px solid var(--hazard); background: var(--ink); font-size: 15px; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; background: rgba(5,15,28,.78); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.panel { width: min(720px, 100%); max-height: calc(100% - 20px); overflow: auto; background: var(--ink-2); border: 2px solid var(--hazard); border-radius: 4px; padding: 16px; display: grid; gap: 12px; }
+.panel-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.close { background: transparent; border: 1px solid var(--line); border-radius: 3px; width: 34px; height: 34px; font-size: 18px; flex: none; }
+.prize { font-size: 14px; background: var(--ink); border: 1px dashed var(--hazard); padding: 6px 10px; border-radius: 3px; }
+.prize b { color: var(--hazard); }
+.feedback { min-height: 1.5em; margin: 0; font-weight: 700; }
+.feedback.ok { color: var(--ok); }
+.feedback.bad { color: var(--bad); }
+.question { margin: 0; font-size: 17px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tray { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--ink); border: 2px solid var(--line); border-radius: 3px; padding: 6px 12px; font-family: var(--f-mono); font-weight: 700; }
+.chip[aria-pressed="true"] { border-color: var(--hazard); color: var(--hazard); }
+.peg { background: var(--ink); border: 2px dashed var(--line); border-radius: 3px; padding: 6px 10px; min-width: 88px; text-align: left; font-size: 14px; }
+.peg b { font-family: var(--f-mono); color: var(--hazard); }
+.readout { font-family: var(--f-mono); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+svg.scale { width: 100%; height: auto; display: block; }
+.circuit { display: grid; gap: 3px; justify-content: center; }
+.cell { width: 100%; aspect-ratio: 1; max-width: 100%; padding: 0; border: 1px solid var(--line); background: var(--ink); border-radius: 2px; }
+.cell svg { width: 100%; height: 100%; display: block; transition: transform .18s ease; }
+.cell path { stroke: var(--muted); stroke-width: 16; stroke-linecap: round; fill: none; }
+.cell.on path { stroke: var(--hazard); }
+.cell.on { background: #23405c; }
+.side { display: grid; place-items: center; font-size: 12px; font-family: var(--f-mono); color: var(--muted); }
+.answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.answers .btn.ghost { text-align: center; }
+.ficha p { margin: 0 0 8px; max-width: 62ch; }
+.ficha .eg { font-family: var(--f-mono); background: var(--ink); padding: 8px 10px; border-radius: 3px; font-size: 14px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--chalk); color: var(--ink); padding: 10px 16px; border-radius: 3px; font-weight: 700; z-index: 30; max-width: calc(100% - 32px); box-shadow: 0 4px 0 rgba(0,0,0,.35); }
+
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.shake { animation: shake .25s 2; }
+@media (prefers-reduced-motion: reduce) { .shake { animation: none; } .cell svg, .meter i { transition: none; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <h1>Piezas <span>y</span> Pistones</h1>
+      <div><small>Escuela de ingeniería · Taller de carreras</small></div>
+    </div>
+    <div class="counters">
+      <div class="counter">Piezas ganadas <b id="c-parts">0</b></div>
+      <div class="counter">Trofeos <b id="c-trophies">0</b>/9</div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" id="tab-school" aria-selected="true" data-view="school">Escuela</button>
+    <button class="tab" role="tab" id="tab-garage" aria-selected="false" data-view="garage">Garaje</button>
+    <button class="tab" role="tab" id="tab-race" aria-selected="false" data-view="race">Carreras</button>
+  </nav>
+
+  <section class="screen" id="view-school">
+    <div class="canvas-frame">
+      <canvas class="view" id="map" width="960" height="576" aria-label="Plano de la escuela. Muévete hasta las máquinas para resolver acertijos."></canvas>
+      <button class="prompt" id="prompt" hidden>Usar máquina</button>
+    </div>
+    <p class="hint">Muévete con <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> o <kbd>WASD</kbd>, o toca el suelo. Junto a una máquina pulsa <kbd>Espacio</kbd> o tócala. Cada acertijo resuelto te da una pieza para el vehículo que tengas elegido en el Garaje.</p>
+  </section>
+
+  <section class="screen" id="view-garage" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h2>Garaje</h2>
+      <div class="veh-pick" id="g-veh"></div>
+    </div>
+    <canvas class="view" id="g-preview" width="960" height="260" aria-label="Vista del vehículo montado"></canvas>
+    <div class="garage">
+      <div class="slots" id="g-slots"></div>
+      <div class="stats" id="g-stats"></div>
+    </div>
+  </section>
+
+  <section class="screen" id="view-race" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div><span class="label">Circuito</span><h2 id="r-track">—</h2></div>
+      <div class="veh-pick" id="r-veh"></div>
+    </div>
+    <p class="hint" id="r-desc"></p>
+    <div class="cups" id="r-cups"></div>
+    <canvas class="view" id="race" width="960" height="330" aria-label="Pista de carreras"></canvas>
+    <div id="r-out" class="results"></div>
+  </section>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <div class="panel-head">
+      <div><span class="label" id="m-kind">Acertijo</span><h2 id="m-title">—</h2></div>
+      <button class="close" id="m-close" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="prize" id="m-prize"></div>
+    <div id="m-body"></div>
+    <p class="feedback" id="m-feedback" aria-live="polite"></p>
+    <div class="row" id="m-actions"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- utilidades ---------- */
+  const $ = (s, el) => (el || document).querySelector(s);
+  const rnd = n => Math.floor(Math.random() * n);
+  const pick = a => a[rnd(a.length)];
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+  const cs = getComputedStyle(document.documentElement);
+  const COL = {};
+  ['ink', 'ink-2', 'ink-3', 'line', 'chalk', 'muted', 'hazard', 'signal', 'ok', 'bad', 'pink'].forEach(k => { COL[k] = cs.getPropertyValue('--' + k).trim(); });
+  const STARS = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+
+  /* ---------- vehículos y piezas ---------- */
+  const VEH = {
+    kart: {
+      name: 'Kart', slots: [
+        { k: 'motor', label: 'Motor', p: { vel: .9, ace: .7, ctl: .1 }, w: 6, names: ['Motor de cortacésped', 'Motor de dos tiempos', 'Motor bicilíndrico', 'Motor turbo V4'] },
+        { k: 'ruedas', label: 'Ruedas', p: { vel: .2, ace: .4, ctl: .9 }, w: 2, names: ['Ruedas de carrito', 'Ruedas de goma', 'Neumáticos lisos', 'Neumáticos de competición'] },
+        { k: 'chasis', label: 'Chasis', p: { vel: .2, ace: .3, ctl: .6 }, w: 8, names: ['Chasis de madera', 'Chasis de acero', 'Chasis de aluminio', 'Chasis de fibra de carbono'] },
+        { k: 'aleron', label: 'Alerón', p: { vel: .4, ace: .1, ctl: .7 }, w: 2, names: ['Alerón de cartón', 'Alerón de plástico', 'Alerón regulable', 'Alerón de túnel de viento'] }
+      ]
+    },
+    avioneta: {
+      name: 'Avioneta', slots: [
+        { k: 'motor', label: 'Motor', p: { vel: .9, ace: .6, ctl: .1 }, w: 7, names: ['Motor de goma elástica', 'Motor de pistón', 'Motor radial', 'Motor turbohélice'] },
+        { k: 'helice', label: 'Hélice', p: { vel: .6, ace: .8, ctl: .2 }, w: 2, names: ['Hélice de palo de escoba', 'Hélice de dos palas', 'Hélice de tres palas', 'Hélice de paso variable'] },
+        { k: 'fuselaje', label: 'Fuselaje', p: { vel: .4, ace: .2, ctl: .4 }, w: 8, names: ['Fuselaje de lona', 'Fuselaje de contrachapado', 'Fuselaje de aluminio', 'Fuselaje de composite'] },
+        { k: 'alas', label: 'Alas', p: { vel: .3, ace: .2, ctl: .9 }, w: 4, names: ['Alas rectas cortas', 'Alas rectas largas', 'Alas trapezoidales', 'Alas con winglets'] }
+      ]
+    },
+    solar: {
+      name: 'Coche solar', slots: [
+        { k: 'panel', label: 'Panel', p: { vel: .7, ace: .6, ctl: .1 }, w: 4, names: ['Panel de calculadora', 'Panel policristalino', 'Panel monocristalino', 'Panel de triple unión'] },
+        { k: 'ruedas', label: 'Ruedas', p: { vel: .3, ace: .4, ctl: .8 }, w: 2, names: ['Ruedas de bici vieja', 'Ruedas finas', 'Ruedas de baja fricción', 'Ruedas carenadas'] },
+        { k: 'carroceria', label: 'Carrocería', p: { vel: .7, ace: .1, ctl: .5 }, w: 6, names: ['Carrocería de caja', 'Carrocería redondeada', 'Carrocería en gota', 'Carrocería de túnel de viento'] },
+        { k: 'bateria', label: 'Batería', p: { vel: .3, ace: .9, ctl: .1 }, w: 6, names: ['Pila de petaca', 'Batería de plomo', 'Batería de níquel', 'Batería de litio'] }
+      ]
+    }
+  };
+  const VKEYS = ['kart', 'avioneta', 'solar'];
+
+  const TRACKS = {
+    kart: { name: 'Gran Premio del Patio', zone: 'Curva', desc: 'Circuito con tres curvas cerradas. En las curvas cuenta el Control: si es bajo, tienes que frenar mucho.', zones: [[110, 180], [290, 350], [420, 470]] },
+    avioneta: { name: 'Copa del Faro', zone: 'Turbulencia', desc: 'Vuelo largo sobre el mar. La Velocidad punta es la clave, pero en las turbulencias manda el Control.', zones: [[160, 240], [360, 420]] },
+    solar: { name: 'Rally de la Playa', zone: 'Arena', desc: 'Muchas salidas y frenadas en tramos de arena. Una buena Aceleración recupera el tiempo perdido.', zones: [[80, 140], [220, 270], [340, 380], [440, 470]] }
+  };
+  const TRACK_LEN = 520;
+  const CUPS = [
+    { k: 'bronce', name: 'Copa Bronce', tier: 0.9, desc: 'Rivales con piezas sencillas.' },
+    { k: 'plata', name: 'Copa Plata', tier: 1.9, desc: 'Rivales con piezas de nivel ★★.' },
+    { k: 'oro', name: 'Copa Oro', tier: 2.7, desc: 'Rivales casi con todo ★★★.' }
+  ];
+  const RIVALS = [
+    { name: 'Rayo Rosa', color: 'pink' },
+    { name: 'Tuerca Veloz', color: 'signal' },
+    { name: 'Doña Biela', color: 'ok' }
+  ];
+
+  function rollPart(vk, slotKey, tier) {
+    const s = VEH[vk].slots.find(x => x.k === slotKey);
+    const f = 1 + tier * 3;
+    const st = v => Math.max(0, Math.round(f * v + Math.random() * 1.5 * v + 0.2));
+    return {
+      veh: vk, slot: slotKey, tier, name: s.names[tier],
+      vel: st(s.p.vel), ace: st(s.p.ace), ctl: st(s.p.ctl),
+      peso: Math.max(1, Math.round(s.w * (1.3 - tier * 0.2) + Math.random() * 2))
+    };
+  }
+
+  /* ---------- estado ---------- */
+  const SAVE_KEY = 'piezas-pistones-v1';
+  let state = null;
+
+  function newState() {
+    const s = { veh: 'kart', next: 1, inv: [], eq: {}, trophies: {}, solved: 0 };
+    VKEYS.forEach(vk => {
+      s.eq[vk] = {};
+      s.trophies[vk] = { bronce: false, plata: false, oro: false };
+      VEH[vk].slots.forEach(sl => {
+        const p = rollPart(vk, sl.k, 0);
+        p.id = s.next++;
+        s.inv.push(p);
+        s.eq[vk][sl.k] = p.id;
+      });
+    });
+    return s;
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) { const s = JSON.parse(raw); if (s && s.inv && s.eq) return s; }
+    } catch (e) { /* sin almacenamiento */ }
+    return newState();
+  }
+  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* ignorar */ } }
+  state = load();
+
+  const partById = id => state.inv.find(p => p.id === id);
+  function vehicleStats(vk) {
+    const t = { vel: 0, ace: 0, ctl: 0, peso: 0 };
+    VEH[vk].slots.forEach(sl => { const p = partById(state.eq[vk][sl.k]); if (p) { t.vel += p.vel; t.ace += p.ace; t.ctl += p.ctl; t.peso += p.peso; } });
+    return t;
+  }
+  function trophyCount() { let n = 0; VKEYS.forEach(vk => CUPS.forEach(c => { if (state.trophies[vk][c.k]) n++; })); return n; }
+  function updateCounters() { $('#c-parts').textContent = state.solved; $('#c-trophies').textContent = trophyCount(); }
+
+  /* ---------- toast ---------- */
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  }
+
+  /* ---------- pestañas ---------- */
+  let view = 'school';
+  function setView(v) {
+    view = v;
+    ['school', 'garage', 'race'].forEach(k => {
+      $('#view-' + k).hidden = k !== v;
+      $('#tab-' + k).setAttribute('aria-selected', String(k === v));
+    });
+    if (v === 'garage') renderGarage();
+    if (v === 'race') renderRace();
+  }
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+  /* =========================================================
+     ESCUELA (mapa explorable)
+     ========================================================= */
+  const COLS = 30, ROWS = 18, T = 32;
+  const grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      let w = (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) ? 1 : 0;
+      if (r === 6 || r === 11) w = 1;
+      if ((c === 10 || c === 20) && (r <= 6 || r >= 11)) w = 1;
+      row.push(w);
+    }
+    grid.push(row);
+  }
+  [[6, 5], [6, 15], [6, 25], [11, 5], [11, 15], [11, 25]].forEach(d => { grid[d[0]][d[1]] = 0; });
+
+  const ROOMS = [
+    { name: 'Aula de Balanzas', c0: 1, r0: 1, c1: 9, r1: 5, tint: 'rgba(245,197,66,.07)' },
+    { name: 'Lab. de Circuitos', c0: 11, r0: 1, c1: 19, r1: 5, tint: 'rgba(95,212,155,.07)' },
+    { name: 'Taller de Engranajes', c0: 21, r0: 1, c1: 28, r1: 5, tint: 'rgba(255,123,71,.07)' },
+    { name: 'Garaje', c0: 1, r0: 12, c1: 9, r1: 16, tint: 'rgba(157,187,210,.06)' },
+    { name: 'Biblioteca', c0: 11, r0: 12, c1: 19, r1: 16, tint: 'rgba(255,143,199,.06)' },
+    { name: 'Pista', c0: 21, r0: 12, c1: 28, r1: 16, tint: 'rgba(233,242,248,.05)' }
+  ];
+
+  const STATIONS = [];
+  [3, 5, 7].forEach((c, i) => STATIONS.push({ type: 'balanza', c, r: 2, diff: i + 1 }));
+  [13, 15, 17].forEach((c, i) => STATIONS.push({ type: 'circuito', c, r: 2, diff: i + 1 }));
+  [23, 25, 27].forEach((c, i) => STATIONS.push({ type: 'engranaje', c, r: 2, diff: i + 1 }));
+  [['palanca', 13], ['circuito', 15], ['engranaje', 17]].forEach(f => STATIONS.push({ type: 'ficha', topic: f[0], c: f[1], r: 15, diff: 0 }));
+  STATIONS.push({ type: 'garaje', c: 5, r: 15, diff: 0 });
+  STATIONS.push({ type: 'pista', c: 25, r: 15, diff: 0 });
+  const stAt = grid.map(row => row.map(() => null));
+  STATIONS.forEach(s => { stAt[s.r][s.c] = s; });
+
+  const player = { x: 15 * T + T / 2, y: 8.5 * T, face: 1, path: [], pending: null, step: 0 };
+  const keys = new Set();
+  let near = null;
+
+  function solidTile(c, r) { if (r < 0 || c < 0 || r >= ROWS || c >= COLS) return true; return grid[r][c] === 1 || !!stAt[r][c]; }
+  function solidAt(x, y) { return solidTile(Math.floor(x / T), Math.floor(y / T)); }
+  function collides(x, y) { const R = 10; return solidAt(x - R, y - R) || solidAt(x + R, y - R) || solidAt(x - R, y + R) || solidAt(x + R, y + R); }
+
+  function bfs(start, isGoal) {
+    const key = (c, r) => r * COLS + c;
+    const prev = new Map(); prev.set(key(start[0], start[1]), null);
+    const q = [start];
+    while (q.length) {
+      const cur = q.shift();
+      if (isGoal(cur[0], cur[1])) {
+        const out = []; let k = key(cur[0], cur[1]);
+        while (k !== null) { out.push([k % COLS, Math.floor(k / COLS)]); k = prev.get(k); }
+        out.reverse(); out.shift();
+        return out;
+      }
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(d => {
+        const nc = cur[0] + d[0], nr = cur[1] + d[1];
+        if (!solidTile(nc, nr) && !prev.has(key(nc, nr))) { prev.set(key(nc, nr), key(cur[0], cur[1])); q.push([nc, nr]); }
+      });
+    }
+    return null;
+  }
+
+  function stationCenter(s) { return { x: s.c * T + T / 2, y: s.r * T + T / 2 }; }
+  function inReach(s) { const p = stationCenter(s); return Math.hypot(p.x - player.x, p.y - player.y) < T * 1.35; }
+
+  const mapCv = $('#map'), mctx = mapCv.getContext('2d');
+  const promptBtn = $('#prompt');
+
+  mapCv.addEventListener('pointerdown', e => {
+    if (!$('#modal').hidden) return;
+    const rect = mapCv.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * mapCv.width / rect.width;
+    const y = (e.clientY - rect.top) * mapCv.height / rect.height;
+    const c = Math.floor(x / T), r = Math.floor(y / T);
+    if (r < 0 || c < 0 || r >= ROWS || c >= COLS) return;
+    const st = stAt[r][c];
+    const start = [Math.floor(player.x / T), Math.floor(player.y / T)];
+    if (st) {
+      if (inReach(st)) { openStation(st); return; }
+      const path = bfs(start, (cc, rr) => Math.abs(cc - c) + Math.abs(rr - r) === 1);
+      if (path) { player.path = path; player.pending = st; }
+    } else if (grid[r][c] === 0) {
+      const path = bfs(start, (cc, rr) => cc === c && rr === r);
+      if (path) { player.path = path; player.pending = null; }
+    }
+  });
+
+  const KEYMAP = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', a: 'l', d: 'r', w: 'u', s: 'd', A: 'l', D: 'r', W: 'u', S: 'd' };
+  window.addEventListener('keydown', e => {
+    if (!$('#modal').hidden) { if (e.key === 'Escape') closeModal(); return; }
+    if (view !== 'school') return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'SELECT' || tag === 'INPUT') return;
+    if (KEYMAP[e.key]) { keys.add(KEYMAP[e.key]); player.path = []; player.pending = null; e.preventDefault(); }
+    if ((e.key === ' ' || e.key === 'Enter') && near && tag !== 'BUTTON') { e.preventDefault(); openStation(near); }
+  });
+  window.addEventListener('keyup', e => { if (KEYMAP[e.key]) keys.delete(KEYMAP[e.key]); });
+  window.addEventListener('blur', () => keys.clear());
+  promptBtn.addEventListener('click', () => { if (near) openStation(near); });
+
+  function updatePlayer(dt) {
+    let dx = 0, dy = 0;
+    if (keys.has('l')) dx -= 1; if (keys.has('r')) dx += 1; if (keys.has('u')) dy -= 1; if (keys.has('d')) dy += 1;
+    if (!dx && !dy && player.path.length) {
+      const wp = player.path[0];
+      const tx = wp[0] * T + T / 2, ty = wp[1] * T + T / 2;
+      const ddx = tx - player.x, ddy = ty - player.y, dist = Math.hypot(ddx, ddy);
+      if (dist < 3) { player.x = tx; player.y = ty; player.path.shift(); }
+      else { dx = ddx / dist; dy = ddy / dist; }
+      if (!player.path.length && player.pending) {
+        const st = player.pending; player.pending = null;
+        if (inReach(st)) openStation(st);
+      }
+    }
+    const len = Math.hypot(dx, dy);
+    if (len) {
+      const sp = 160 * dt;
+      const mx = dx / len * sp, my = dy / len * sp;
+      if (!collides(player.x + mx, player.y)) player.x += mx;
+      if (!collides(player.x, player.y + my)) player.y += my;
+      if (dx) player.face = dx > 0 ? 1 : -1;
+      player.step += dt * 10;
+    }
+    near = null; let best = 1e9;
+    STATIONS.forEach(s => { const p = stationCenter(s); const d = Math.hypot(p.x - player.x, p.y - player.y); if (d < T * 1.35 && d < best) { best = d; near = s; } });
+    const lbl = near ? stationLabel(near) : '';
+    if (promptBtn.hidden === !!near || promptBtn.textContent !== lbl) { promptBtn.hidden = !near; promptBtn.textContent = lbl; }
+  }
+
+  function stationLabel(s) {
+    if (s.type === 'balanza') return 'Balanza ' + STARS(s.diff) + ' · Usar';
+    if (s.type === 'circuito') return 'Circuito ' + STARS(s.diff) + ' · Usar';
+    if (s.type === 'engranaje') return 'Engranajes ' + STARS(s.diff) + ' · Usar';
+    if (s.type === 'ficha') return 'Leer ficha';
+    if (s.type === 'garaje') return 'Ir al banco de montaje';
+    return 'Ir a la línea de salida';
+  }
+
+  /* --- dibujo del mapa --- */
+  function drawIcon(ctx, type, x, y, t) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = COL.ink; ctx.fillStyle = COL.ink; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    if (type === 'balanza') {
+      ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(-5, 12); ctx.lineTo(5, 12); ctx.closePath(); ctx.fill();
+      ctx.rotate(Math.sin(t * 2) * 0.15);
+      ctx.beginPath(); ctx.moveTo(-11, 0); ctx.lineTo(11, 0); ctx.moveTo(0, 0); ctx.lineTo(0, 8); ctx.stroke();
+      ctx.fillRect(-12, -6, 6, 6); ctx.fillRect(7, -4, 4, 4);
+    } else if (type === 'circuito') {
+      ctx.beginPath(); ctx.arc(0, -2, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, 6); ctx.lineTo(-4, 11); ctx.lineTo(4, 11); ctx.lineTo(4, 6); ctx.stroke();
+    } else if (type === 'engranaje' || type === 'garaje') {
+      ctx.rotate(t);
+      for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-2, -12, 4, 5); }
+      ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = COL.hazard; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'ficha') {
+      ctx.fillRect(-10, -9, 9, 18); ctx.fillRect(1, -9, 9, 18);
+      ctx.strokeStyle = COL.chalk; ctx.lineWidth = 1;
+      for (let i = -5; i <= 5; i += 4) { ctx.beginPath(); ctx.moveTo(-8, i); ctx.lineTo(-3, i); ctx.moveTo(3, i); ctx.lineTo(8, i); ctx.stroke(); }
+    } else if (type === 'pista') {
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { ctx.fillStyle = (i + j) % 2 ? COL.ink : COL.chalk; ctx.fillRect(-10 + i * 5, -10 + j * 5, 5, 5); }
+    }
+    ctx.restore();
+  }
+
+  function drawMap(t) {
+    const ctx = mctx;
+    ctx.fillStyle = COL.ink; ctx.fillRect(0, 0, mapCv.width, mapCv.height);
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === 0) {
+        ctx.fillStyle = COL['ink-2']; ctx.fillRect(c * T, r * T, T, T);
+        const room = ROOMS.find(m => c >= m.c0 && c <= m.c1 && r >= m.r0 && r <= m.r1);
+        if (room) { ctx.fillStyle = room.tint; ctx.fillRect(c * T, r * T, T, T); }
+        ctx.strokeStyle = 'rgba(157,187,210,.12)'; ctx.lineWidth = 1; ctx.strokeRect(c * T + .5, r * T + .5, T - 1, T - 1);
+      }
+    }
+    // checkered floor in pista room
+    for (let c = 21; c <= 28; c++) { ctx.fillStyle = (c % 2) ? 'rgba(233,242,248,.18)' : 'rgba(14,39,64,.6)'; ctx.fillRect(c * T, 13 * T + 12, T, 8); }
+    // lockers along corridor
+    for (let c = 1; c < 29; c++) { if (c === 5 || c === 15 || c === 25 || c === 10 || c === 20) continue; ctx.fillStyle = 'rgba(61,106,146,.55)'; ctx.fillRect(c * T + 3, 7 * T + 2, T - 6, 10); ctx.fillStyle = 'rgba(14,39,64,.8)'; ctx.fillRect(c * T + T / 2 - 1, 7 * T + 4, 2, 6); }
+    // walls
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === 1) {
+        ctx.fillStyle = COL.line; ctx.fillRect(c * T, r * T, T, T);
+        ctx.fillStyle = 'rgba(233,242,248,.18)'; ctx.fillRect(c * T, r * T, T, 3);
+      }
+    }
+    ctx.font = '13px Bungee, "Arial Black", sans-serif'; ctx.textBaseline = 'top';
+    ROOMS.forEach(m => { ctx.fillStyle = COL.chalk; ctx.globalAlpha = .85; ctx.fillText(m.name.toUpperCase(), m.c0 * T + 6, m.r0 * T + 4); ctx.globalAlpha = 1; });
+    ctx.font = '12px "IBM Plex Mono", monospace'; ctx.fillStyle = COL.muted; ctx.fillText('PASILLO PRINCIPAL', 12.3 * T, 9.2 * T);
+
+    STATIONS.forEach(s => {
+      const x = s.c * T, y = s.r * T;
+      const isNear = s === near;
+      ctx.fillStyle = isNear ? COL.chalk : (s.type === 'ficha' ? COL.pink : COL.hazard);
+      ctx.fillRect(x + 2, y + 2, T - 4, T - 4);
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 2, y + T - 6, T - 4, 4);
+      drawIcon(ctx, s.type, x + T / 2, y + T / 2 - 1, t);
+      if (s.diff) {
+        ctx.font = '11px "IBM Plex Mono", monospace'; ctx.fillStyle = COL.hazard; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
+        ctx.fillText(STARS(s.diff), x + T / 2, y + T + 2); ctx.textAlign = 'left';
+      }
+      if (isNear) { ctx.strokeStyle = COL.hazard; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x - 2, y - 2, T + 4, T + 4); ctx.setLineDash([]); }
+    });
+
+    // jugador
+    if (player.path.length) {
+      ctx.fillStyle = 'rgba(245,197,66,.35)';
+      player.path.forEach(p => { ctx.beginPath(); ctx.arc(p[0] * T + T / 2, p[1] * T + T / 2, 2.5, 0, Math.PI * 2); ctx.fill(); });
+    }
+    const bob = Math.sin(player.step) * 1.5;
+    ctx.save(); ctx.translate(player.x, player.y + bob);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 12 - bob, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COL.signal; ctx.fillRect(-7, -2, 14, 12);
+    ctx.fillStyle = COL.chalk; ctx.beginPath(); ctx.arc(0, -7, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COL.hazard; ctx.beginPath(); ctx.arc(0, -9, 8, Math.PI, 0); ctx.fill(); ctx.fillRect(-8, -10, 16, 3);
+    ctx.fillStyle = COL.ink; ctx.fillRect(player.face * 3 - 1, -7, 2, 2);
+    ctx.restore();
+  }
+
+  /* =========================================================
+     MODAL GENÉRICO
+     ========================================================= */
+  const modal = $('#modal');
+  let modalCleanup = null;
+  function openModal(o) {
+    $('#m-kind').textContent = o.kind;
+    $('#m-title').textContent = o.title;
+    const pz = $('#m-prize');
+    if (o.prize) { pz.hidden = false; pz.innerHTML = 'Premio para tu <b>' + VEH[o.prize.veh].name + '</b>: <b>' + o.prize.name + '</b> ' + STARS(o.prize.tier); }
+    else pz.hidden = true;
+    const body = $('#m-body'); body.innerHTML = ''; body.appendChild(o.body);
+    setFeedback('', '');
+    setActions(o.actions || []);
+    modalCleanup = o.cleanup || null;
+    keys.clear(); player.path = []; player.pending = null;
+    modal.hidden = false;
+    $('#m-close').focus();
+  }
+  function closeModal() {
+    if (modalCleanup) { modalCleanup(); modalCleanup = null; }
+    modal.hidden = true;
+  }
+  function setFeedback(msg, cls) { const f = $('#m-feedback'); f.textContent = msg; f.className = 'feedback ' + (cls || ''); }
+  function setActions(list) {
+    const a = $('#m-actions'); a.innerHTML = '';
+    list.forEach(it => { const b = document.createElement('button'); b.className = 'btn' + (it.ghost ? ' ghost' : ''); b.textContent = it.label; b.addEventListener('click', it.fn); a.appendChild(b); });
+  }
+  $('#m-close').addEventListener('click', closeModal);
+  modal.addEventListener('pointerdown', e => { if (e.target === modal) closeModal(); });
+
+  function makePrize(diff) {
+    const vk = state.veh;
+    const slots = VEH[vk].slots;
+    const weak = slots.filter(s => { const p = partById(state.eq[vk][s.k]); return !p || p.tier < diff; });
+    const s = weak.length ? pick(weak) : pick(slots);
+    return rollPart(vk, s.k, diff);
+  }
+
+  function partScore(p) { return p.vel + p.ace + p.ctl - p.peso * 0.4; }
+  function award(prize, retry) {
+    prize.id = state.next++;
+    state.inv.push(prize);
+    state.solved++;
+    const cur = partById(state.eq[prize.veh][prize.slot]);
+    let equipped = false;
+    if (!cur || partScore(prize) > partScore(cur)) { state.eq[prize.veh][prize.slot] = prize.id; equipped = true; }
+    save(); updateCounters();
+    setFeedback('¡Correcto! Has ganado: ' + prize.name + (equipped ? '. Ya está montada en tu ' + VEH[prize.veh].name + '.' : '. Está guardada en el Garaje.'), 'ok');
+    setActions([
+      { label: 'Otro acertijo', fn: retry },
+      { label: 'Volver a la escuela', ghost: true, fn: closeModal }
+    ]);
+  }
+
+  function openStation(st) {
+    if (st.type === 'garaje') { setView('garage'); return; }
+    if (st.type === 'pista') { setView('race'); return; }
+    if (st.type === 'ficha') { openFicha(st.topic); return; }
+    if (st.type === 'balanza') openBalanza(st.diff);
+    if (st.type === 'circuito') openCircuito(st.diff);
+    if (st.type === 'engranaje') openEngranajes(st.diff);
+  }
+
+  /* =========================================================
+     ACERTIJO 1: BALANZA DE BRAZOS (momentos)
+     ========================================================= */
+  function genBalanza(diff) {
+    for (let tries = 0; tries < 800; tries++) {
+      const nR = diff === 1 ? 1 : (diff === 2 ? 2 : 2 + rnd(2));
+      const sol = []; let Tq = 0;
+      for (let i = 0; i < nR; i++) { const w = 1 + rnd(6), d = 1 + rnd(4); sol.push({ w, d }); Tq += w * d; }
+      const nL = diff === 1 ? 1 : (diff === 2 ? 2 : 3);
+      const left = []; let rem = Tq;
+      for (let i = 0; i < nL - 1; i++) { const w = 1 + rnd(5), d = 1 + rnd(4); left.push({ w, d }); rem -= w * d; }
+      if (rem <= 0) continue;
+      const opts = [];
+      for (let d = 1; d <= 4; d++) if (rem % d === 0 && rem / d <= 9) opts.push({ w: rem / d, d });
+      if (!opts.length) continue;
+      left.push(pick(opts));
+      const tray = sol.map(s => s.w);
+      const nd = diff + 1;
+      for (let i = 0; i < nd; i++) tray.push(1 + rnd(6));
+      return { left, tray: shuffle(tray.map((w, i) => ({ id: i, w }))), placed: { 1: [], 2: [], 3: [], 4: [] } };
+    }
+    return { left: [{ w: 2, d: 3 }], tray: [{ id: 0, w: 3 }, { id: 1, w: 5 }, { id: 2, w: 1 }], placed: { 1: [], 2: [], 3: [], 4: [] } };
+  }
+
+  function openBalanza(diff) {
+    const prize = makePrize(diff);
+    const g = genBalanza(diff);
+    let selected = null, done = false;
+    const root = document.createElement('div');
+    root.style.display = 'grid'; root.style.gap = '10px';
+    root.innerHTML =
+      '<p class="question">Equilibra la balanza. Coloca pesas en el brazo derecho: cada lado gira con fuerza <b>peso × distancia</b>.</p>' +
+      '<svg class="scale" viewBox="0 0 600 270" role="img" aria-label="Balanza de brazos"></svg>' +
+      '<div class="readout" id="b-read"></div>' +
+      '<div><span class="label">Pesas disponibles · elige una</span><div class="tray" id="b-tray"></div></div>' +
+      '<div><span class="label">Colgar en el brazo derecho, distancia</span><div class="row" id="b-pegs"></div></div>';
+    const svg = root.querySelector('svg');
+
+    const sum = side => side.reduce((a, s) => a + s.w * s.d, 0);
+    const rightList = () => { const out = []; [1, 2, 3, 4].forEach(d => g.placed[d].forEach(it => out.push({ w: it.w, d }))); return out; };
+
+    function draw() {
+      const L = sum(g.left), R = sum(rightList());
+      const ang = Math.max(-14, Math.min(14, (R - L) * 1.2));
+      const stack = (list, sign) => {
+        const by = { 1: [], 2: [], 3: [], 4: [] };
+        list.forEach(it => by[it.d].push(it.w));
+        let s = '';
+        [1, 2, 3, 4].forEach(d => {
+          let y = 150; const x = 300 + sign * d * 62;
+          by[d].forEach(w => {
+            const h = 16 + w * 3;
+            y -= h;
+            s += '<rect x="' + (x - 22) + '" y="' + y + '" width="44" height="' + h + '" rx="3" fill="' + (sign < 0 ? COL.signal : COL.hazard) + '" stroke="' + COL.ink + '" stroke-width="2"/>' +
+              '<text x="' + x + '" y="' + (y + h / 2 + 5) + '" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="700" font-size="14" fill="' + COL.ink + '">' + w + '</text>';
+          });
+        });
+        return s;
+      };
+      let ticks = '';
+      for (let d = 1; d <= 4; d++) [-1, 1].forEach(sg => {
+        const x = 300 + sg * d * 62;
+        ticks += '<line x1="' + x + '" y1="150" x2="' + x + '" y2="166" stroke="' + COL.chalk + '" stroke-width="2"/>' +
+          '<text x="' + x + '" y="182" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="' + COL.muted + '">' + d + '</text>';
+      });
+      svg.innerHTML =
+        '<polygon points="300,160 270,240 330,240" fill="' + COL.line + '" stroke="' + COL.chalk + '" stroke-width="2"/>' +
+        '<rect x="200" y="240" width="200" height="10" fill="' + COL.line + '"/>' +
+        '<g transform="rotate(' + ang.toFixed(2) + ' 300 158)" style="transition:transform .35s">' +
+        '<rect x="40" y="150" width="520" height="16" rx="3" fill="' + COL.chalk + '"/>' + ticks +
+        stack(g.left, -1) + stack(rightList(), 1) +
+        '<circle cx="300" cy="158" r="6" fill="' + COL.ink + '"/></g>' +
+        '<text x="40" y="262" font-family="Bungee, sans-serif" font-size="13" fill="' + COL.muted + '">IZQUIERDA</text>' +
+        '<text x="560" y="262" text-anchor="end" font-family="Bungee, sans-serif" font-size="13" fill="' + COL.muted + '">DERECHA</text>';
+      const rd = root.querySelector('#b-read');
+      if (diff < 3) rd.textContent = 'Momento izquierdo: ' + L + '   ·   Momento derecho: ' + R;
+      else rd.textContent = 'Nivel ★★★: sin marcador. Calcula tú los momentos.';
+      return { L, R };
+    }
+
+    function renderTray() {
+      const tr = root.querySelector('#b-tray'); tr.innerHTML = '';
+      g.tray.forEach(it => {
+        const b = document.createElement('button'); b.className = 'chip'; b.textContent = it.w + ' kg';
+        b.setAttribute('aria-pressed', String(selected === it.id));
+        b.addEventListener('click', () => { if (done) return; selected = selected === it.id ? null : it.id; renderTray(); });
+        tr.appendChild(b);
+      });
+      if (!g.tray.length) tr.innerHTML = '<span class="readout">No quedan pesas. Toca una distancia para devolver su pesa de arriba.</span>';
+      const pg = root.querySelector('#b-pegs'); pg.innerHTML = '';
+      [1, 2, 3, 4].forEach(d => {
+        const b = document.createElement('button'); b.className = 'peg';
+        const ws = g.placed[d].map(x => x.w);
+        b.innerHTML = 'Distancia <b>' + d + '</b><br><span class="readout">' + (ws.length ? ws.join(' + ') + ' kg' : 'vacío') + '</span>';
+        b.addEventListener('click', () => {
+          if (done) return;
+          if (selected !== null) {
+            const i = g.tray.findIndex(x => x.id === selected);
+            if (i >= 0) { g.placed[d].push(g.tray[i]); g.tray.splice(i, 1); }
+            selected = null;
+          } else if (g.placed[d].length) {
+            g.tray.push(g.placed[d].pop());
+          }
+          renderTray(); check();
+        });
+        pg.appendChild(b);
+      });
+    }
+
+    function check() {
+      const r = draw();
+      if (r.R === r.L && rightList().length) {
+        done = true;
+        award(prize, () => openBalanza(diff));
+      } else if (rightList().length) {
+        setFeedback(r.R > r.L ? 'El lado derecho baja: le sobra momento.' : 'El lado izquierdo baja: falta momento a la derecha.', '');
+      } else setFeedback('', '');
+    }
+
+    draw(); renderTray();
+    openModal({
+      kind: 'Balanza ' + STARS(diff), title: 'Aula de Balanzas', prize, body: root,
+      actions: [{ label: 'Quitar todas', ghost: true, fn: () => { if (done) return; [1, 2, 3, 4].forEach(d => { g.tray.push.apply(g.tray, g.placed[d]); g.placed[d] = []; }); selected = null; renderTray(); check(); } }]
+    });
+  }
+
+  /* =========================================================
+     ACERTIJO 2: CIRCUITO (girar cables)
+     ========================================================= */
+  const N_ = 1, E_ = 2, S_ = 4, W_ = 8;
+  const rot = (m, k) => { let x = m; for (let i = 0; i < ((k % 4) + 4) % 4; i++) x = ((x << 1) | (x >> 3)) & 15; return x; };
+  const OPP = { 1: 4, 2: 8, 4: 1, 8: 2 };
+  const DV = { 1: [-1, 0], 2: [0, 1], 4: [1, 0], 8: [0, -1] };
+
+  function genCircuit(diff) {
+    const N = diff + 3;
+    const sr = rnd(N), er = rnd(N);
+    const seen = new Set(), path = [];
+    (function dfs(r, c) {
+      if (r < 0 || c < 0 || r >= N || c >= N) return false;
+      const k = r * N + c; if (seen.has(k)) return false;
+      seen.add(k); path.push([r, c]);
+      if (r === er && c === N - 1) return true;
+      const dirs = shuffle([[0, 1], [0, 1], [1, 0], [-1, 0], [0, -1]]);
+      for (let i = 0; i < dirs.length; i++) if (dfs(r + dirs[i][0], c + dirs[i][1])) return true;
+      path.pop(); return false;
+    })(sr, 0);
+    const cells = [];
+    for (let r = 0; r < N; r++) { const row = []; for (let c = 0; c < N; c++) { const base = pick(diff === 1 ? [5, 3, 3] : [5, 3, 7, 3]); row.push({ base, rot: rnd(4), vis: 0 }); } cells.push(row); }
+    const dirOf = (a, b) => { const dr = b[0] - a[0], dc = b[1] - a[1]; return dr === -1 ? N_ : dr === 1 ? S_ : dc === 1 ? E_ : W_; };
+    path.forEach((p, i) => {
+      const inD = i === 0 ? W_ : OPP[dirOf(path[i - 1], p)];
+      const outD = i === path.length - 1 ? E_ : dirOf(p, path[i + 1]);
+      const m = inD | outD;
+      const base = (m === 5 || m === 10) ? 5 : 3;
+      cells[p[0]][p[1]].base = base;
+      cells[p[0]][p[1]].rot = rnd(4);
+    });
+    cells.forEach(row => row.forEach(cl => { cl.vis = cl.rot; }));
+    const g = { N, sr, er, cells };
+    let guard = 0;
+    while (solveCircuit(g).solved && guard++ < 20) { const p = pick(path); const cl = cells[p[0]][p[1]]; cl.rot = (cl.rot + 1) % 4; cl.vis = cl.rot; }
+    return g;
+  }
+  function solveCircuit(g) {
+    const on = new Set();
+    const start = g.cells[g.sr][0];
+    if (!(rot(start.base, start.rot) & W_)) return { on, solved: false };
+    const q = [[g.sr, 0]]; on.add(g.sr * g.N);
+    let solved = false;
+    while (q.length) {
+      const [r, c] = q.shift();
+      const m = rot(g.cells[r][c].base, g.cells[r][c].rot);
+      if (r === g.er && c === g.N - 1 && (m & E_)) solved = true;
+      [N_, E_, S_, W_].forEach(d => {
+        if (!(m & d)) return;
+        const nr = r + DV[d][0], nc = c + DV[d][1];
+        if (nr < 0 || nc < 0 || nr >= g.N || nc >= g.N) return;
+        const k = nr * g.N + nc; if (on.has(k)) return;
+        const nm = rot(g.cells[nr][nc].base, g.cells[nr][nc].rot);
+        if (nm & OPP[d]) { on.add(k); q.push([nr, nc]); }
+      });
+    }
+    return { on, solved };
+  }
+  const tileSvg = base => {
+    let d = '';
+    if (base & N_) d += 'M50 50 L50 0 ';
+    if (base & E_) d += 'M50 50 L100 50 ';
+    if (base & S_) d += 'M50 50 L50 100 ';
+    if (base & W_) d += 'M50 50 L0 50 ';
+    return '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="' + d + '"/><circle cx="50" cy="50" r="9" fill="currentColor"/></svg>';
+  };
+
+  function openCircuito(diff) {
+    const prize = makePrize(diff);
+    const g = genCircuit(diff);
+    let done = false;
+    const root = document.createElement('div');
+    root.style.display = 'grid'; root.style.gap = '10px';
+    root.innerHTML = '<p class="question">Gira los cables tocándolos hasta cerrar el camino de la <b>pila</b> a la <b>bombilla</b>. Los tramos con corriente se iluminan.</p><div class="circuit"></div>';
+    const box = root.querySelector('.circuit');
+    const size = Math.min(64, Math.floor(420 / (g.N + 2)));
+    box.style.gridTemplateColumns = 'repeat(' + (g.N + 2) + ', minmax(0, ' + size + 'px))';
+    const btns = [];
+    for (let r = 0; r < g.N; r++) {
+      const L = document.createElement('div'); L.className = 'side';
+      if (r === g.sr) L.innerHTML = '<svg viewBox="0 0 60 60" width="100%" aria-label="Pila"><rect x="8" y="18" width="38" height="24" rx="3" fill="' + COL.signal + '"/><rect x="46" y="25" width="6" height="10" fill="' + COL.chalk + '"/><text x="27" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="' + COL.ink + '">+ −</text></svg>';
+      box.appendChild(L);
+      for (let c = 0; c < g.N; c++) {
+        const cl = g.cells[r][c];
+        const b = document.createElement('button'); b.className = 'cell';
+        b.setAttribute('aria-label', 'Cable fila ' + (r + 1) + ' columna ' + (c + 1));
+        b.innerHTML = tileSvg(cl.base);
+        b.style.color = COL.muted;
+        b.firstChild.style.transform = 'rotate(' + (cl.vis * 90) + 'deg)';
+        b.addEventListener('click', () => {
+          if (done) return;
+          cl.rot = (cl.rot + 1) % 4; cl.vis++;
+          b.firstChild.style.transform = 'rotate(' + (cl.vis * 90) + 'deg)';
+          refresh();
+        });
+        btns.push({ b, r, c });
+        box.appendChild(b);
+      }
+      const R = document.createElement('div'); R.className = 'side'; R.id = r === g.er ? 'bulb' : '';
+      box.appendChild(R);
+    }
+    function refresh() {
+      const res = solveCircuit(g);
+      btns.forEach(o => { const lit = res.on.has(o.r * g.N + o.c); o.b.classList.toggle('on', lit); o.b.style.color = lit ? COL.hazard : COL.muted; });
+      const bulb = root.querySelector('#bulb');
+      bulb.innerHTML = '<svg viewBox="0 0 60 60" width="100%" aria-label="Bombilla ' + (res.solved ? 'encendida' : 'apagada') + '">' +
+        (res.solved ? '<circle cx="30" cy="24" r="22" fill="' + COL.hazard + '" opacity=".35"/>' : '') +
+        '<circle cx="30" cy="24" r="13" fill="' + (res.solved ? COL.hazard : COL['ink-3']) + '" stroke="' + COL.chalk + '" stroke-width="2"/>' +
+        '<rect x="23" y="37" width="14" height="10" fill="' + COL.muted + '"/></svg>';
+      if (res.solved && !done) { done = true; award(prize, () => openCircuito(diff)); }
+    }
+    refresh();
+    openModal({ kind: 'Circuito ' + STARS(diff), title: 'Laboratorio de Circuitos', prize, body: root, actions: [] });
+  }
+
+  /* =========================================================
+     ACERTIJO 3: ENGRANAJES (sentido y velocidad)
+     ========================================================= */
+  const TEETH = [8, 10, 12, 15, 16, 20, 24, 30, 40];
+  function genGears(diff) {
+    for (let k = 0; k < 500; k++) {
+      const n = diff === 1 ? 3 : diff === 2 ? 2 : 4;
+      const teeth = []; for (let i = 0; i < n; i++) teeth.push(pick(TEETH));
+      const t0 = teeth[0], tl = teeth[n - 1];
+      if (diff >= 2 && t0 === tl) continue;
+      const rpmOpts = [6, 8, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60].filter(r => (r * t0) % tl === 0);
+      if (!rpmOpts.length) continue;
+      const rpm = pick(rpmOpts);
+      const out = rpm * t0 / tl;
+      if (out > 240) continue;
+      const dir0 = Math.random() < .5 ? 1 : -1;
+      const dirL = n % 2 === 1 ? dir0 : -dir0;
+      const wrong = new Set();
+      const inv = rpm * tl / t0; if (Number.isInteger(inv) && inv !== out) wrong.add(inv);
+      [rpm, out * 2, Math.round(out / 2), rpm + out, Math.abs(rpm - out)].forEach(v => { if (v > 0 && v !== out) wrong.add(v); });
+      const wr = shuffle(Array.from(wrong));
+      if (diff >= 2 && wr.length < 3) continue;
+      return { n, teeth, rpm, out, dir0, dirL, wrong: wr };
+    }
+    return { n: 2, teeth: [20, 10], rpm: 15, out: 30, dir0: 1, dirL: -1, wrong: [15, 60, 8] };
+  }
+  const LET = 'ABCDE';
+  const dirName = d => d > 0 ? 'horario ↻' : 'antihorario ↺';
+
+  function openEngranajes(diff) {
+    const prize = makePrize(diff);
+    const g = genGears(diff);
+    const last = LET[g.n - 1];
+    const root = document.createElement('div');
+    root.style.display = 'grid'; root.style.gap = '10px';
+    let q, options;
+    if (diff === 1) {
+      q = 'El engranaje A gira en sentido <b>' + dirName(g.dir0) + '</b>. ¿Hacia dónde gira el ' + last + '?';
+      options = [{ t: 'Sentido horario ↻', ok: g.dirL > 0 }, { t: 'Sentido antihorario ↺', ok: g.dirL < 0 }];
+    } else if (diff === 2) {
+      q = 'A tiene ' + g.teeth[0] + ' dientes y da <b>' + g.rpm + ' vueltas por minuto</b>. B tiene ' + g.teeth[1] + ' dientes. ¿Cuántas vueltas por minuto da B?';
+      options = shuffle([{ t: g.out + ' vueltas/min', ok: true }].concat(g.wrong.slice(0, 3).map(v => ({ t: v + ' vueltas/min', ok: false }))));
+    } else {
+      q = 'A gira en sentido <b>' + dirName(g.dir0) + '</b> a <b>' + g.rpm + ' vueltas/min</b>. ¿Cómo gira el ' + last + '?';
+      const w = g.wrong[0];
+      options = shuffle([
+        { t: dirName(g.dirL) + ', ' + g.out + ' v/min', ok: true },
+        { t: dirName(-g.dirL) + ', ' + g.out + ' v/min', ok: false },
+        { t: dirName(g.dirL) + ', ' + w + ' v/min', ok: false },
+        { t: dirName(-g.dirL) + ', ' + w + ' v/min', ok: false }
+      ]);
+    }
+    root.innerHTML = '<p class="question">' + q + '</p><canvas class="view" width="640" height="300" aria-label="Cadena de engranajes"></canvas><div class="answers"></div>';
+    const cv = root.querySelector('canvas'), ctx = cv.getContext('2d');
+
+    // geometría
+    const rs = g.teeth.map(t => t);
+    const cen = [{ x: 0, y: 0 }];
+    for (let i = 1; i < g.n; i++) { const th = (i % 2 ? 0.38 : -0.38); const d = rs[i - 1] + rs[i]; cen.push({ x: cen[i - 1].x + d * Math.cos(th), y: cen[i - 1].y + d * Math.sin(th), th }); }
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    cen.forEach((c, i) => { minX = Math.min(minX, c.x - rs[i] - 2); maxX = Math.max(maxX, c.x + rs[i] + 2); minY = Math.min(minY, c.y - rs[i] - 2); maxY = Math.max(maxY, c.y + rs[i] + 2); });
+    const sc = Math.min((cv.width - 60) / (maxX - minX), (cv.height - 70) / (maxY - minY));
+    const ox = (cv.width - (maxX - minX) * sc) / 2 - minX * sc, oy = 20 + (cv.height - 60 - (maxY - minY) * sc) / 2 - minY * sc;
+    // fases para que encajen
+    const ang0 = [];
+    const step = i => 2 * Math.PI / g.teeth[i];
+    if (g.n > 1) {
+      const th01 = Math.atan2(cen[1].y - cen[0].y, cen[1].x - cen[0].x);
+      ang0[0] = th01 - 0.375 * step(0);
+      for (let i = 1; i < g.n; i++) {
+        const th = Math.atan2(cen[i].y - cen[i - 1].y, cen[i].x - cen[i - 1].x);
+        let ph = ((th - ang0[i - 1]) / step(i - 1)) % 1; if (ph < 0) ph += 1;
+        ang0[i] = th + Math.PI - ((ph + 0.5) % 1) * step(i);
+      }
+    }
+    const dirs = g.teeth.map((_, i) => (i % 2 ? -g.dir0 : g.dir0));
+    let spinning = false, tStart = 0, raf = 0;
+    const answered = { done: false, reveal: false };
+
+    function gear(cx, cy, r, teeth, ang, fill) {
+      const h = 1.1;
+      ctx.beginPath();
+      for (let i = 0; i < teeth; i++) {
+        const s = 2 * Math.PI / teeth, a = ang + i * s;
+        const pts = [[r - h, a], [r + h, a + .25 * s], [r + h, a + .5 * s], [r - h, a + .75 * s]];
+        pts.forEach((p, j) => { const x = cx + Math.cos(p[1]) * p[0] * sc, y = cy + Math.sin(p[1]) * p[0] * sc; if (i === 0 && j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      }
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, Math.max(5, r * sc * .22), 0, Math.PI * 2); ctx.fillStyle = COL.ink; ctx.fill();
+      // radio marcador
+      ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * r * sc * .7, cy + Math.sin(ang) * r * sc * .7); ctx.stroke();
+    }
+    function arrow(cx, cy, r, dir) {
+      ctx.strokeStyle = COL.hazard; ctx.lineWidth = 3;
+      const a0 = -Math.PI * .85, a1 = -Math.PI * .25;
+      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1, false); ctx.stroke();
+      const end = dir > 0 ? a1 : a0;
+      const ex = cx + Math.cos(end) * r, ey = cy + Math.sin(end) * r;
+      const tang = end + (dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+      ctx.fillStyle = COL.hazard; ctx.beginPath();
+      ctx.moveTo(ex + Math.cos(tang) * 9, ey + Math.sin(tang) * 9);
+      ctx.lineTo(ex + Math.cos(tang + 2.5) * 9, ey + Math.sin(tang + 2.5) * 9);
+      ctx.lineTo(ex + Math.cos(tang - 2.5) * 9, ey + Math.sin(tang - 2.5) * 9);
+      ctx.closePath(); ctx.fill();
+    }
+    function frame(now) {
+      const t = spinning ? (now - tStart) / 1000 : 0;
+      ctx.fillStyle = COL.ink; ctx.fillRect(0, 0, cv.width, cv.height);
+      const w0 = 1.2;
+      for (let i = 0; i < g.n; i++) {
+        const cx = ox + cen[i].x * sc, cy = oy + cen[i].y * sc;
+        const ang = ang0[i] + dirs[i] * w0 * (g.teeth[0] / g.teeth[i]) * t;
+        const isQ = i === g.n - 1;
+        gear(cx, cy, rs[i], g.teeth[i], ang, i === 0 ? COL.hazard : (isQ ? COL.signal : COL.muted));
+        ctx.fillStyle = COL.chalk; ctx.font = '700 15px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+        ctx.fillText(LET[i] + ' · ' + g.teeth[i] + ' d', cx, Math.min(cv.height - 8, cy + rs[i] * sc + 22));
+        if (i === 0) arrow(cx, cy, rs[i] * sc + 14, g.dir0);
+        if (isQ && answered.reveal) arrow(cx, cy, rs[i] * sc + 14, g.dirL);
+      }
+      ctx.textAlign = 'left';
+      if (spinning) raf = requestAnimationFrame(frame);
+    }
+    frame(0);
+
+    const ans = root.querySelector('.answers');
+    let misses = 0;
+    options.forEach(o => {
+      const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = o.t;
+      b.addEventListener('click', () => {
+        if (answered.done) return;
+        if (o.ok) {
+          answered.done = true; answered.reveal = true; b.style.borderColor = COL.ok; b.style.color = COL.ok;
+          const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!reduce) { spinning = true; tStart = performance.now(); raf = requestAnimationFrame(frame); } else frame(0);
+          award(prize, () => openEngranajes(diff));
+        } else {
+          misses++;
+          b.disabled = true; b.classList.add('shake');
+          const hint = diff === 1 ? 'Pista: dos engranajes que se tocan giran en sentidos contrarios. Ve alternando de uno en uno.'
+            : 'Pista: vueltas del último = vueltas de A × dientes de A ÷ dientes del último.' + (diff === 3 ? ' Y el sentido cambia en cada engranaje.' : '');
+          setFeedback(misses === 1 ? 'No es esa. ' + hint : 'Tampoco. ' + hint, 'bad');
+        }
+      });
+      ans.appendChild(b);
+    });
+    openModal({ kind: 'Engranajes ' + STARS(diff), title: 'Taller de Engranajes', prize, body: root, actions: [], cleanup: () => { spinning = false; cancelAnimationFrame(raf); } });
+  }
+
+  /* =========================================================
+     BIBLIOTECA: fichas de ayuda
+     ========================================================= */
+  const FICHAS = {
+    palanca: { t: 'La balanza de brazos', p: ['Una balanza de brazos es una palanca. Cada pesa empuja su brazo hacia abajo con una fuerza que depende de dos cosas: cuánto pesa y lo lejos que está del punto de apoyo.', 'Esa fuerza de giro se llama <b>momento</b>: momento = peso × distancia. La balanza queda horizontal cuando la suma de momentos de la izquierda es igual a la de la derecha.'], eg: '4 kg a distancia 3 → 4 × 3 = 12\n6 kg a distancia 2 → 6 × 2 = 12  ✔ equilibrio' },
+    circuito: { t: 'El circuito eléctrico', p: ['La corriente eléctrica sale de la pila, recorre los cables y llega a la bombilla. Solo circula si el camino está completo, sin huecos: es un <b>circuito cerrado</b>.', 'Si un cable está girado o cortado, el circuito queda <b>abierto</b> y la bombilla no luce. Los interruptores funcionan justo así: abren o cierran el camino.'], eg: 'Pila → cable → cable → bombilla  ✔ cerrado\nPila → cable ✕ hueco → bombilla  ✘ abierto' },
+    engranaje: { t: 'Los engranajes', p: ['Dos engranajes que encajan giran en <b>sentidos contrarios</b>. En una fila de engranajes, el sentido va cambiando: A horario, B antihorario, C horario…', 'Los dientes que pasan por el punto de contacto son los mismos en los dos engranajes. Por eso el engranaje pequeño gira más rápido que el grande. Los engranajes intermedios solo cambian el sentido, no la velocidad final.'], eg: 'vueltas del último = vueltas de A × dientes de A ÷ dientes del último\nA: 20 dientes a 15 v/min, B: 10 dientes → 15 × 20 ÷ 10 = 30 v/min' }
+  };
+  function openFicha(topic) {
+    const f = FICHAS[topic];
+    const root = document.createElement('div'); root.className = 'ficha';
+    root.innerHTML = f.p.map(x => '<p>' + x + '</p>').join('') + '<pre class="eg">' + f.eg + '</pre>';
+    openModal({ kind: 'Ficha de la biblioteca', title: f.t, prize: null, body: root, actions: [{ label: 'Entendido', fn: closeModal }] });
+  }
+
+  /* =========================================================
+     DIBUJO DE VEHÍCULOS
+     ========================================================= */
+  const TIER_COL = () => [COL.muted, COL.chalk, COL.ok, COL.hazard];
+  function drawVehicle(ctx, vk, x, y, s, body, tiers) {
+    const tc = TIER_COL();
+    const tcol = k => tc[tiers ? (tiers[k] || 0) : 1];
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.lineWidth = 2 / s * s; ctx.strokeStyle = COL.ink;
+    if (vk === 'kart') {
+      ctx.fillStyle = tcol('aleron'); ctx.fillRect(-34, -22, 4, 14); ctx.fillRect(-40, -24, 16, 4);
+      ctx.fillStyle = tcol('chasis'); ctx.beginPath(); ctx.moveTo(-34, 2); ctx.lineTo(30, 2); ctx.lineTo(36, -6); ctx.lineTo(-10, -10); ctx.lineTo(-34, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-16, -9); ctx.lineTo(14, -8); ctx.lineTo(24, -4); ctx.lineTo(-16, -2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = tcol('motor'); ctx.fillRect(-30, -16, 12, 8); ctx.strokeRect(-30, -16, 12, 8);
+      ctx.fillStyle = body; ctx.beginPath(); ctx.arc(-4, -18, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = tcol('ruedas'); [-24, 24].forEach(wx => { ctx.beginPath(); ctx.arc(wx, 4, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(wx, 4, 3, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = tcol('ruedas'); });
+    } else if (vk === 'avioneta') {
+      ctx.fillStyle = tcol('fuselaje'); ctx.beginPath(); ctx.ellipse(0, 0, 36, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-30, -2); ctx.lineTo(-42, -20); ctx.lineTo(-34, -20); ctx.lineTo(-20, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = tcol('alas'); ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(10, 0); ctx.lineTo(4, 18); ctx.lineTo(-10, 18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.ellipse(10, -6, 8, 4, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = tcol('motor'); ctx.beginPath(); ctx.arc(34, 0, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = tcol('helice'); ctx.fillRect(39, -16, 4, 32); ctx.strokeRect(39, -16, 4, 32);
+    } else {
+      ctx.fillStyle = tcol('carroceria'); ctx.beginPath(); ctx.moveTo(-40, 0); ctx.quadraticCurveTo(-36, -12, 0, -12); ctx.quadraticCurveTo(34, -10, 42, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = tcol('panel'); ctx.fillRect(-26, -16, 44, 5); ctx.strokeRect(-26, -16, 44, 5);
+      ctx.strokeStyle = COL.ink; ctx.lineWidth = 1; for (let i = -18; i < 18; i += 8) { ctx.beginPath(); ctx.moveTo(i, -16); ctx.lineTo(i, -11); ctx.stroke(); }
+      ctx.lineWidth = 2;
+      ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(6, -10, 8, 5, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = tcol('bateria'); ctx.fillRect(-20, -6, 12, 5);
+      ctx.fillStyle = tcol('ruedas'); [-26, 0, 28].forEach(wx => { ctx.beginPath(); ctx.arc(wx, 2, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+    }
+    ctx.restore();
+  }
+
+  /* =========================================================
+     GARAJE
+     ========================================================= */
+  const STAT_INFO = [
+    { k: 'vel', label: 'Velocidad punta', max: 34 },
+    { k: 'ace', label: 'Aceleración', max: 34 },
+    { k: 'ctl', label: 'Control', max: 34 },
+    { k: 'peso', label: 'Peso (cuanto menos, mejor)', max: 40 }
+  ];
+  function vehPicker(el, after) {
+    el.innerHTML = '';
+    VKEYS.forEach(vk => {
+      const b = document.createElement('button'); b.className = 'veh-btn'; b.textContent = VEH[vk].name;
+      b.setAttribute('aria-pressed', String(state.veh === vk));
+      b.addEventListener('click', () => { state.veh = vk; save(); after(); });
+      el.appendChild(b);
+    });
+  }
+  function tiersOf(vk) { const o = {}; VEH[vk].slots.forEach(sl => { const p = partById(state.eq[vk][sl.k]); o[sl.k] = p ? p.tier : 0; }); return o; }
+  function drawPreview() {
+    const cv = $('#g-preview'), ctx = cv.getContext('2d');
+    ctx.fillStyle = COL.ink; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = 'rgba(157,187,210,.15)'; ctx.lineWidth = 1;
+    for (let x = 0; x < cv.width; x += 24) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
+    for (let y = 0; y < cv.height; y += 24) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); }
+    ctx.strokeStyle = COL.line; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(140, 200); ctx.lineTo(820, 200); ctx.stroke();
+    drawVehicle(ctx, state.veh, 480, 150, 4.2, COL.signal, tiersOf(state.veh));
+    ctx.fillStyle = COL.muted; ctx.font = '12px "IBM Plex Mono", monospace';
+    ctx.fillText('COLOR DE CADA PIEZA = NIVEL:', 24, 236);
+    const tc = TIER_COL(); ['inicial', '★', '★★', '★★★'].forEach((n, i) => { ctx.fillStyle = tc[i]; ctx.fillRect(250 + i * 100, 226, 14, 14); ctx.fillStyle = COL.chalk; ctx.fillText(n, 270 + i * 100, 236); });
+    ctx.font = '22px Bungee, sans-serif'; ctx.fillStyle = COL.hazard; ctx.fillText(VEH[state.veh].name.toUpperCase(), 24, 40);
+  }
+  function renderStats(el, vk) {
+    const s = vehicleStats(vk);
+    el.innerHTML = '<span class="label">Ficha técnica</span>' + STAT_INFO.map(i =>
+      '<div class="stat"><div class="stat-head"><span>' + i.label + '</span><b>' + s[i.k] + '</b></div><div class="meter' + (i.k === 'peso' ? ' peso' : '') + '"><i style="width:' + Math.min(100, s[i.k] / i.max * 100).toFixed(0) + '%"></i></div></div>').join('');
+  }
+  function renderGarage() {
+    vehPicker($('#g-veh'), renderGarage);
+    const vk = state.veh;
+    const box = $('#g-slots'); box.innerHTML = '<span class="label">Piezas montadas · elige entre las que has ganado</span>';
+    VEH[vk].slots.forEach(sl => {
+      const owned = state.inv.filter(p => p.veh === vk && p.slot === sl.k).sort((a, b) => b.tier - a.tier || partScore(b) - partScore(a));
+      const row = document.createElement('div'); row.className = 'slot';
+      const id = 'slot-' + vk + '-' + sl.k;
+      row.innerHTML = '<label for="' + id + '"><b>' + sl.label + '</b></label>';
+      const sel = document.createElement('select'); sel.id = id;
+      owned.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name + (p.tier ? ' ' + '★'.repeat(p.tier) : ''); if (state.eq[vk][sl.k] === p.id) o.selected = true; sel.appendChild(o); });
+      const mini = document.createElement('div'); mini.className = 'mini';
+      const showMini = () => { const p = partById(Number(sel.value)); mini.textContent = p ? 'Vel ' + p.vel + ' · Acel ' + p.ace + ' · Ctrl ' + p.ctl + ' · Peso ' + p.peso : ''; };
+      sel.addEventListener('change', () => { state.eq[vk][sl.k] = Number(sel.value); save(); showMini(); renderStats($('#g-stats'), vk); drawPreview(); });
+      row.appendChild(sel); row.appendChild(mini); showMini();
+      box.appendChild(row);
+    });
+    renderStats($('#g-stats'), vk);
+    drawPreview();
+  }
+
+  /* =========================================================
+     CARRERAS
+     ========================================================= */
+  function racerParams(s) {
+    return {
+      vmax: (30 + s.vel * 2.6) * (1 - s.peso / 300),
+      acc: (10 + s.ace * 3) / (1 + s.peso / 50),
+      cap: 22 + s.ctl * 2.8
+    };
+  }
+  function rivalStats(vk, tier) {
+    const t = { vel: 0, ace: 0, ctl: 0, peso: 0 };
+    VEH[vk].slots.forEach(sl => {
+      const tr = Math.max(0, Math.min(3, Math.random() < (tier % 1) ? Math.ceil(tier) : Math.floor(tier)));
+      const p = rollPart(vk, sl.k, tr);
+      t.vel += p.vel; t.ace += p.ace; t.ctl += p.ctl; t.peso += p.peso;
+    });
+    return t;
+  }
+  const raceCv = $('#race'), rctx = raceCv.getContext('2d');
+  let race = null, raceRaf = 0;
+
+  function cupUnlocked(vk, i) { return i === 0 || state.trophies[vk][CUPS[i - 1].k]; }
+
+  function renderRace() {
+    vehPicker($('#r-veh'), () => { if (race && race.running) return; race = null; renderRace(); });
+    const vk = state.veh, tr = TRACKS[vk];
+    $('#r-track').textContent = tr.name;
+    $('#r-desc').textContent = tr.desc;
+    const box = $('#r-cups'); box.innerHTML = '';
+    CUPS.forEach((c, i) => {
+      const won = state.trophies[vk][c.k], open = cupUnlocked(vk, i);
+      const d = document.createElement('div'); d.className = 'cup' + (won ? ' won' : '');
+      d.innerHTML = '<h3>' + c.name + (won ? ' 🏆' : '') + '</h3><p>' + (open ? c.desc : 'Gana la ' + CUPS[i - 1].name + ' para desbloquearla.') + '</p>';
+      const b = document.createElement('button'); b.className = 'btn' + (open ? '' : ' ghost'); b.textContent = won ? 'Correr otra vez' : 'Correr';
+      b.disabled = !open || !!(race && race.running);
+      b.addEventListener('click', () => startRace(i));
+      d.appendChild(b); box.appendChild(d);
+    });
+    if (!race) drawRace();
+    if (!race || !race.finished) $('#r-out').innerHTML = '';
+  }
+
+  function startRace(ci) {
+    const vk = state.veh;
+    const me = { name: 'Tú', color: COL.hazard, stats: vehicleStats(vk), me: true };
+    const rivals = RIVALS.map(r => ({ name: r.name, color: COL[r.color], stats: rivalStats(vk, CUPS[ci].tier + (Math.random() * .4 - .2)) }));
+    const racers = [me].concat(rivals).map(r => Object.assign(r, { p: racerParams(r.stats), x: 0, v: 0, t: 0, done: false, zoneT: 0 }));
+    race = { ci, vk, racers, running: true, finished: false, clock: 0, last: performance.now(), order: [] };
+    renderRace();
+    $('#r-out').innerHTML = '<p class="hint">¡Salida!</p>';
+    cancelAnimationFrame(raceRaf);
+    raceRaf = requestAnimationFrame(raceTick);
+  }
+
+  function inZone(vk, x) { return TRACKS[vk].zones.some(z => x >= z[0] && x <= z[1]); }
+
+  function raceTick(now) {
+    if (!race) return;
+    let dt = Math.min(0.05, (now - race.last) / 1000); race.last = now;
+    const sim = dt * 1.7;
+    const steps = Math.ceil(sim / (1 / 120));
+    const h = sim / steps;
+    for (let k = 0; k < steps; k++) {
+      race.clock += h;
+      race.racers.forEach(r => {
+        if (r.done) return;
+        const z = inZone(race.vk, r.x);
+        const target = z ? Math.min(r.p.vmax, r.p.cap) : r.p.vmax;
+        if (r.v < target) r.v = Math.min(target, r.v + r.p.acc * h);
+        else r.v = Math.max(target, r.v - 90 * h);
+        r.x += r.v * h; r.t += h; if (z) r.zoneT += h;
+        if (r.x >= TRACK_LEN) { r.x = TRACK_LEN; r.done = true; race.order.push(r); }
+      });
+    }
+    drawRace();
+    if (race.racers.every(r => r.done)) { race.running = false; race.finished = true; finishRace(); return; }
+    raceRaf = requestAnimationFrame(raceTick);
+  }
+
+  function drawRace() {
+    const ctx = rctx, Wd = raceCv.width, Hd = raceCv.height;
+    const vk = race ? race.vk : state.veh, tr = TRACKS[vk];
+    const sky = vk === 'avioneta';
+    ctx.fillStyle = sky ? '#173f63' : COL.ink; ctx.fillRect(0, 0, Wd, Hd);
+    const X0 = 70, X1 = Wd - 50, top = 52, lane = 64;
+    const px = x => X0 + x / TRACK_LEN * (X1 - X0);
+    // carriles
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = vk === 'solar' ? (i % 2 ? '#1d4a6c' : '#1a4466') : (i % 2 ? COL['ink-3'] : COL['ink-2']);
+      ctx.fillRect(X0 - 40, top + i * lane, X1 - X0 + 60, lane - 4);
+    }
+    // zonas
+    tr.zones.forEach(z => {
+      const a = px(z[0]), b = px(z[1]);
+      ctx.save(); ctx.beginPath(); ctx.rect(a, top, b - a, lane * 4 - 4); ctx.clip();
+      ctx.fillStyle = vk === 'solar' ? 'rgba(245,197,66,.16)' : 'rgba(255,123,71,.14)'; ctx.fillRect(a, top, b - a, lane * 4);
+      ctx.strokeStyle = vk === 'solar' ? 'rgba(245,197,66,.35)' : 'rgba(255,123,71,.35)'; ctx.lineWidth = 6;
+      for (let s = a - 260; s < b; s += 16) { ctx.beginPath(); ctx.moveTo(s, top + lane * 4); ctx.lineTo(s + 260, top); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle = COL.muted; ctx.font = '11px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+      ctx.fillText(tr.zone.toUpperCase(), (a + b) / 2, top - 8);
+    });
+    ctx.textAlign = 'left';
+    // salida y meta
+    ctx.fillStyle = COL.chalk; ctx.fillRect(px(0) - 2, top, 3, lane * 4 - 4);
+    for (let j = 0; j < 4 * lane / 8; j++) for (let i = 0; i < 2; i++) { ctx.fillStyle = (i + j) % 2 ? COL.ink : COL.chalk; ctx.fillRect(px(TRACK_LEN) + i * 8, top + j * 8, 8, 8); }
+    ctx.font = '16px Bungee, sans-serif'; ctx.fillStyle = COL.chalk; ctx.fillText(tr.name.toUpperCase(), 16, 30);
+    // corredores
+    const racers = race ? race.racers : [{ name: 'Tú', color: COL.hazard, x: 0, me: true }].concat(RIVALS.map(r => ({ name: r.name, color: COL[r.color], x: 0 })));
+    racers.forEach((r, i) => {
+      const y = top + i * lane + lane / 2;
+      ctx.fillStyle = r.me ? COL.hazard : COL.muted; ctx.font = (r.me ? '700 ' : '') + '11px "IBM Plex Mono", monospace';
+      ctx.fillText(r.name, 8, y + 4);
+      drawVehicle(ctx, vk, px(r.x) - 22, y + 4, 0.8, r.color, null);
+    });
+    ctx.fillStyle = COL.muted; ctx.font = '12px "IBM Plex Mono", monospace';
+    ctx.fillText(race ? ('Tiempo ' + race.clock.toFixed(2) + ' s') : 'Elige una copa y pulsa Correr', 16, Hd - 12);
+  }
+
+  function finishRace() {
+    const vk = race.vk, cup = CUPS[race.ci];
+    const me = race.racers.find(r => r.me);
+    const place = race.order.indexOf(me) + 1;
+    let html = race.order.map((r, i) => '<div class="res-row' + (r.me ? ' me' : '') + '"><span>' + (i + 1) + 'º</span><span>' + r.name + '</span><span>' + r.t.toFixed(2) + ' s</span></div>').join('');
+    let tip = '';
+    if (place === 1) {
+      const first = !state.trophies[vk][cup.k];
+      state.trophies[vk][cup.k] = true; save(); updateCounters();
+      tip = first ? '¡Has ganado la ' + cup.name + '! ' + (race.ci < 2 ? 'Ya puedes correr la ' + CUPS[race.ci + 1].name + '.' : 'Eres campeón de ' + VEH[vk].name + '.') : '¡Victoria otra vez!';
+      if (trophyCount() === 9) tip += ' Tienes los 9 trofeos: ¡campeonato completo!';
+    } else {
+      const win = race.order[0];
+      const gaps = {
+        vel: (win.stats.vel - me.stats.vel) / 34,
+        ace: (win.stats.ace - me.stats.ace) / 34,
+        ctl: (win.stats.ctl - me.stats.ctl) / 34,
+        peso: (me.stats.peso - win.stats.peso) / 40
+      };
+      const worst = Object.keys(gaps).sort((a, b) => gaps[b] - gaps[a])[0];
+      const slots = VEH[vk].slots;
+      const best = k => slots.slice().sort((a, b) => (k === 'peso' ? b.w - a.w : b.p[k] - a.p[k]))[0].label.toLowerCase();
+      const msg = {
+        vel: 'Te faltó velocidad punta. La pieza que más la sube es: ' + best('vel') + '.',
+        ace: 'Arrancas despacio: te falta aceleración. Mejora sobre todo: ' + best('ace') + '.',
+        ctl: 'Perdiste tiempo en las zonas de ' + TRACKS[vk].zone.toLowerCase() + ': te falta control. Prueba a mejorar: ' + best('ctl') + '.',
+        peso: 'Tu vehículo pesa demasiado y eso frena la aceleración. Busca un ' + best('peso') + ' más ligero.'
+      }[worst];
+      tip = 'Has quedado ' + place + 'º. ' + msg + ' Resuelve acertijos de más estrellas para conseguir piezas mejores.';
+    }
+    html += '<p class="tip">' + tip + '</p>';
+    $('#r-out').innerHTML = html;
+    renderRace();
+    $('#r-out').innerHTML = html;
+  }
+
+  /* ---------- bucle principal ---------- */
+  let lastT = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    if (view === 'school' && modal.hidden) updatePlayer(dt);
+    if (view === 'school') drawMap(now / 1000);
+    requestAnimationFrame(loop);
+  }
+
+  updateCounters();
+  drawRace();
+  requestAnimationFrame(loop);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (view === 'garage') drawPreview(); if (!race) drawRace(); });
+})();
+</script>
+
+</body>
+</html>

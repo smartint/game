@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pelusines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@500;700;800&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+/* Layout: una sola pantalla de juego tipo mesa de juguete; tablero de baldosas al centro, mando debajo. Estilo único (claro), deliberado. */
+:root {
+  color-scheme: light;
+  --sea: #cfe6df;
+  --sea-deep: #b5d6cd;
+  --frame: #1f4b55;
+  --wall: #2f6d77;
+  --wall-top: #4b929b;
+  --tile-a: #f6f1e3;
+  --tile-b: #ece4cf;
+  --ink: #17323a;
+  --ink-soft: #4a6870;
+  --paper: #fffaf0;
+  --gold: #f2a900;
+  --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(circle at 50% 0%, var(--sea) 0%, var(--sea-deep) 100%) fixed, var(--sea);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  max-width: 620px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(30px, 8vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.5px;
+  color: var(--frame);
+}
+h1 span { color: #e5484d; }
+.hud { display: flex; gap: 8px; align-items: stretch; }
+.chip {
+  background: var(--paper);
+  border: 2px solid var(--frame);
+  border-radius: 12px;
+  padding: 4px 10px;
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 56px;
+  box-shadow: 0 3px 0 var(--frame);
+}
+.chip small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); font-weight: 800; }
+.chip b { font-family: var(--display); font-size: 22px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tip { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.4; text-wrap: pretty; }
+.tip strong { color: var(--ink); }
+
+.stage { display: flex; justify-content: center; }
+.board {
+  --c: 56px;
+  position: relative;
+  background: var(--frame);
+  padding: 10px;
+  border-radius: 20px;
+  box-shadow: 0 6px 0 #133238, 0 14px 30px rgba(23, 50, 58, .28);
+  touch-action: none;
+  user-select: none;
+}
+.grid { display: grid; position: relative; border-radius: 10px; overflow: hidden; }
+.tile { width: var(--c); height: var(--c); position: relative; }
+.tile.floor { background: var(--tile-a); }
+.tile.floor.alt { background: var(--tile-b); }
+.tile.wall { background: var(--frame); }
+.tile.wall::after {
+  content: ""; position: absolute; inset: 3px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--wall-top) 0 22%, var(--wall) 22% 100%);
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,.18);
+}
+.goal { position: absolute; inset: 14%; display: grid; place-items: center; }
+.goal svg { width: 100%; height: 100%; overflow: visible; }
+.goal.lit svg { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.08); } }
+
+.layer { position: absolute; left: 10px; top: 10px; pointer-events: none; }
+.critter {
+  position: absolute; left: 0; top: 0;
+  width: var(--c); height: var(--c);
+  transform: translate(calc(var(--x) * var(--c)), calc(var(--y) * var(--c)));
+  transition: transform 140ms cubic-bezier(.3,.7,.4,1.2);
+}
+.critter .body { width: 100%; height: 100%; display: block; transform-origin: 50% 90%; }
+.critter svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.critter.moved .body { animation: hop 160ms ease-out; }
+@keyframes hop { 0% { transform: scale(1.12, .86); } 60% { transform: scale(.94, 1.08); } 100% { transform: none; } }
+.critter.bump-U .body { animation: bumpU 200ms ease-out; }
+.critter.bump-D .body { animation: bumpD 200ms ease-out; }
+.critter.bump-L .body { animation: bumpL 200ms ease-out; }
+.critter.bump-R .body { animation: bumpR 200ms ease-out; }
+@keyframes bumpU { 40% { transform: translateY(-9%) scale(1.06, .9); } }
+@keyframes bumpD { 40% { transform: translateY(9%) scale(1.08, .88); } }
+@keyframes bumpL { 40% { transform: translateX(-9%) scale(.9, 1.06); } }
+@keyframes bumpR { 40% { transform: translateX(9%) scale(.9, 1.06); } }
+.pupil { transition: transform 140ms ease-out; }
+.critter[data-look="U"] .pupil { transform: translate(0, -3px); }
+.critter[data-look="D"] .pupil { transform: translate(0, 3px); }
+.critter[data-look="L"] .pupil { transform: translate(-3px, 0); }
+.critter[data-look="R"] .pupil { transform: translate(3px, 0); }
+.critter .happy { opacity: 0; }
+.critter.home .happy { opacity: 1; }
+.critter.home .eyes-open { opacity: 0; }
+.critter.home .body { animation: wiggle 1.4s ease-in-out infinite; }
+@keyframes wiggle { 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+.pad { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 4px; }
+.pad button[data-dir="U"] { grid-column: 2; grid-row: 1; }
+.pad button[data-dir="L"] { grid-column: 1; grid-row: 2; }
+.pad button[data-dir="R"] { grid-column: 3; grid-row: 2; }
+.pad button[data-dir="D"] { grid-column: 2; grid-row: 3; }
+button {
+  font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--paper);
+  border: 2px solid var(--frame);
+  border-radius: 14px;
+  box-shadow: 0 4px 0 var(--frame);
+  transition: transform 80ms, box-shadow 80ms;
+}
+button:active, button.pressed { transform: translateY(3px); box-shadow: 0 1px 0 var(--frame); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+button:disabled { opacity: .45; cursor: default; }
+.pad button { font-size: 24px; font-weight: 800; display: grid; place-items: center; padding: 0; }
+.pad button.hinted { background: var(--gold); animation: pulse .7s ease-in-out 3; }
+.side { display: flex; flex-direction: column; gap: 8px; }
+.side.left { align-items: flex-end; }
+.side.right { align-items: flex-start; }
+.side button { padding: 8px 14px; font-weight: 800; font-size: 14px; min-width: 104px; text-align: left; }
+.side button kbd { font-family: var(--body); font-size: 11px; color: var(--ink-soft); margin-left: 4px; }
+.status { min-height: 1.4em; text-align: center; font-weight: 800; color: var(--ink-soft); margin: 0; }
+
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  background: rgba(23, 50, 58, .55);
+  display: grid; place-items: center;
+  padding: 16px;
+}
+.card {
+  background: var(--paper);
+  border: 3px solid var(--frame);
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--frame);
+  padding: 22px 20px;
+  width: min(420px, 100%);
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  display: flex; flex-direction: column; gap: 14px;
+  text-align: center;
+}
+.card h2 { margin: 0; font-family: var(--display); font-size: 32px; line-height: 1; color: var(--frame); text-wrap: balance; }
+.card p { margin: 0; line-height: 1.45; }
+.stars { font-size: 40px; letter-spacing: 6px; color: #d9cfb6; }
+.stars .on { color: var(--gold); text-shadow: 0 2px 0 #b07a00; }
+.row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.row button { padding: 10px 18px; font-weight: 800; }
+.row button.primary { background: var(--gold); }
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.levels button { padding: 8px 0 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.levels button b { font-family: var(--display); font-size: 24px; line-height: 1; }
+.levels button span { font-size: 12px; color: #d9cfb6; letter-spacing: 1px; }
+.levels button span .on { color: var(--gold); }
+.levels button.current { background: #fde9b0; }
+.legend { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
+
+@media (max-width: 460px) {
+  .controls { grid-template-columns: 1fr 1fr; }
+  .pad { grid-column: 1 / -1; justify-self: center; grid-row: 1; }
+  .side.left, .side.right { align-items: stretch; }
+  .side button { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .critter, .pupil { transition: none; }
+  .critter .body, .goal.lit svg, .pad button.hinted { animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Pelu<span>sines</span></h1>
+    <div class="hud">
+      <div class="chip"><small>Nivel</small><b id="hud-level">1</b></div>
+      <div class="chip"><small>Pasos</small><b id="hud-moves">0</b></div>
+      <div class="chip"><small>Récord</small><b id="hud-par">0</b></div>
+    </div>
+  </header>
+  <p class="tip">Lleva cada pelusín a la casilla de <strong>su color y su forma</strong>. Todos se mueven a la vez un paso. Choca a unos contra los muros para que los otros puedan avanzar.</p>
+
+  <div class="stage">
+    <div class="board" id="board" aria-label="Tablero del juego">
+      <div class="grid" id="grid"></div>
+      <div class="layer" id="layer"></div>
+    </div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="controls">
+    <div class="side left">
+      <button type="button" id="btn-undo">↶ Deshacer <kbd>Z</kbd></button>
+      <button type="button" id="btn-reset">⟲ Reiniciar <kbd>R</kbd></button>
+    </div>
+    <div class="pad" id="pad">
+      <button type="button" data-dir="U" aria-label="Arriba">▲</button>
+      <button type="button" data-dir="L" aria-label="Izquierda">◀</button>
+      <button type="button" data-dir="R" aria-label="Derecha">▶</button>
+      <button type="button" data-dir="D" aria-label="Abajo">▼</button>
+    </div>
+    <div class="side right">
+      <button type="button" id="btn-hint">💡 Pista <kbd>H</kbd></button>
+      <button type="button" id="btn-levels">▦ Niveles</button>
+      <button type="button" id="btn-sound">♪ Sonido: sí</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="win" hidden>
+  <div class="card" role="dialog" aria-labelledby="win-title">
+    <h2 id="win-title">¡Todos en casa!</h2>
+    <div class="stars" id="win-stars"></div>
+    <p id="win-text"></p>
+    <div class="row">
+      <button type="button" id="win-retry">Repetir</button>
+      <button type="button" class="primary" id="win-next">Siguiente nivel ▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="menu" hidden>
+  <div class="card" role="dialog" aria-labelledby="menu-title">
+    <h2 id="menu-title">Elige nivel</h2>
+    <p>Tres estrellas si igualas el récord de pasos. Cada nivel tiene solución comprobada.</p>
+    <div class="levels" id="level-list"></div>
+    <div class="legend">Teclado: flechas o WASD · Z deshacer · R reiniciar · H pista</div>
+    <div class="row"><button type="button" id="menu-close">Volver al juego</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Niveles generados y verificados por búsqueda en anchura: "par" es el número mínimo de pasos.
+  // Mapa: '#' muro, 'a'..'d' posición inicial de cada pelusín. Metas: índice de casilla (y*ancho+x).
+  const LEVELS = [
+    { map: ['.A..#', 'a.##.', '....b', '...B.', '..#..'], goals: [1, 18], par: 6 },
+    { map: ['.#...', '..b.#', '....A', '..B..', '##..a'], goals: [14, 17], par: 8 },
+    { map: ['.#.###', '...#B.', 'a..#.b', '...##.', '#A....'], goals: [25, 10], par: 10 },
+    { map: ['.B.#a.', '#.##..', '......', 'b.#..#', '.#.#A.', '...#..'], goals: [28, 1], par: 12 },
+    { map: ['.B##..', '......', '.b.#..', '.A.ac#', '..#C#.', '......'], goals: [19, 1, 27], par: 10 },
+    { map: ['.B#.c.', 'b.#C.#', '.#..#a', '......', '...#.A', '#.....'], goals: [29, 1, 9], par: 11 },
+    { map: ['....#ab', '...#..#', '..#.#BA', '.#C....', '.#..c#.', '.......'], goals: [20, 19, 23], par: 13 },
+    { map: ['a.#..##', '#...###', '#A.b..B', '.C.##..', '#.....#', '.#c##.#', '...#...'], goals: [15, 20, 22], par: 14 },
+    { map: ['.#.....', '.....#.', '....B..', '....#ab', '..##C..', '#.c....', '..###A.'], goals: [47, 18, 32], par: 16 },
+    { map: ['.....b.', '....##B', '......#', '.A.....', '.#a.C#.', '#......', 'd.D#c#.'], goals: [22, 13, 32, 44], par: 13 },
+    { map: ['d..D##..', '....#a#.', '#..#..#.', '..#.A.B.', '...C....', '.c.#.#..', '...##.b.'], goals: [28, 30, 35, 3], par: 15 },
+    { map: ['...c.C..', '#...#B..', '...#....', '....#b..', '..#..#.A', '#...d#a.', '#..D#..#', '..#.#.##'], goals: [39, 13, 5, 51], par: 17 }
+  ];
+
+  const CRITTERS = [
+    { name: 'Rojo',     fill: '#e5484d', deep: '#a8262c', belly: '#ffb3b5', shape: 'circle' },
+    { name: 'Azul',     fill: '#3d7cf5', deep: '#1f4fb0', belly: '#b8d0ff', shape: 'triangle' },
+    { name: 'Amarillo', fill: '#f4b400', deep: '#b07a00', belly: '#ffe7a3', shape: 'square' },
+    { name: 'Morado',   fill: '#9a5be0', deep: '#62309e', belly: '#dcc4ff', shape: 'diamond' }
+  ];
+  const DIRS = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
+  const ARROW = { U: '▲', D: '▼', L: '◀', R: '▶' };
+  const STORE_KEY = 'pelusines-progreso-v1';
+
+  const $ = (id) => document.getElementById(id);
+  const boardEl = $('board'), gridEl = $('grid'), layerEl = $('layer');
+
+  let progress = {};
+  try { progress = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { progress = {}; }
+  function saveProgress() { try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ } }
+
+  // ---------- Estado ----------
+  let level = 0, W = 0, H = 0, walls = new Set(), start = [], pos = [], goals = [], par = 0;
+  let history = [], moves = 0, busy = false, won = false, critterEls = [], goalEls = [];
+
+  function parseLevel(i) {
+    const L = LEVELS[i];
+    H = L.map.length; W = L.map[0].length;
+    walls = new Set(); start = [];
+    L.map.forEach((row, y) => {
+      for (let x = 0; x < W; x++) {
+        const ch = row[x];
+        if (ch === '#') walls.add(y * W + x);
+        const k = 'abcd'.indexOf(ch);
+        if (k >= 0) start[k] = y * W + x;
+      }
+    });
+    goals = L.goals.slice(); par = L.par;
+  }
+
+  // ---------- Reglas: todos se mueven un paso a la vez ----------
+  function step(state, dir) {
+    const [dx, dy] = DIRS[dir];
+    const tgt = state.map((p) => {
+      const x = p % W, y = (p - x) / W, nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) return -1;
+      const q = ny * W + nx;
+      return walls.has(q) ? -1 : q;
+    });
+    const moving = tgt.map((t) => t !== -1);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < state.length; i++) {
+        if (!moving[i]) continue;
+        for (let j = 0; j < state.length; j++) {
+          if (j !== i && state[j] === tgt[i] && !moving[j]) { moving[i] = false; changed = true; break; }
+        }
+      }
+    }
+    return state.map((p, i) => (moving[i] ? tgt[i] : p));
+  }
+
+  function solvedState(state) { return state.every((p, i) => p === goals[i]); }
+
+  // Pista: búsqueda en anchura desde la posición actual hasta la meta.
+  function nextBestMove(from) {
+    const key = (a) => a.join(',');
+    const gk = key(goals);
+    if (key(from) === gk) return null;
+    const first = new Map([[key(from), null]]);
+    let frontier = [from];
+    while (frontier.length && first.size < 400000) {
+      const next = [];
+      for (const s of frontier) {
+        const sk = key(s);
+        for (const m of 'UDLR') {
+          const t = step(s, m), tk = key(t);
+          if (first.has(tk)) continue;
+          const f = first.get(sk) || m;
+          first.set(tk, f);
+          if (tk === gk) return f;
+          next.push(t);
+        }
+      }
+      frontier = next;
+    }
+    return null;
+  }
+
+  // ---------- Dibujo ----------
+  function furPath() {
+    const spikes = 26, cx = 50, cy = 54;
+    let d = '';
+    for (let i = 0; i < spikes * 2; i++) {
+      const a = (Math.PI * i) / spikes - Math.PI / 2;
+      const r = i % 2 === 0 ? 45 : 38.5;
+      const ry = r * 0.94;
+      d += (i === 0 ? 'M' : 'L') + (cx + Math.cos(a) * r).toFixed(1) + ' ' + (cy + Math.sin(a) * ry).toFixed(1) + ' ';
+    }
+    return d + 'Z';
+  }
+  const FUR = furPath();
+
+  function shapeSvg(shape, cx, cy, s, fill, stroke, sw) {
+    const st = 'fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + sw + '" stroke-linejoin="round"';
+    if (shape === 'circle') return '<circle cx="' + cx + '" cy="' + cy + '" r="' + s + '" ' + st + '/>';
+    if (shape === 'square') return '<rect x="' + (cx - s * 0.88) + '" y="' + (cy - s * 0.88) + '" width="' + (s * 1.76) + '" height="' + (s * 1.76) + '" rx="' + (s * 0.2) + '" ' + st + '/>';
+    if (shape === 'triangle') return '<path d="M' + cx + ' ' + (cy - s * 1.05) + ' L' + (cx + s * 1.05) + ' ' + (cy + s * 0.8) + ' L' + (cx - s * 1.05) + ' ' + (cy + s * 0.8) + ' Z" ' + st + '/>';
+    return '<path d="M' + cx + ' ' + (cy - s * 1.15) + ' L' + (cx + s * 1.05) + ' ' + cy + ' L' + cx + ' ' + (cy + s * 1.15) + ' L' + (cx - s * 1.05) + ' ' + cy + ' Z" ' + st + '/>';
+  }
+
+  function critterSvg(c) {
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<ellipse cx="50" cy="95" rx="30" ry="5" fill="rgba(23,50,58,.22)"/>' +
+      '<ellipse cx="36" cy="92" rx="9" ry="5" fill="' + c.deep + '"/>' +
+      '<ellipse cx="64" cy="92" rx="9" ry="5" fill="' + c.deep + '"/>' +
+      '<path d="' + FUR + '" fill="' + c.fill + '" stroke="' + c.deep + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<ellipse cx="42" cy="34" rx="16" ry="7" fill="rgba(255,255,255,.28)" transform="rotate(-18 42 34)"/>' +
+      shapeSvg(c.shape, 50, 72, 9, c.belly, c.deep, 2.5) +
+      '<g class="eyes-open">' +
+        '<ellipse cx="37" cy="46" rx="11" ry="12.5" fill="#fff" stroke="' + c.deep + '" stroke-width="2"/>' +
+        '<ellipse cx="63" cy="46" rx="11" ry="12.5" fill="#fff" stroke="' + c.deep + '" stroke-width="2"/>' +
+        '<g class="pupil"><circle cx="38" cy="48" r="5.5" fill="#17323a"/><circle cx="62" cy="48" r="5.5" fill="#17323a"/>' +
+        '<circle cx="39.8" cy="45.8" r="1.8" fill="#fff"/><circle cx="63.8" cy="45.8" r="1.8" fill="#fff"/></g>' +
+      '</g>' +
+      '<g class="happy" fill="none" stroke="#17323a" stroke-width="3.5" stroke-linecap="round">' +
+        '<path d="M29 48 Q37 39 45 48"/><path d="M55 48 Q63 39 71 48"/>' +
+        '<path d="M42 58 Q50 66 58 58"/>' +
+        '<circle cx="28" cy="58" r="4" fill="' + c.belly + '" stroke="none"/><circle cx="72" cy="58" r="4" fill="' + c.belly + '" stroke="none"/>' +
+      '</g>' +
+    '</svg>';
+  }
+
+  function goalSvg(c) {
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<circle cx="50" cy="50" r="44" fill="none" stroke="' + c.fill + '" stroke-width="7" stroke-dasharray="14 9" opacity=".9"/>' +
+      shapeSvg(c.shape, 50, 50, 18, c.belly, c.fill, 6) +
+    '</svg>';
+  }
+
+  function fitCell() {
+    const availW = Math.min(window.innerWidth, 620) - 32 - 20;
+    const availH = window.innerHeight - 360;
+    const c = Math.floor(Math.max(30, Math.min(72, availW / W, Math.max(availH, 260) / H)));
+    boardEl.style.setProperty('--c', c + 'px');
+  }
+
+  function buildBoard() {
+    gridEl.innerHTML = ''; layerEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = 'repeat(' + W + ', var(--c))';
+    goalEls = [];
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const t = document.createElement('div');
+        t.className = 'tile ' + (walls.has(i) ? 'wall' : 'floor' + ((x + y) % 2 ? ' alt' : ''));
+        const g = goals.indexOf(i);
+        if (g >= 0) {
+          const gd = document.createElement('div');
+          gd.className = 'goal';
+          gd.innerHTML = goalSvg(CRITTERS[g]);
+          t.appendChild(gd);
+          goalEls[g] = gd;
+        }
+        gridEl.appendChild(t);
+      }
+    }
+    critterEls = start.map((p, k) => {
+      const el = document.createElement('div');
+      el.className = 'critter';
+      el.setAttribute('aria-label', 'Pelusín ' + CRITTERS[k].name);
+      el.innerHTML = '<div class="body">' + critterSvg(CRITTERS[k]) + '</div>';
+      layerEl.appendChild(el);
+      return el;
+    });
+    fitCell();
+  }
+
+  function render(dir, prevState) {
+    pos.forEach((p, k) => {
+      const el = critterEls[k];
+      el.style.setProperty('--x', p % W);
+      el.style.setProperty('--y', Math.floor(p / W));
+      el.classList.remove('moved', 'bump-U', 'bump-D', 'bump-L', 'bump-R');
+      if (dir) {
+        el.dataset.look = dir;
+        void el.offsetWidth;
+        el.classList.add(prevState[k] === p ? 'bump-' + dir : 'moved');
+      }
+      const home = p === goals[k];
+      el.classList.toggle('home', home);
+      goalEls[k].classList.toggle('lit', !home);
+    });
+    $('hud-moves').textContent = moves;
+    $('hud-par').textContent = par;
+    $('hud-level').textContent = level + 1;
+    $('btn-undo').disabled = history.length === 0;
+  }
+
+  // ---------- Sonido (se activa tras la primera interacción) ----------
+  let soundOn = true, actx = null;
+  function beep(freq, dur, type, vol) {
+    if (!soundOn) return;
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.4, actx.currentTime + dur * 0.6);
+      g.gain.setValueAtTime(vol || 0.08, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* audio no disponible */ }
+  }
+
+  // ---------- Juego ----------
+  function loadLevel(i) {
+    level = (i + LEVELS.length) % LEVELS.length;
+    parseLevel(level);
+    pos = start.slice(); history = []; moves = 0; won = false; busy = false;
+    buildBoard();
+    render();
+    setStatus('Nivel ' + (level + 1) + ' · ' + start.length + ' pelusines · récord ' + par + ' pasos');
+    try { progress.last = level; saveProgress(); } catch (e) { /* nada */ }
+  }
+
+  function setStatus(t) { $('status').textContent = t; }
+
+  function clearHint() { document.querySelectorAll('.pad button.hinted').forEach((b) => b.classList.remove('hinted')); }
+
+  function move(dir) {
+    if (busy || won) return;
+    clearHint();
+    const prev = pos.slice();
+    const next = step(pos, dir);
+    const btn = document.querySelector('.pad button[data-dir="' + dir + '"]');
+    if (btn) { btn.classList.add('pressed'); setTimeout(() => btn.classList.remove('pressed'), 110); }
+    if (next.every((p, i) => p === prev[i])) {
+      render(dir, prev);
+      beep(140, 0.12, 'square', 0.04);
+      setStatus('Nadie puede ir hacia ' + ARROW[dir] + '. No cuenta como paso.');
+      return;
+    }
+    history.push(prev);
+    pos = next; moves++;
+    busy = true; setTimeout(() => { busy = false; }, 120);
+    render(dir, prev);
+    const homes = pos.filter((p, i) => p === goals[i]).length;
+    beep(320 + homes * 90, 0.09, 'triangle', 0.07);
+    setStatus(homes + ' de ' + pos.length + ' en su casa');
+    if (solvedState(pos)) win();
+  }
+
+  function undo() {
+    if (!history.length || won) return;
+    clearHint();
+    pos = history.pop(); moves--;
+    render();
+    setStatus('Paso deshecho');
+  }
+
+  function reset() {
+    if (won) return;
+    clearHint();
+    pos = start.slice(); history = []; moves = 0;
+    render();
+    setStatus('Nivel reiniciado');
+  }
+
+  function hint() {
+    if (won) return;
+    const m = nextBestMove(pos);
+    if (!m) { setStatus('Desde aquí no encuentro camino. Prueba a deshacer.'); return; }
+    clearHint();
+    const btn = document.querySelector('.pad button[data-dir="' + m + '"]');
+    if (btn) btn.classList.add('hinted');
+    setStatus('Pista: el mejor paso ahora es ' + ARROW[m]);
+  }
+
+  function starsFor(m) { return m <= par ? 3 : m <= Math.ceil(par * 1.5) ? 2 : 1; }
+  function starsHtml(n) { let s = ''; for (let i = 0; i < 3; i++) s += '<span class="' + (i < n ? 'on' : '') + '">★</span>'; return s; }
+
+  function win() {
+    won = true;
+    const s = starsFor(moves);
+    const prevBest = progress['l' + level];
+    if (!prevBest || moves < prevBest) progress['l' + level] = moves;
+    saveProgress();
+    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.08), 120 + i * 110));
+    setTimeout(() => {
+      $('win-stars').innerHTML = starsHtml(s);
+      $('win-text').textContent = moves === par
+        ? 'Lo has hecho en ' + moves + ' pasos: ¡igualas el récord!'
+        : 'Lo has hecho en ' + moves + ' pasos. El récord es ' + par + '. ¿Puedes ahorrar ' + (moves - par) + '?';
+      $('win-next').textContent = level === LEVELS.length - 1 ? 'Volver al nivel 1 ▶' : 'Siguiente nivel ▶';
+      $('win').hidden = false;
+      $('win-next').focus();
+    }, 650);
+  }
+
+  function openMenu() {
+    const list = $('level-list');
+    list.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      if (i === level) b.className = 'current';
+      const best = progress['l' + i];
+      const st = best ? (best <= L.par ? 3 : best <= Math.ceil(L.par * 1.5) ? 2 : 1) : 0;
+      b.innerHTML = '<b>' + (i + 1) + '</b><span>' + starsHtml(st) + '</span>';
+      b.setAttribute('aria-label', 'Nivel ' + (i + 1) + (best ? ', mejor marca ' + best + ' pasos' : ', sin jugar'));
+      b.addEventListener('click', () => { $('menu').hidden = true; loadLevel(i); });
+      list.appendChild(b);
+    });
+    $('menu').hidden = false;
+  }
+
+  // ---------- Entradas ----------
+  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState !== 'loading') init();
+  let started = false;
+  function init() {
+    if (started) return; started = true;
+
+    $('pad').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-dir]');
+      if (b) move(b.dataset.dir);
+    });
+    $('btn-undo').addEventListener('click', undo);
+    $('btn-reset').addEventListener('click', reset);
+    $('btn-hint').addEventListener('click', hint);
+    $('btn-levels').addEventListener('click', openMenu);
+    $('menu-close').addEventListener('click', () => { $('menu').hidden = true; });
+    $('btn-sound').addEventListener('click', () => {
+      soundOn = !soundOn;
+      $('btn-sound').textContent = '♪ Sonido: ' + (soundOn ? 'sí' : 'no');
+    });
+    $('win-retry').addEventListener('click', () => { $('win').hidden = true; loadLevel(level); });
+    $('win-next').addEventListener('click', () => { $('win').hidden = true; loadLevel(level + 1); });
+
+    document.addEventListener('keydown', (e) => {
+      if (!$('menu').hidden) { if (e.key === 'Escape') $('menu').hidden = true; return; }
+      if (!$('win').hidden) return;
+      const k = e.key.toLowerCase();
+      const map = { arrowup: 'U', w: 'U', arrowdown: 'D', s: 'D', arrowleft: 'L', a: 'L', arrowright: 'R', d: 'R' };
+      if (map[k]) { e.preventDefault(); move(map[k]); }
+      else if (k === 'z') undo();
+      else if (k === 'r') reset();
+      else if (k === 'h') hint();
+    });
+
+    let sx = 0, sy = 0, tracking = false;
+    boardEl.addEventListener('pointerdown', (e) => { tracking = true; sx = e.clientX; sy = e.clientY; });
+    boardEl.addEventListener('pointerup', (e) => {
+      if (!tracking) return; tracking = false;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+      move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U'));
+    });
+    boardEl.addEventListener('pointercancel', () => { tracking = false; });
+
+    window.addEventListener('resize', fitCell);
+
+    const last = Number.isInteger(progress.last) ? progress.last : 0;
+    loadLevel(last);
+  }
+})();
+</script>
+</body>
+</html>

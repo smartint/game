@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pila a Pila</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+/* Layout: una sola columna tipo consola portátil — marcador arriba, tablero 9×9 que sigue a la robot, cruceta y botones debajo */
+:root {
+  --bg: #e6f1ff;
+  --panel: #ffffff;
+  --line: #8fb0db;
+  --fg: #14213d;
+  --muted: #4a5d7e;
+  --copper: #e85d04;
+  --copper-hover: #c24a00;
+  --num: #1257d6;
+  --led: #ffc400;
+  --danger: #e5383b;
+  --scrim: rgba(20, 33, 61, 0.9);
+  --scrim-fg: #ffffff;
+  --scrim-muted: #b9c9e6;
+  --display: "Silkscreen", ui-monospace, "Courier New", monospace;
+  --body: "Chakra Petch", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.45; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 14px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.logo { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.6rem; letter-spacing: 0.04em; color: var(--copper); line-height: 1; }
+.logo span { color: var(--num); }
+.sala { font-family: var(--display); font-size: 0.8rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+.marcador {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+.dato {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 74px;
+}
+.dato small { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.dato b { font-family: var(--display); font-size: 1.35rem; font-weight: 700; color: var(--num); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.dato b.alerta { color: var(--danger); }
+.inventario { min-width: 0; }
+.ranuras { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.ranura { position: relative; width: 26px; height: 26px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); opacity: 0.35; }
+.ranura.tiene { opacity: 1; border-color: var(--copper); }
+.ranura canvas { width: 100%; height: 100%; display: block; }
+.ranura i { position: absolute; right: -4px; bottom: -5px; font-style: normal; font-family: var(--display); font-size: 0.6rem; background: var(--copper); color: var(--bg); border-radius: 3px; padding: 0 2px; line-height: 1.3; }
+
+.escenario {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+#tablero { display: block; width: 100%; height: 100%; image-rendering: auto; }
+.capa {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 20px;
+}
+.capa h2 { margin: 0; font-family: var(--display); font-size: 1.5rem; color: var(--led); text-wrap: balance; line-height: 1.15; }
+.capa h2.mal { color: var(--danger); }
+.capa p { margin: 0; max-width: 34ch; color: var(--scrim-fg); text-wrap: pretty; }
+.capa .meta { font-family: var(--display); font-size: 0.75rem; color: var(--scrim-muted); letter-spacing: 0.06em; }
+.acciones { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.rejilla-niveles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 340px; }
+.rejilla-niveles button { display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 10px 6px; }
+.rejilla-niveles button b { font-family: var(--display); font-size: 1.2rem; }
+.rejilla-niveles button span { font-size: 0.72rem; line-height: 1.2; }
+
+button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--copper); }
+button:focus-visible { outline: 2px solid var(--led); outline-offset: 2px; }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button.principal { background: var(--copper); color: var(--scrim-fg); border-color: var(--copper); font-weight: 600; }
+button.principal:hover { background: var(--copper-hover); border-color: var(--copper-hover); }
+
+.pista {
+  margin: 0;
+  min-height: 2.9em;
+  padding: 8px 12px;
+  border-left: 3px solid var(--copper);
+  background: var(--panel);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  color: var(--fg);
+}
+.pista strong { color: var(--copper); font-weight: 600; }
+
+.mandos { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.cruceta { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 4px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cruceta button { padding: 0; font-size: 1.4rem; line-height: 1; border-radius: 10px; touch-action: none; }
+.cruceta button.activo { background: var(--copper); color: var(--bg); }
+.cruceta .arriba { grid-column: 2; grid-row: 1; }
+.cruceta .izquierda { grid-column: 1; grid-row: 2; }
+.cruceta .abajo { grid-column: 2; grid-row: 3; }
+.cruceta .derecha { grid-column: 3; grid-row: 2; }
+.botones { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.teclas { font-size: 0.78rem; color: var(--muted); margin: 0; }
+.teclas kbd { font-family: var(--display); font-size: 0.7rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--fg); }
+
+@media (max-width: 420px) {
+  .marcador { grid-template-columns: 1fr 1fr; }
+  .inventario { grid-column: 1 / -1; }
+  .cruceta { grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="cabecera">
+    <h1 class="logo">PILA<span>·</span>A<span>·</span>PILA</h1>
+    <div class="sala" id="sala">Sala 1 de 6</div>
+  </header>
+
+  <section class="marcador" aria-label="Marcador">
+    <div class="dato"><small>Pilas</small><b id="pilas">0</b></div>
+    <div class="dato"><small>Tiempo</small><b id="tiempo">000</b></div>
+    <div class="dato inventario"><small>Equipo</small><div class="ranuras" id="ranuras"></div></div>
+  </section>
+
+  <div class="escenario">
+    <canvas id="tablero" width="540" height="540" aria-label="Tablero del juego"></canvas>
+    <div class="capa" id="capa"></div>
+  </div>
+
+  <p class="pista" id="pista"></p>
+
+  <div class="mandos">
+    <div class="cruceta" id="cruceta" aria-label="Cruceta de movimiento">
+      <button type="button" class="arriba" data-dir="up" aria-label="Arriba">▲</button>
+      <button type="button" class="izquierda" data-dir="left" aria-label="Izquierda">◀</button>
+      <button type="button" class="abajo" data-dir="down" aria-label="Abajo">▼</button>
+      <button type="button" class="derecha" data-dir="right" aria-label="Derecha">▶</button>
+    </div>
+    <div class="botones">
+      <button type="button" id="btn-reiniciar">Reiniciar sala</button>
+      <button type="button" id="btn-niveles">Elegir sala</button>
+      <button type="button" id="btn-sonido">Sonido: sí</button>
+      <p class="teclas"><kbd>←↑↓→</kbd> o <kbd>WASD</kbd> · <kbd>R</kbd> reinicia</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* MOTOR-INICIO */
+function crearMotor() {
+  // Leyenda: # muro · . suelo · @ inicio · * pila · P compuerta · E salida · ? pista
+  // r g b y llaves · R G B Y puertas · X caja · ~ agua · f fuego · _ hielo · d tierra
+  // < > A V cintas (izq, der, arriba, abajo) · w aletas · h botas ignífugas · k patines · o chispa
+  const NIVELES = [
+    {
+      nombre: 'Primer arranque', tiempo: 90,
+      pista: 'Recoge todas las pilas para abrir la compuerta de energía. Después llega a la salida.',
+      mapa: [
+        '###############',
+        '#.....#...#...#',
+        '#.*...#.*.#.*.#',
+        '#.....#...#...#',
+        '#..?..##.##...#',
+        '#.............#',
+        '#.....##P##...#',
+        '#..@..#...#...#',
+        '#.....#.E.#.*.#',
+        '#.....#...#...#',
+        '###############'
+      ]
+    },
+    {
+      nombre: 'Llaves de colores', tiempo: 120,
+      pista: 'Cada llave abre una puerta de su mismo color. La llave se gasta al usarla.',
+      mapa: [
+        '#################',
+        '#@..#.....#.....#',
+        '#...R..*..B..*..#',
+        '#.r.#.....#.....#',
+        '###.#############',
+        '#.....#.....#...#',
+        '#..b..Y..*..P.E.#',
+        '#.....#.....#...#',
+        '#..y..#..*..#...#',
+        '#..?..#.....#...#',
+        '#################'
+      ]
+    },
+    {
+      nombre: 'Agua y fuego', tiempo: 120,
+      pista: 'Sin aletas te hundes en el agua. Sin botas ignífugas te quemas. Consigue el equipo antes de cruzar.',
+      mapa: [
+        '###############',
+        '#@....#.......#',
+        '#..w..#..h....#',
+        '#.....~...?...#',
+        '#######f#######',
+        '#.*~~~~~~~~*..#',
+        '#..~~~~~~~~...#',
+        '#..ffffffff...#',
+        '#*.ff.*..ff.*.#',
+        '#######P#######',
+        '#......E......#',
+        '###############'
+      ]
+    },
+    {
+      nombre: 'Pista de hielo', tiempo: 150,
+      pista: 'En el hielo patinas hasta salir de él o chocar. Si chocas, rebotas una vez. Busca las casillas de suelo donde puedes frenar.',
+      mapa: [
+        '###############',
+        '#@..#.....#...#',
+        '#.?.________..#',
+        '#...#__#__#_*.#',
+        '#*.__#___.__..#',
+        '#####__#____###',
+        '#...________*.#',
+        '#...._#__.__..#',
+        '#....____#____#',
+        '###P###########',
+        '###E###########',
+        '###############'
+      ]
+    },
+    {
+      nombre: 'Cajas y cintas', tiempo: 150,
+      pista: 'Empuja cajas al agua para hacer un puente de tierra. Las cintas te arrastran en la dirección de sus flechas.',
+      mapa: [
+        '###############',
+        '#@..#.........#',
+        '#.X.~..*......#',
+        '#..?#.>>>>>>..#',
+        '#####.#####.###',
+        '#*.........*..#',
+        '#.......<<<<..#',
+        '#.....X.......#',
+        '######~###.####',
+        '#..*...#...*..#',
+        '#......P......#',
+        '#######E#######',
+        '###############'
+      ]
+    },
+    {
+      nombre: 'Taller de chispas', tiempo: 200,
+      pista: 'Las chispas patrullan de lado a lado. Espera a que se alejen antes de cruzar su fila.',
+      mapa: [
+        '#################',
+        '#@....#....*....#',
+        '#..r..#..o......#',
+        '#.....R.........#',
+        '#..?..#.*.....*.#',
+        '#.....#....o....#',
+        '###.########.####',
+        '#.h.#~~~~~~#.*..#',
+        '#.k.#~~*~~~#....#',
+        '#.w.f......#.__.#',
+        '#...#.......___*#',
+        '##########P######',
+        '##########E######',
+        '#################'
+      ]
+    }
+  ];
+
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const OPUESTA = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  const FUERZA = { '<': 'left', '>': 'right', 'A': 'up', 'V': 'down' };
+
+  function cargar(i) {
+    const L = NIVELES[i];
+    const grid = L.mapa.map((r) => r.split(''));
+    const s = {
+      idx: i, grid: grid, w: grid[0].length, h: grid.length,
+      px: 1, py: 1, dir: 'down',
+      inv: { r: 0, g: 0, b: 0, y: 0, w: 0, h: 0, k: 0 },
+      celdas: 0, total: 0,
+      deslizando: null, forzado: false, rebote: false,
+      muerto: null, gano: false, enemigos: [], tiempo: L.tiempo, eventos: []
+    };
+    for (let y = 0; y < s.h; y++) {
+      for (let x = 0; x < s.w; x++) {
+        const c = grid[y][x];
+        if (c === '@') { s.px = x; s.py = y; grid[y][x] = '.'; }
+        else if (c === 'o') { s.enemigos.push({ x: x, y: y, dir: 'right' }); grid[y][x] = '.'; }
+        else if (c === '*') { s.celdas++; }
+      }
+    }
+    s.total = s.celdas;
+    return s;
+  }
+
+  function tile(s, x, y) {
+    if (x < 0 || y < 0 || x >= s.w || y >= s.h) return '#';
+    return s.grid[y][x];
+  }
+
+  function enemigoEn(s, x, y) {
+    return s.enemigos.some((e) => e.x === x && e.y === y);
+  }
+
+  function colision(s) {
+    if (!s.muerto && !s.gano && enemigoEn(s, s.px, s.py)) {
+      s.muerto = 'chispa';
+      s.eventos.push('muerte');
+    }
+  }
+
+  function entrar(s, dir) {
+    const x = s.px, y = s.py, t = s.grid[y][x];
+    s.deslizando = null;
+    s.forzado = false;
+    if (t === '*') {
+      s.celdas--; s.grid[y][x] = '.';
+      s.eventos.push(s.celdas === 0 ? 'completo' : 'pila');
+    } else if ('rgby'.includes(t)) {
+      s.inv[t]++; s.grid[y][x] = '.'; s.eventos.push('llave');
+    } else if ('whk'.includes(t)) {
+      s.inv[t] = 1; s.grid[y][x] = '.'; s.eventos.push('objeto');
+    } else if (t === 'd') {
+      s.grid[y][x] = '.';
+    } else if (t === '~') {
+      if (!s.inv.w) { s.muerto = 'agua'; s.eventos.push('muerte'); }
+    } else if (t === 'f') {
+      if (!s.inv.h) { s.muerto = 'fuego'; s.eventos.push('muerte'); }
+    } else if (t === 'E') {
+      s.gano = true; s.eventos.push('gano');
+    } else if (t === '_') {
+      if (!s.inv.k) s.deslizando = dir;
+    } else if (FUERZA[t]) {
+      s.deslizando = FUERZA[t]; s.forzado = true;
+    }
+    if (!s.deslizando) s.rebote = false;
+  }
+
+  function mover(s, dir, automatico) {
+    if (s.muerto || s.gano) return false;
+    if (!automatico) s.rebote = false;
+    s.dir = dir;
+    const d = DIRS[dir];
+    const nx = s.px + d[0], ny = s.py + d[1];
+    const t = tile(s, nx, ny);
+    if (t === '#') return false;
+    if ('RGBY'.includes(t)) {
+      const k = t.toLowerCase();
+      if (!s.inv[k]) return false;
+      s.inv[k]--; s.grid[ny][nx] = '.'; s.eventos.push('puerta');
+    } else if (t === 'P') {
+      if (s.celdas > 0) return false;
+      s.grid[ny][nx] = '.'; s.eventos.push('compuerta');
+    } else if (t === 'X') {
+      const bx = nx + d[0], by = ny + d[1], b = tile(s, bx, by);
+      if (enemigoEn(s, bx, by)) return false;
+      if (b === '.') s.grid[by][bx] = 'X';
+      else if (b === '~') { s.grid[by][bx] = 'd'; s.eventos.push('chapoteo'); }
+      else return false;
+      s.grid[ny][nx] = '.';
+      s.eventos.push('empuje');
+    }
+    s.px = nx; s.py = ny;
+    entrar(s, dir);
+    colision(s);
+    return true;
+  }
+
+  function deslizar(s) {
+    if (!s.deslizando || s.muerto || s.gano) return;
+    const d = s.deslizando, forzado = s.forzado;
+    if (mover(s, d, true)) return;
+    if (forzado) { s.deslizando = null; s.forzado = false; }
+    else if (!s.rebote) { s.deslizando = OPUESTA[d]; s.rebote = true; }
+    else { s.deslizando = null; s.rebote = false; }
+  }
+
+  function moverEnemigos(s) {
+    if (s.muerto || s.gano) return;
+    for (const e of s.enemigos) {
+      for (let intento = 0; intento < 2; intento++) {
+        const d = DIRS[e.dir];
+        const nx = e.x + d[0], ny = e.y + d[1];
+        const haciaJugador = nx === s.px && ny === s.py;
+        if (haciaJugador || (tile(s, nx, ny) === '.' && !enemigoEn(s, nx, ny))) {
+          e.x = nx; e.y = ny; break;
+        }
+        e.dir = OPUESTA[e.dir];
+      }
+    }
+    colision(s);
+  }
+
+  return { NIVELES: NIVELES, FUERZA: FUERZA, cargar: cargar, tile: tile, mover: mover, deslizar: deslizar, moverEnemigos: moverEnemigos };
+}
+/* MOTOR-FIN */
+
+(function () {
+  'use strict';
+
+  const Motor = crearMotor();
+  const VISTA = 9;
+  const MOV_MS = 150, DESL_MS = 85, ENEM_MS = 320;
+  const CLAVE = 'pila-a-pila:max';
+  const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const PAL = {
+    suelo: '#f4f7fc', sueloLinea: '#d3deee', traza: '#a9cdf5', via: '#3d8bfd',
+    muro: '#3f5bd8', muroLuz: '#8199ff', muroSombra: '#22328a', muroLinea: '#6680f5',
+    agua: '#1e90ff', aguaLuz: '#cfeaff',
+    fuegoBase: '#ff3b1f', llama: '#ffa31a', llamaCentro: '#fff176',
+    hielo: '#bdefff', hieloLuz: '#ffffff', hieloBorde: '#38bdf0',
+    cinta: '#6a3df0', cintaFlecha: '#ffffff',
+    tierra: '#c27a32', tierraPunto: '#7a4515',
+    caja: '#ff9f1c', cajaOscura: '#a65300', cajaLuz: '#ffd590',
+    led: '#ffc400', cobre: '#e85d04', oscuro: '#14213d',
+    salida: '#00b84a', chispa: '#ff1fbf', robot: '#ffffff', robotBorde: '#14213d',
+    llaves: { r: '#ff2d3b', g: '#14b84a', b: '#1f6bff', y: '#ffc400' }
+  };
+
+  const MUERTES = {
+    agua: ['¡Glu, glu!', 'Nora se ha hundido. Con las aletas habría flotado.'],
+    fuego: ['¡Qué calor!', 'Se te han fundido los circuitos. Necesitas las botas ignífugas.'],
+    chispa: ['¡Cortocircuito!', 'Una chispa te ha alcanzado. Espera a que se aleje.'],
+    tiempo: ['Sin tiempo', 'El reloj de la sala ha llegado a cero.']
+  };
+
+  // ---------- Estado ----------
+  const canvas = document.getElementById('tablero');
+  const ctx = canvas.getContext('2d');
+  const capa = document.getElementById('capa');
+  const elPilas = document.getElementById('pilas');
+  const elTiempo = document.getElementById('tiempo');
+  const elSala = document.getElementById('sala');
+  const elPista = document.getElementById('pista');
+  const elRanuras = document.getElementById('ranuras');
+  const btnSonido = document.getElementById('btn-sonido');
+
+  let s = null;
+  let fase = 'intro';
+  let faseAnterior = 'intro';
+  let maxDesbloq = leerProgreso();
+  let tMov = 0, tDesl = 0, tEnem = 0, tReloj = 0;
+  let rx = 0, ry = 0, camX = 0, camY = 0;
+  let T = 60;
+  let ultimo = performance.now();
+  const pulsadas = [];
+  const cacheHud = {};
+
+  function leerProgreso() {
+    try {
+      const v = parseInt(localStorage.getItem(CLAVE), 10);
+      return Number.isFinite(v) ? Math.min(Math.max(v, 0), Motor.NIVELES.length - 1) : 0;
+    } catch (e) { return 0; }
+  }
+  function guardarProgreso() {
+    try { localStorage.setItem(CLAVE, String(maxDesbloq)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  // ---------- Sonido ----------
+  let audio = null;
+  let sonidoActivo = true;
+  function asegurarAudio() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; }
+    }
+    if (audio && audio.state === 'suspended') audio.resume();
+  }
+  function tono(freq, dur, tipo, vol, freqFin, retraso) {
+    if (!audio || !sonidoActivo) return;
+    const t0 = audio.currentTime + (retraso || 0);
+    const o = audio.createOscillator();
+    const g = audio.createGain();
+    o.type = tipo || 'square';
+    o.frequency.setValueAtTime(freq, t0);
+    if (freqFin) o.frequency.exponentialRampToValueAtTime(freqFin, t0 + dur);
+    g.gain.setValueAtTime(vol || 0.06, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(audio.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  const SONIDOS = {
+    pila: () => { tono(880, 0.07, 'square', 0.05); tono(1320, 0.09, 'square', 0.05, null, 0.06); },
+    completo: () => { tono(660, 0.08, 'square', 0.05); tono(880, 0.08, 'square', 0.05, null, 0.08); tono(1320, 0.16, 'square', 0.05, null, 0.16); },
+    llave: () => { tono(1046, 0.06, 'triangle', 0.08); tono(1568, 0.1, 'triangle', 0.08, null, 0.05); },
+    objeto: () => { tono(523, 0.1, 'triangle', 0.08, 1046); },
+    puerta: () => { tono(220, 0.12, 'sawtooth', 0.04, 440); },
+    compuerta: () => { tono(180, 0.25, 'sawtooth', 0.05, 720); },
+    empuje: () => { tono(110, 0.06, 'square', 0.04); },
+    chapoteo: () => { tono(400, 0.18, 'sine', 0.08, 90); },
+    muerte: () => { tono(440, 0.45, 'sawtooth', 0.06, 60); },
+    gano: () => { [523, 659, 784, 1046].forEach((f, i) => tono(f, 0.12, 'square', 0.05, null, i * 0.1)); }
+  };
+
+  // ---------- Dibujo ----------
+  function rr(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function circulo(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); }
+
+  function dibSuelo(c, x, y, S, gx, gy) {
+    c.fillStyle = PAL.suelo; c.fillRect(x, y, S, S);
+    c.strokeStyle = PAL.sueloLinea; c.lineWidth = Math.max(1, S * 0.02);
+    c.strokeRect(x + 0.5, y + 0.5, S - 1, S - 1);
+    const h = Math.abs(gx * 73 + gy * 151) % 7;
+    if (h === 0) {
+      c.strokeStyle = PAL.traza; c.lineWidth = Math.max(1, S * 0.045);
+      c.beginPath(); c.moveTo(x, y + S * 0.5); c.lineTo(x + S * 0.42, y + S * 0.5); c.lineTo(x + S * 0.6, y + S * 0.32); c.stroke();
+      c.fillStyle = PAL.via; circulo(c, x + S * 0.6, y + S * 0.32, S * 0.055); c.fill();
+    } else if (h === 3) {
+      c.fillStyle = PAL.traza; circulo(c, x + S * 0.26, y + S * 0.72, S * 0.05); c.fill();
+    }
+  }
+  function dibMuro(c, x, y, S) {
+    const b = S * 0.13;
+    c.fillStyle = PAL.muro; c.fillRect(x, y, S, S);
+    c.fillStyle = PAL.muroLuz;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x + S, y); c.lineTo(x + S - b, y + b); c.lineTo(x + b, y + b); c.lineTo(x + b, y + S - b); c.lineTo(x, y + S); c.closePath(); c.fill();
+    c.fillStyle = PAL.muroSombra;
+    c.beginPath(); c.moveTo(x + S, y); c.lineTo(x + S, y + S); c.lineTo(x, y + S); c.lineTo(x + b, y + S - b); c.lineTo(x + S - b, y + S - b); c.lineTo(x + S - b, y + b); c.closePath(); c.fill();
+    c.strokeStyle = PAL.muroLinea; c.lineWidth = Math.max(1, S * 0.03);
+    c.strokeRect(x + S * 0.32, y + S * 0.32, S * 0.36, S * 0.36);
+  }
+  function dibAgua(c, x, y, S, t) {
+    c.fillStyle = PAL.agua; c.fillRect(x, y, S, S);
+    c.strokeStyle = PAL.aguaLuz; c.lineWidth = Math.max(1, S * 0.045); c.globalAlpha = 0.7;
+    for (let i = 0; i < 3; i++) {
+      const yy = y + S * (0.25 + 0.25 * i);
+      c.beginPath();
+      for (let k = 0; k <= 8; k++) {
+        const xx = x + (S * k) / 8;
+        const yv = yy + Math.sin((k / 8) * Math.PI * 2 + t * 0.003 + i * 1.7) * S * 0.04;
+        if (k === 0) c.moveTo(xx, yv); else c.lineTo(xx, yv);
+      }
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  }
+  function dibFuego(c, x, y, S, t) {
+    c.fillStyle = PAL.fuegoBase; c.fillRect(x, y, S, S);
+    for (let k = 0; k < 3; k++) {
+      const cx = x + S * (0.22 + 0.28 * k);
+      const alto = S * (0.5 + 0.13 * Math.sin(t * 0.012 + k * 2.1));
+      const base = y + S * 0.9, ancho = S * 0.17;
+      c.fillStyle = PAL.llama;
+      c.beginPath(); c.moveTo(cx - ancho, base); c.quadraticCurveTo(cx - ancho * 0.6, base - alto * 0.6, cx, base - alto); c.quadraticCurveTo(cx + ancho * 0.6, base - alto * 0.6, cx + ancho, base); c.closePath(); c.fill();
+      c.fillStyle = PAL.llamaCentro;
+      c.beginPath(); c.moveTo(cx - ancho * 0.5, base); c.quadraticCurveTo(cx, base - alto * 0.75, cx + ancho * 0.5, base); c.closePath(); c.fill();
+    }
+  }
+  function dibHielo(c, x, y, S) {
+    c.fillStyle = PAL.hielo; c.fillRect(x, y, S, S);
+    c.strokeStyle = PAL.hieloBorde; c.lineWidth = Math.max(1, S * 0.02); c.strokeRect(x + 0.5, y + 0.5, S - 1, S - 1);
+    c.strokeStyle = PAL.hieloLuz; c.lineWidth = Math.max(1, S * 0.06); c.lineCap = 'round';
+    c.beginPath(); c.moveTo(x + S * 0.2, y + S * 0.55); c.lineTo(x + S * 0.55, y + S * 0.2); c.stroke();
+    c.beginPath(); c.moveTo(x + S * 0.5, y + S * 0.8); c.lineTo(x + S * 0.8, y + S * 0.5); c.stroke();
+    c.lineCap = 'butt';
+  }
+  function dibCinta(c, x, y, S, dir, t) {
+    c.fillStyle = PAL.cinta; c.fillRect(x, y, S, S);
+    c.save();
+    c.beginPath(); c.rect(x, y, S, S); c.clip();
+    c.translate(x + S / 2, y + S / 2);
+    c.rotate({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[dir]);
+    c.strokeStyle = PAL.cintaFlecha; c.lineWidth = Math.max(1.5, S * 0.08); c.lineJoin = 'round';
+    for (let k = 0; k < 3; k++) {
+      const off = ((t * 0.0016 + k / 3) % 1) * S * 1.2 - S * 0.6;
+      c.beginPath(); c.moveTo(off - S * 0.12, -S * 0.2); c.lineTo(off + S * 0.08, 0); c.lineTo(off - S * 0.12, S * 0.2); c.stroke();
+    }
+    c.restore();
+  }
+  function dibTierra(c, x, y, S) {
+    c.fillStyle = PAL.tierra; c.fillRect(x, y, S, S);
+    c.fillStyle = PAL.tierraPunto;
+    [[0.2, 0.3], [0.6, 0.2], [0.75, 0.6], [0.35, 0.7], [0.5, 0.45]].forEach((p) => { circulo(c, x + S * p[0], y + S * p[1], S * 0.045); c.fill(); });
+  }
+  function dibCaja(c, x, y, S) {
+    const m = S * 0.08;
+    rr(c, x + m, y + m, S - 2 * m, S - 2 * m, S * 0.08);
+    c.fillStyle = PAL.caja; c.fill();
+    c.strokeStyle = PAL.cajaOscura; c.lineWidth = Math.max(1, S * 0.05); c.stroke();
+    c.strokeStyle = PAL.cajaLuz; c.lineWidth = Math.max(1, S * 0.04);
+    c.beginPath(); c.moveTo(x + S * 0.28, y + S * 0.28); c.lineTo(x + S * 0.72, y + S * 0.72); c.moveTo(x + S * 0.72, y + S * 0.28); c.lineTo(x + S * 0.28, y + S * 0.72); c.stroke();
+    c.fillStyle = PAL.cajaOscura;
+    [[0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]].forEach((p) => { circulo(c, x + S * p[0], y + S * p[1], S * 0.04); c.fill(); });
+  }
+  function dibPila(c, x, y, S, t) {
+    const pulso = quieto ? 0.5 : 0.5 + 0.5 * Math.sin(t * 0.005);
+    c.fillStyle = PAL.led; c.globalAlpha = 0.12 + 0.12 * pulso;
+    circulo(c, x + S / 2, y + S / 2, S * 0.42); c.fill();
+    c.globalAlpha = 1;
+    c.fillStyle = PAL.led;
+    c.strokeStyle = PAL.oscuro; c.lineWidth = Math.max(1.5, S * 0.05);
+    c.fillRect(x + S * 0.42, y + S * 0.16, S * 0.16, S * 0.09);
+    c.strokeRect(x + S * 0.42, y + S * 0.16, S * 0.16, S * 0.09);
+    rr(c, x + S * 0.31, y + S * 0.24, S * 0.38, S * 0.56, S * 0.07); c.fill(); c.stroke();
+    c.fillStyle = PAL.oscuro;
+    c.fillRect(x + S * 0.46, y + S * 0.36, S * 0.08, S * 0.24);
+    c.fillRect(x + S * 0.38, y + S * 0.44, S * 0.24, S * 0.08);
+  }
+  function dibLlave(c, x, y, S, color) {
+    c.lineCap = 'round';
+    [[PAL.oscuro, 0.16], [color, 0.09]].forEach((capa) => {
+      c.strokeStyle = capa[0]; c.lineWidth = Math.max(2, S * capa[1]);
+      circulo(c, x + S * 0.32, y + S * 0.5, S * 0.14); c.stroke();
+      c.beginPath(); c.moveTo(x + S * 0.46, y + S * 0.5); c.lineTo(x + S * 0.82, y + S * 0.5);
+      c.moveTo(x + S * 0.7, y + S * 0.5); c.lineTo(x + S * 0.7, y + S * 0.64);
+      c.moveTo(x + S * 0.8, y + S * 0.5); c.lineTo(x + S * 0.8, y + S * 0.6); c.stroke();
+    });
+    c.lineCap = 'butt';
+  }
+  function dibPuerta(c, x, y, S, color) {
+    c.fillStyle = color; c.fillRect(x, y, S, S);
+    c.fillStyle = 'rgba(0,0,0,0.28)';
+    rr(c, x + S * 0.1, y + S * 0.1, S * 0.8, S * 0.8, S * 0.06); c.fill();
+    c.fillStyle = color;
+    rr(c, x + S * 0.16, y + S * 0.16, S * 0.68, S * 0.68, S * 0.05); c.fill();
+    c.fillStyle = PAL.oscuro;
+    circulo(c, x + S * 0.5, y + S * 0.42, S * 0.09); c.fill();
+    c.beginPath(); c.moveTo(x + S * 0.45, y + S * 0.45); c.lineTo(x + S * 0.55, y + S * 0.45); c.lineTo(x + S * 0.58, y + S * 0.66); c.lineTo(x + S * 0.42, y + S * 0.66); c.closePath(); c.fill();
+  }
+  function dibCompuerta(c, x, y, S, abierta) {
+    c.fillStyle = PAL.oscuro; c.fillRect(x, y, S, S);
+    c.strokeStyle = PAL.cobre; c.lineWidth = Math.max(1.5, S * 0.06);
+    c.strokeRect(x + S * 0.06, y + S * 0.06, S * 0.88, S * 0.88);
+    c.fillStyle = PAL.led; c.globalAlpha = abierta ? 0.18 : 1;
+    for (let k = 0; k < 4; k++) c.fillRect(x + S * (0.2 + 0.17 * k), y + S * 0.16, S * 0.08, S * 0.68);
+    c.globalAlpha = 1;
+  }
+  function dibSalida(c, x, y, S, t) {
+    c.strokeStyle = PAL.salida; c.lineWidth = Math.max(1.5, S * 0.06); c.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const giro = (quieto ? 0 : t * 0.002) * (i % 2 ? -1 : 1) + i;
+      c.beginPath(); c.arc(x + S / 2, y + S / 2, S * (0.12 + 0.11 * i), giro, giro + Math.PI * 1.4); c.stroke();
+    }
+    c.fillStyle = PAL.salida; circulo(c, x + S / 2, y + S / 2, S * 0.05); c.fill();
+    c.lineCap = 'butt';
+  }
+  function dibInterrogante(c, x, y, S) {
+    c.strokeStyle = PAL.cobre; c.lineWidth = Math.max(1.5, S * 0.05);
+    circulo(c, x + S / 2, y + S / 2, S * 0.3); c.stroke();
+    c.fillStyle = PAL.cobre;
+    c.font = '700 ' + Math.round(S * 0.42) + 'px Silkscreen, monospace';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('?', x + S / 2, y + S * 0.53);
+  }
+  function dibAletas(c, x, y, S) {
+    c.fillStyle = '#4aa3ff';
+    [0.34, 0.66].forEach((cx) => {
+      c.beginPath();
+      c.moveTo(x + S * cx, y + S * 0.22);
+      c.quadraticCurveTo(x + S * (cx + 0.16), y + S * 0.6, x + S * (cx + 0.12), y + S * 0.8);
+      c.lineTo(x + S * (cx - 0.12), y + S * 0.8);
+      c.quadraticCurveTo(x + S * (cx - 0.16), y + S * 0.6, x + S * cx, y + S * 0.22);
+      c.fill();
+    });
+    c.strokeStyle = '#bfe1ff'; c.lineWidth = Math.max(1, S * 0.03);
+    [0.34, 0.66].forEach((cx) => { c.beginPath(); c.moveTo(x + S * cx, y + S * 0.35); c.lineTo(x + S * cx, y + S * 0.74); c.stroke(); });
+  }
+  function dibBota(c, x, y, S, color, cuchilla) {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(x + S * 0.3, y + S * 0.18); c.lineTo(x + S * 0.54, y + S * 0.18); c.lineTo(x + S * 0.54, y + S * 0.52);
+    c.lineTo(x + S * 0.8, y + S * 0.6); c.lineTo(x + S * 0.8, y + S * 0.74); c.lineTo(x + S * 0.3, y + S * 0.74); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x + S * 0.3, y + S * 0.24, S * 0.24, S * 0.06);
+    if (cuchilla) {
+      c.strokeStyle = '#e8f1ee'; c.lineWidth = Math.max(1.5, S * 0.05);
+      c.beginPath(); c.moveTo(x + S * 0.24, y + S * 0.85); c.lineTo(x + S * 0.86, y + S * 0.85); c.stroke();
+      c.beginPath(); c.moveTo(x + S * 0.4, y + S * 0.74); c.lineTo(x + S * 0.4, y + S * 0.85); c.moveTo(x + S * 0.7, y + S * 0.74); c.lineTo(x + S * 0.7, y + S * 0.85); c.stroke();
+    } else {
+      c.fillStyle = PAL.llamaCentro; c.fillRect(x + S * 0.3, y + S * 0.78, S * 0.5, S * 0.06);
+    }
+  }
+  function dibObjeto(c, t, x, y, S, tiempo) {
+    if (t === '*') dibPila(c, x, y, S, tiempo);
+    else if ('rgby'.includes(t)) dibLlave(c, x, y, S, PAL.llaves[t]);
+    else if (t === 'w') dibAletas(c, x, y, S);
+    else if (t === 'h') dibBota(c, x, y, S, '#e0532f', false);
+    else if (t === 'k') dibBota(c, x, y, S, '#8fc3d6', true);
+  }
+
+  function dibCasilla(c, t, x, y, S, gx, gy, tiempo) {
+    if (t === '#') { dibMuro(c, x, y, S); return; }
+    if (t === '~') { dibAgua(c, x, y, S, tiempo); return; }
+    if (t === 'f') { dibFuego(c, x, y, S, tiempo); return; }
+    if (t === '_') { dibHielo(c, x, y, S); return; }
+    if (Motor.FUERZA[t]) { dibCinta(c, x, y, S, Motor.FUERZA[t], quieto ? 0 : tiempo); return; }
+    if (t === 'd') { dibTierra(c, x, y, S); return; }
+    if ('RGBY'.includes(t)) { dibPuerta(c, x, y, S, PAL.llaves[t.toLowerCase()]); return; }
+    if (t === 'P') { dibCompuerta(c, x, y, S, s && s.celdas === 0); return; }
+    dibSuelo(c, x, y, S, gx, gy);
+    if (t === 'X') dibCaja(c, x, y, S);
+    else if (t === 'E') dibSalida(c, x, y, S, tiempo);
+    else if (t === '?') dibInterrogante(c, x, y, S);
+    else dibObjeto(c, t, x, y, S, tiempo);
+  }
+
+  function dibRobot(c, x, y, S, dir, muerto, tiempo) {
+    const cx = x + S / 2, cy = y + S / 2 + (quieto ? 0 : Math.sin(tiempo * 0.006) * S * 0.015);
+    const k = S * 0.74;
+    c.fillStyle = 'rgba(0,0,0,0.3)';
+    c.beginPath(); c.ellipse(cx, y + S * 0.88, k * 0.38, k * 0.08, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = PAL.robotBorde; c.lineWidth = Math.max(2, S * 0.05);
+    c.beginPath(); c.moveTo(cx, cy - k * 0.36); c.lineTo(cx, cy - k * 0.54); c.stroke();
+    c.fillStyle = muerto ? PAL.chispa : PAL.led;
+    circulo(c, cx, cy - k * 0.57, k * 0.075); c.fill();
+    c.fillStyle = PAL.oscuro;
+    c.fillRect(cx - k * 0.36, cy + k * 0.36, k * 0.22, k * 0.1);
+    c.fillRect(cx + k * 0.14, cy + k * 0.36, k * 0.22, k * 0.1);
+    rr(c, cx - k * 0.46, cy - k * 0.36, k * 0.92, k * 0.76, k * 0.2);
+    c.fillStyle = muerto ? '#f3c2c2' : PAL.robot; c.fill();
+    c.strokeStyle = PAL.robotBorde; c.stroke();
+    if (dir === 'up') {
+      c.strokeStyle = PAL.robotBorde; c.lineWidth = Math.max(1, S * 0.03);
+      for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(cx - k * 0.2, cy - k * 0.14 + i * k * 0.12); c.lineTo(cx + k * 0.2, cy - k * 0.14 + i * k * 0.12); c.stroke(); }
+      return;
+    }
+    rr(c, cx - k * 0.34, cy - k * 0.24, k * 0.68, k * 0.32, k * 0.1);
+    c.fillStyle = PAL.oscuro; c.fill();
+    const ox = dir === 'left' ? -k * 0.09 : dir === 'right' ? k * 0.09 : 0;
+    const oy = dir === 'down' ? k * 0.02 : 0;
+    if (muerto) {
+      c.strokeStyle = PAL.chispa; c.lineWidth = Math.max(1.5, S * 0.04);
+      [-1, 1].forEach((sg) => {
+        const ex = cx + sg * k * 0.14, ey = cy - k * 0.08, r = k * 0.06;
+        c.beginPath(); c.moveTo(ex - r, ey - r); c.lineTo(ex + r, ey + r); c.moveTo(ex + r, ey - r); c.lineTo(ex - r, ey + r); c.stroke();
+      });
+    } else {
+      c.fillStyle = PAL.salida;
+      circulo(c, cx - k * 0.14 + ox, cy - k * 0.08 + oy, k * 0.065); c.fill();
+      circulo(c, cx + k * 0.14 + ox, cy - k * 0.08 + oy, k * 0.065); c.fill();
+    }
+    c.fillStyle = PAL.cobre;
+    c.fillRect(cx - k * 0.08, cy + k * 0.16, k * 0.16, k * 0.07);
+  }
+
+  function dibChispa(c, x, y, S, tiempo) {
+    const cx = x + S / 2, cy = y + S / 2;
+    const giro = quieto ? 0 : tiempo * 0.006;
+    c.fillStyle = PAL.chispa; c.globalAlpha = 0.25;
+    circulo(c, cx, cy, S * 0.4); c.fill();
+    c.globalAlpha = 1;
+    c.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const r = i % 2 ? S * 0.15 : S * 0.36;
+      const a = giro + (i * Math.PI) / 8;
+      const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+      if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath(); c.fill();
+    c.fillStyle = '#ffffff'; circulo(c, cx, cy, S * 0.08); c.fill();
+  }
+
+  function ajustarCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const ancho = canvas.clientWidth || 360;
+    T = Math.max(16, Math.floor((ancho * dpr) / VISTA));
+    canvas.width = T * VISTA;
+    canvas.height = T * VISTA;
+  }
+
+  function camaraObjetivo(v, tam) {
+    if (tam <= VISTA) return -(VISTA - tam) / 2;
+    return Math.min(Math.max(v - (VISTA - 1) / 2, 0), tam - VISTA);
+  }
+
+  function dibujar(ahora, dt) {
+    if (!s) return;
+    const k = Math.min(1, dt * 0.022);
+    if (Math.abs(s.px - rx) > 1.5 || Math.abs(s.py - ry) > 1.5) { rx = s.px; ry = s.py; }
+    rx += (s.px - rx) * k; ry += (s.py - ry) * k;
+    camX = camaraObjetivo(rx, s.w); camY = camaraObjetivo(ry, s.h);
+    const tiempo = quieto ? 0 : ahora;
+    ctx.fillStyle = PAL.oscuro; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const offX = Math.round(-camX * T), offY = Math.round(-camY * T);
+    const x0 = Math.floor(camX), y0 = Math.floor(camY);
+    for (let gy = y0; gy <= y0 + VISTA; gy++) {
+      for (let gx = x0; gx <= x0 + VISTA; gx++) {
+        dibCasilla(ctx, Motor.tile(s, gx, gy), gx * T + offX, gy * T + offY, T, gx, gy, tiempo);
+      }
+    }
+    for (const e of s.enemigos) {
+      if (e.rx === undefined) { e.rx = e.x; e.ry = e.y; }
+      if (Math.abs(e.x - e.rx) > 1.5 || Math.abs(e.y - e.ry) > 1.5) { e.rx = e.x; e.ry = e.y; }
+      e.rx += (e.x - e.rx) * Math.min(1, dt * 0.012);
+      e.ry += (e.y - e.ry) * Math.min(1, dt * 0.012);
+      dibChispa(ctx, Math.round(e.rx * T) + offX, Math.round(e.ry * T) + offY, T, tiempo);
+    }
+    dibRobot(ctx, Math.round(rx * T) + offX, Math.round(ry * T) + offY, T, s.dir, !!s.muerto, tiempo);
+  }
+
+  // ---------- Marcador ----------
+  const RANURAS = ['r', 'g', 'b', 'y', 'w', 'h', 'k'];
+  const NOMBRES = { r: 'Llave roja', g: 'Llave verde', b: 'Llave azul', y: 'Llave amarilla', w: 'Aletas', h: 'Botas ignífugas', k: 'Patines' };
+  const ranurasEl = {};
+  RANURAS.forEach((id) => {
+    const div = document.createElement('div');
+    div.className = 'ranura';
+    div.title = NOMBRES[id];
+    const cv = document.createElement('canvas');
+    cv.width = 52; cv.height = 52;
+    dibObjeto(cv.getContext('2d'), id, 0, 0, 52, 0);
+    const n = document.createElement('i');
+    n.hidden = true;
+    div.appendChild(cv); div.appendChild(n);
+    elRanuras.appendChild(div);
+    ranurasEl[id] = { div: div, n: n };
+  });
+
+  function poner(el, clave, valor) {
+    if (cacheHud[clave] !== valor) { cacheHud[clave] = valor; el.textContent = valor; }
+  }
+  function actualizarHud() {
+    if (!s) return;
+    poner(elPilas, 'pilas', String(s.celdas));
+    poner(elTiempo, 'tiempo', String(Math.max(0, s.tiempo)).padStart(3, '0'));
+    elTiempo.classList.toggle('alerta', s.tiempo <= 15);
+    poner(elSala, 'sala', 'Sala ' + (s.idx + 1) + ' de ' + Motor.NIVELES.length + ' · ' + Motor.NIVELES[s.idx].nombre);
+    RANURAS.forEach((id) => {
+      const v = s.inv[id];
+      const r = ranurasEl[id];
+      r.div.classList.toggle('tiene', v > 0);
+      r.n.hidden = !(v > 1);
+      if (v > 1) r.n.textContent = String(v);
+    });
+    const sobrePista = Motor.tile(s, s.px, s.py) === '?';
+    const texto = sobrePista ? Motor.NIVELES[s.idx].pista
+      : s.celdas === 0 ? 'Todas las pilas recogidas. La compuerta ya tiene energía: ve a la salida.'
+      : 'Quedan ' + s.celdas + (s.celdas === 1 ? ' pila' : ' pilas') + '. Pisa la casilla ? para leer la pista de la sala.';
+    if (cacheHud.pista !== texto) {
+      cacheHud.pista = texto;
+      elPista.innerHTML = sobrePista ? '<strong>Pista:</strong> ' + texto : texto;
+    }
+  }
+
+  // ---------- Pantallas ----------
+  function mostrarCapa(html) { capa.innerHTML = html; capa.hidden = false; const b = capa.querySelector('button.principal'); if (b) b.focus({ preventScroll: true }); }
+  function ocultarCapa() { capa.hidden = true; capa.innerHTML = ''; }
+
+  function pantallaIntro() {
+    fase = 'intro';
+    mostrarCapa(
+      '<h2>Pila a Pila</h2>' +
+      '<p>El taller se ha quedado a oscuras. Nora, la robot de mantenimiento, debe recoger las pilas de cada sala para dar energía a la compuerta y salir.</p>' +
+      '<p class="meta">6 salas · llaves · agua · fuego · hielo · cintas · chispas</p>' +
+      '<div class="acciones"><button type="button" class="principal" data-accion="jugar">' + (maxDesbloq > 0 ? 'Continuar en la sala ' + (maxDesbloq + 1) : 'Empezar') + '</button>' +
+      '<button type="button" data-accion="niveles">Elegir sala</button></div>'
+    );
+  }
+  function pantallaListo() {
+    fase = 'listo';
+    const L = Motor.NIVELES[s.idx];
+    mostrarCapa(
+      '<p class="meta">Sala ' + (s.idx + 1) + ' de ' + Motor.NIVELES.length + '</p>' +
+      '<h2>' + L.nombre + '</h2>' +
+      '<p>' + L.pista + '</p>' +
+      '<p class="meta">' + s.total + ' pilas · ' + L.tiempo + ' segundos</p>' +
+      '<div class="acciones"><button type="button" class="principal" data-accion="empezar">Empezar</button></div>'
+    );
+  }
+  function pantallaMuerte(motivo) {
+    fase = 'muerto';
+    const m = MUERTES[motivo] || MUERTES.tiempo;
+    mostrarCapa(
+      '<h2 class="mal">' + m[0] + '</h2><p>' + m[1] + '</p>' +
+      '<div class="acciones"><button type="button" class="principal" data-accion="reintentar">Reintentar</button>' +
+      '<button type="button" data-accion="niveles">Elegir sala</button></div>'
+    );
+  }
+  function pantallaGanado() {
+    const ultima = s.idx === Motor.NIVELES.length - 1;
+    if (!ultima && maxDesbloq < s.idx + 1) { maxDesbloq = s.idx + 1; guardarProgreso(); }
+    if (ultima) {
+      fase = 'fin';
+      mostrarCapa(
+        '<h2>¡Taller encendido!</h2><p>Nora ha devuelto la energía a las seis salas. Te sobraron ' + s.tiempo + ' segundos en la última.</p>' +
+        '<div class="acciones"><button type="button" class="principal" data-accion="niveles">Elegir sala</button>' +
+        '<button type="button" data-accion="desde-cero">Empezar de nuevo</button></div>'
+      );
+      return;
+    }
+    fase = 'ganado';
+    mostrarCapa(
+      '<h2>Sala superada</h2><p>Te sobraron ' + s.tiempo + ' segundos.</p>' +
+      '<div class="acciones"><button type="button" class="principal" data-accion="siguiente">Sala ' + (s.idx + 2) + '</button>' +
+      '<button type="button" data-accion="reintentar">Repetir</button></div>'
+    );
+  }
+  function pantallaNiveles() {
+    if (fase !== 'niveles') faseAnterior = fase;
+    fase = 'niveles';
+    let html = '<h2>Elige sala</h2><div class="rejilla-niveles">';
+    Motor.NIVELES.forEach((L, i) => {
+      const bloqueada = i > maxDesbloq;
+      html += '<button type="button" data-accion="sala" data-sala="' + i + '"' + (bloqueada ? ' disabled' : '') + '><b>' + (i + 1) + '</b><span>' + (bloqueada ? 'Bloqueada' : L.nombre) + '</span></button>';
+    });
+    html += '</div><div class="acciones"><button type="button" data-accion="volver">Volver</button></div>';
+    mostrarCapa(html);
+    const b = capa.querySelector('button[data-sala="' + Math.min(maxDesbloq, Motor.NIVELES.length - 1) + '"]');
+    if (b) b.focus({ preventScroll: true });
+  }
+
+  function cargarNivel(i) {
+    s = Motor.cargar(i);
+    rx = s.px; ry = s.py;
+    tMov = 0; tDesl = 0; tEnem = 0; tReloj = 0;
+    pulsadas.length = 0;
+    actualizarHud();
+  }
+  function empezar() { ocultarCapa(); fase = 'jugando'; tReloj = 0; }
+
+  capa.addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-accion]');
+    if (!b) return;
+    asegurarAudio();
+    const a = b.dataset.accion;
+    if (a === 'jugar') { cargarNivel(maxDesbloq); pantallaListo(); }
+    else if (a === 'niveles') pantallaNiveles();
+    else if (a === 'empezar') empezar();
+    else if (a === 'reintentar') { cargarNivel(s.idx); empezar(); }
+    else if (a === 'siguiente') { cargarNivel(s.idx + 1); pantallaListo(); }
+    else if (a === 'sala') { cargarNivel(parseInt(b.dataset.sala, 10)); pantallaListo(); }
+    else if (a === 'desde-cero') { cargarNivel(0); pantallaListo(); }
+    else if (a === 'volver') {
+      if (faseAnterior === 'jugando') { ocultarCapa(); fase = 'jugando'; }
+      else if (faseAnterior === 'listo') pantallaListo();
+      else if (faseAnterior === 'muerto') pantallaMuerte(s.muerto);
+      else if (faseAnterior === 'ganado' || faseAnterior === 'fin') pantallaGanado();
+      else pantallaIntro();
+    }
+  });
+
+  // ---------- Entrada ----------
+  const TECLAS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+
+  function pulsar(dir) {
+    const i = pulsadas.indexOf(dir);
+    if (i >= 0) pulsadas.splice(i, 1);
+    pulsadas.push(dir);
+    if (fase === 'listo') empezar();
+    if (fase === 'jugando' && tMov <= 0) intentarMover();
+  }
+  function soltar(dir) {
+    const i = pulsadas.indexOf(dir);
+    if (i >= 0) pulsadas.splice(i, 1);
+  }
+  function puedeMover() { return !s.deslizando || s.forzado; }
+  function intentarMover() {
+    const dir = pulsadas[pulsadas.length - 1];
+    if (!dir || !puedeMover()) return;
+    Motor.mover(s, dir, false);
+    tMov = MOV_MS;
+    if (s.deslizando) tDesl = 0;
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    const dir = TECLAS[ev.key];
+    if (dir) {
+      ev.preventDefault();
+      asegurarAudio();
+      if (!ev.repeat && (fase === 'jugando' || fase === 'listo')) pulsar(dir);
+      return;
+    }
+    if ((ev.key === 'r' || ev.key === 'R') && s && (fase === 'jugando' || fase === 'muerto')) {
+      cargarNivel(s.idx); empezar(); return;
+    }
+    if ((ev.key === 'Enter' || ev.key === ' ') && !capa.hidden && document.activeElement === document.body) {
+      const b = capa.querySelector('button.principal');
+      if (b) { ev.preventDefault(); b.click(); }
+    }
+  });
+  document.addEventListener('keyup', (ev) => {
+    const dir = TECLAS[ev.key];
+    if (dir) soltar(dir);
+  });
+  window.addEventListener('blur', () => { pulsadas.length = 0; });
+
+  const cruceta = document.getElementById('cruceta');
+  cruceta.querySelectorAll('button[data-dir]').forEach((b) => {
+    const dir = b.dataset.dir;
+    b.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      asegurarAudio();
+      try { b.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+      b.classList.add('activo');
+      if (fase === 'jugando' || fase === 'listo') pulsar(dir);
+    });
+    const fin = () => { b.classList.remove('activo'); soltar(dir); };
+    b.addEventListener('pointerup', fin);
+    b.addEventListener('pointercancel', fin);
+    b.addEventListener('lostpointercapture', fin);
+    b.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  });
+
+  document.getElementById('btn-reiniciar').addEventListener('click', () => {
+    asegurarAudio();
+    if (!s) return;
+    cargarNivel(s.idx);
+    pantallaListo();
+  });
+  document.getElementById('btn-niveles').addEventListener('click', () => { asegurarAudio(); pantallaNiveles(); });
+  btnSonido.addEventListener('click', () => {
+    sonidoActivo = !sonidoActivo;
+    btnSonido.textContent = 'Sonido: ' + (sonidoActivo ? 'sí' : 'no');
+    if (sonidoActivo) asegurarAudio();
+  });
+
+  // ---------- Bucle ----------
+  function procesarEventos() {
+    while (s.eventos.length) {
+      const e = s.eventos.shift();
+      if (SONIDOS[e]) SONIDOS[e]();
+    }
+  }
+
+  function bucle(ahora) {
+    const dt = Math.min(ahora - ultimo, 100);
+    ultimo = ahora;
+    if (s && fase === 'jugando') {
+      tReloj += dt;
+      while (tReloj >= 1000) {
+        tReloj -= 1000;
+        s.tiempo--;
+        if (s.tiempo <= 0 && !s.muerto && !s.gano) { s.tiempo = 0; s.muerto = 'tiempo'; s.eventos.push('muerte'); }
+      }
+      if (s.deslizando) {
+        tDesl += dt;
+        while (tDesl >= DESL_MS && s.deslizando) { tDesl -= DESL_MS; Motor.deslizar(s); }
+      }
+      tMov -= dt;
+      if (tMov <= 0) { tMov = 0; if (pulsadas.length) intentarMover(); }
+      if (s.enemigos.length) {
+        tEnem += dt;
+        if (tEnem >= ENEM_MS) { tEnem -= ENEM_MS; Motor.moverEnemigos(s); }
+      }
+      procesarEventos();
+      if (s.muerto) { pulsadas.length = 0; pantallaMuerte(s.muerto); }
+      else if (s.gano) { pulsadas.length = 0; pantallaGanado(); }
+    }
+    if (s) actualizarHud();
+    dibujar(ahora, dt);
+    requestAnimationFrame(bucle);
+  }
+
+  window.addEventListener('resize', ajustarCanvas);
+  document.addEventListener('DOMContentLoaded', ajustarCanvas);
+  ajustarCanvas();
+  cargarNivel(0);
+  pantallaIntro();
+  requestAnimationFrame(bucle);
+})();
+</script>
+</body>
+</html>

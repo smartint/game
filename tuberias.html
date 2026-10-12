@@ -1,0 +1,735 @@
+<title>Tubos y Válvulas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one-screen game. Metal header plate · tiled workshop floor with the board · metal button tray. Single committed look (industrial), not theme-switched. */
+:root {
+  --metal: #3a4650;
+  --metal-hi: #56656f;
+  --metal-lo: #232b31;
+  --floor: #e9a25a;
+  --floor-line: #d4884003;
+  --tile-a: #eeab66;
+  --tile-b: #e59a52;
+  --pipe: #3f8a93;
+  --pipe-hi: #6fb8c0;
+  --pipe-edge: #1b3a3f;
+  --channel: #17292d;
+  --water: #3cc3ff;
+  --water-hi: #a9e8ff;
+  --brass: #f2b632;
+  --brass-lo: #b9801a;
+  --valve: #d8343a;
+  --ink: #f7f1e6;
+  --ink-dim: #b8c3c9;
+  --focus: #ffe27a;
+  --font-display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --font-body: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--metal-lo);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.app {
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-inline: 12px;
+  padding-block: 10px;
+  gap: 10px;
+  box-sizing: border-box;
+}
+.plate {
+  background: linear-gradient(180deg, var(--metal-hi), var(--metal) 40%, var(--metal-lo));
+  border: 2px solid #12171b;
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 3px 0 #0c1013;
+  position: relative;
+}
+.plate::before, .plate::after {
+  content: ""; position: absolute; top: 8px; width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--ink-dim), var(--metal-lo));
+}
+.plate::before { left: 8px; } .plate::after { right: 8px; }
+
+/* Header */
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 22px;
+}
+.level-badge { display: flex; align-items: center; gap: 10px; }
+.level-num {
+  font-family: var(--font-display); font-size: 34px; line-height: 1;
+  color: var(--ink); text-shadow: 0 3px 0 #0c1013;
+  min-width: 1.4em; text-align: center;
+}
+.label { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
+.stars { display: flex; gap: 2px; font-size: 18px; line-height: 1; color: var(--brass); }
+.stars .off { color: #5d6a72; }
+.counter {
+  display: flex; flex-direction: column; align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+.counter strong { font-family: var(--font-display); font-size: 22px; font-weight: 400; color: var(--brass); }
+.counter small { color: var(--ink-dim); font-size: 13px; }
+
+/* Floor and board */
+.floor {
+  flex: 1; min-height: 0;
+  border-radius: 14px;
+  border: 2px solid #12171b;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 47px, rgba(160,82,20,.35) 47px 48px),
+    repeating-linear-gradient(90deg, transparent 0 47px, rgba(160,82,20,.35) 47px 48px),
+    var(--floor);
+  box-shadow: inset 0 0 0 6px rgba(0,0,0,.08);
+  display: flex; align-items: center; justify-content: center;
+  padding: 10px;
+  overflow: hidden;
+  position: relative;
+}
+.board {
+  display: grid;
+  gap: 0;
+  width: 100%;
+  max-height: 100%;
+  touch-action: manipulation;
+}
+.cell {
+  aspect-ratio: 1;
+  position: relative;
+  border: 0; padding: 0; margin: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.cell.pipe-cell::before {
+  content: ""; position: absolute; inset: 4%;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  box-shadow: inset 0 -2px 0 rgba(120,60,10,.25);
+}
+.cell:focus-visible { outline: 3px solid var(--focus); outline-offset: -2px; }
+.cell svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform .18s cubic-bezier(.3,1.4,.6,1); overflow: visible; }
+.cell.locked { cursor: default; }
+.cell .chan { stroke: var(--channel); transition: stroke .25s; }
+.cell .shine { stroke: var(--pipe-hi); }
+.cell.wet .chan { stroke: var(--water); }
+.cell.wet .flowline { opacity: 1; }
+.flowline { stroke: var(--water-hi); opacity: 0; stroke-dasharray: 6 12; animation: flow .6s linear infinite; transition: opacity .25s; }
+@keyframes flow { to { stroke-dashoffset: -18; } }
+.cell.hint-flash::before { background: rgba(255,226,122,.55); }
+
+.fixture { cursor: default; }
+.drain-glow { opacity: 0; transition: opacity .4s; }
+.won .drain-glow { opacity: 1; }
+.valve-wheel { transform-origin: 50px 46px; transition: transform .8s ease; }
+.won .valve-wheel { transform: rotate(360deg); }
+
+/* Bottom tray */
+.tray { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; }
+.btn {
+  font-family: var(--font-body); font-weight: 700; font-size: 15px;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--metal-hi), var(--metal));
+  border: 2px solid #12171b; border-radius: 12px;
+  box-shadow: 0 3px 0 #0c1013, inset 0 1px 0 rgba(255,255,255,.2);
+  padding: 8px 12px; min-height: 44px;
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #0c1013; }
+.btn:disabled { opacity: .45; cursor: default; transform: none; }
+.btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn svg { width: 20px; height: 20px; }
+.btn-brass { background: linear-gradient(180deg, var(--brass), var(--brass-lo)); color: #2a1a00; }
+.btn .pill { background: var(--metal-lo); color: var(--brass); border-radius: 999px; padding: 0 7px; font-size: 13px; }
+.nav { display: flex; gap: 6px; }
+
+/* Win panel */
+.overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20,26,30,.55);
+  padding: 16px;
+}
+.panel {
+  padding: 22px 24px 20px; text-align: center; width: min(300px, 100%);
+  display: flex; flex-direction: column; gap: 12px; align-items: center;
+  animation: pop .35s cubic-bezier(.3,1.5,.6,1);
+}
+@keyframes pop { from { transform: scale(.7); opacity: 0; } }
+.panel h2 { font-family: var(--font-display); font-weight: 400; margin: 0; font-size: 26px; text-wrap: balance; text-shadow: 0 3px 0 #0c1013; }
+.panel p { margin: 0; color: var(--ink-dim); font-size: 15px; }
+.big-stars { font-size: 44px; letter-spacing: 4px; color: var(--brass); line-height: 1; }
+.big-stars .off { color: #5d6a72; }
+.tip { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); background: rgba(23,41,45,.9); color: var(--ink); font-weight: 600; padding: 6px 12px; border-radius: 999px; font-size: 14px; white-space: nowrap; pointer-events: none; transition: opacity .4s; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cell svg, .valve-wheel, .chan { transition: none; }
+  .flowline { animation: none; }
+  .panel { animation: none; }
+}
+@media (max-width: 360px) {
+  .btn-label { display: none; }
+}
+</style>
+
+<div class="app">
+  <header class="plate top">
+    <div class="level-badge">
+      <div>
+        <div class="label">Nivel</div>
+        <div class="level-num" id="levelNum">1</div>
+      </div>
+      <div>
+        <div class="label">Récord</div>
+        <div class="stars" id="bestStars" aria-label="Estrellas conseguidas"></div>
+      </div>
+    </div>
+    <div class="counter" aria-live="polite">
+      <span class="label">Giros</span>
+      <strong id="moves">0</strong>
+      <small id="par">Objetivo: 0</small>
+    </div>
+  </header>
+
+  <main class="floor" id="floor">
+    <div class="board" id="board" role="grid" aria-label="Tablero de tuberías"></div>
+    <div class="tip" id="tip">Toca una tubería para girarla</div>
+  </main>
+
+  <footer class="plate tray">
+    <div class="nav">
+      <button class="btn" id="prevBtn" type="button" aria-label="Nivel anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="btn" id="nextBtn" type="button" aria-label="Nivel siguiente">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    <button class="btn" id="resetBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>
+      <span class="btn-label">Reiniciar</span>
+    </button>
+    <button class="btn btn-brass" id="hintBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>
+      <span class="btn-label">Pista</span><span class="pill" id="hintCount">3</span>
+    </button>
+    <button class="btn" id="soundBtn" type="button" aria-pressed="true" aria-label="Sonido">
+      <svg id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+    </button>
+  </footer>
+</div>
+<div class="sr" id="announce" aria-live="assertive"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Direcciones: N=1, E=2, S=4, O=8
+  const N = 1, E = 2, S = 4, W = 8;
+  const DIRS = [
+    { bit: N, dx: 0, dy: -1, opp: S },
+    { bit: E, dx: 1, dy: 0, opp: W },
+    { bit: S, dx: 0, dy: 1, opp: N },
+    { bit: W, dx: -1, dy: 0, opp: E }
+  ];
+  const STORE_KEY = 'tubos-valvulas-progreso';
+
+  const el = {
+    board: document.getElementById('board'),
+    floor: document.getElementById('floor'),
+    levelNum: document.getElementById('levelNum'),
+    moves: document.getElementById('moves'),
+    par: document.getElementById('par'),
+    bestStars: document.getElementById('bestStars'),
+    hintBtn: document.getElementById('hintBtn'),
+    hintCount: document.getElementById('hintCount'),
+    resetBtn: document.getElementById('resetBtn'),
+    prevBtn: document.getElementById('prevBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    soundBtn: document.getElementById('soundBtn'),
+    soundIcon: document.getElementById('soundIcon'),
+    tip: document.getElementById('tip'),
+    announce: document.getElementById('announce')
+  };
+
+  // ---------- Progreso ----------
+  const progress = loadProgress();
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && typeof p.unlocked === 'number') return { unlocked: p.unlocked, current: p.current || 1, stars: p.stars || {}, sound: p.sound !== false };
+      }
+    } catch (e) { /* sin almacenamiento */ }
+    return { unlocked: 1, current: 1, stars: {}, sound: true };
+  }
+  function saveProgress() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  // ---------- Azar con semilla (cada nivel es siempre el mismo) ----------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rnd) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function rotMask(m, r) {
+    r = ((r % 4) + 4) % 4;
+    return ((m << r) | (m >> (4 - r))) & 15;
+  }
+  function bitCount(m) { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; }
+
+  // Forma canónica de cada pieza y giros necesarios para llegar a una máscara
+  function canonical(mask) {
+    const n = bitCount(mask);
+    if (n === 4) return { base: 15, rot: 0 };
+    let base;
+    if (n === 3) base = N | E | S;
+    else if (n === 2) base = (mask === (N | S) || mask === (E | W)) ? (N | S) : (N | E);
+    else base = N;
+    for (let r = 0; r < 4; r++) if (rotMask(base, r) === mask) return { base: base, rot: r };
+    return { base: mask, rot: 0 };
+  }
+
+  function sizeFor(level) {
+    if (level <= 2) return { w: 4, h: 5 };
+    if (level <= 5) return { w: 5, h: 6 };
+    if (level <= 10) return { w: 5, h: 7 };
+    if (level <= 18) return { w: 6, h: 8 };
+    return { w: 7, h: 9 };
+  }
+
+  // ---------- Generación del nivel ----------
+  function findPath(w, h, sx, ex, rnd, minLen, maxLen) {
+    const visited = new Set();
+    const path = [];
+    let steps = 0;
+    function dfs(x, y) {
+      if (++steps > 40000) return false;
+      visited.add(y * w + x);
+      path.push([x, y]);
+      if (y === h - 1 && x === ex && path.length >= minLen) return true;
+      if (path.length >= maxLen) { path.pop(); visited.delete(y * w + x); return false; }
+      const order = shuffle(DIRS.slice(), rnd);
+      for (const d of order) {
+        const nx = x + d.dx, ny = y + d.dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        if (visited.has(ny * w + nx)) continue;
+        if (dfs(nx, ny)) return true;
+      }
+      path.pop();
+      visited.delete(y * w + x);
+      return false;
+    }
+    return dfs(sx, 0) ? path : null;
+  }
+
+  function generate(level) {
+    const size = sizeFor(level);
+    const w = size.w, h = size.h;
+    let rnd = mulberry32(level * 7919 + 13);
+    const sx = Math.floor(rnd() * w);
+    let ex = Math.floor(rnd() * w);
+    const minLen = Math.min(Math.round(w * h * 0.6), Math.round(h + 1 + level * 0.6));
+    let path = null;
+    for (let tries = 0; tries < 12 && !path; tries++) {
+      const lo = Math.max(h, minLen - tries * 2);
+      path = findPath(w, h, sx, ex, rnd, lo, lo + 4 + tries * 2);
+    }
+    if (!path) { // ruta mínima de reserva
+      path = [];
+      for (let y = 0; y < h; y++) path.push([sx, y]);
+      ex = sx;
+    }
+
+    const masks = new Array(w * h).fill(0);
+    const onPath = new Array(w * h).fill(false);
+    path.forEach(function (p, i) {
+      const idx = p[1] * w + p[0];
+      onPath[idx] = true;
+      let m = 0;
+      if (i === 0) m |= N;
+      if (i === path.length - 1) m |= S;
+      [path[i - 1], path[i + 1]].forEach(function (q) {
+        if (!q) return;
+        const dx = q[0] - p[0], dy = q[1] - p[1];
+        DIRS.forEach(function (d) { if (d.dx === dx && d.dy === dy) m |= d.bit; });
+      });
+      // A veces una T en la ruta, para despistar (más en niveles altos)
+      if (bitCount(m) === 2 && rnd() < Math.min(0.25, level * 0.02)) {
+        const free = DIRS.filter(function (d) { return !(m & d.bit); });
+        m |= free[Math.floor(rnd() * free.length)].bit;
+      }
+      masks[idx] = m;
+    });
+
+    // Piezas señuelo
+    const decoyFill = Math.min(0.95, 0.55 + level * 0.04);
+    for (let i = 0; i < w * h; i++) {
+      if (onPath[i]) continue;
+      if (rnd() > decoyFill) continue;
+      const r = rnd();
+      let base;
+      if (r < 0.45) base = N | E; else if (r < 0.82) base = N | S; else base = N | E | S;
+      masks[i] = rotMask(base, Math.floor(rnd() * 4));
+    }
+
+    // Desordenar giros
+    const cells = masks.map(function (m, i) {
+      if (!m) return null;
+      const c = canonical(m);
+      const symmetric = c.base === 15;
+      let start = Math.floor(rnd() * 4);
+      if (onPath[i] && !symmetric) {
+        // asegurar que las piezas de la ruta empiecen mal colocadas casi siempre
+        const period = (c.base === (N | S)) ? 2 : 4;
+        if ((start % period) === (c.rot % period) && rnd() < 0.9) start = (start + 1) % 4;
+      }
+      return { base: c.base, solRot: c.rot, turns: start, onPath: onPath[i] };
+    });
+
+    // Objetivo: giros mínimos en las piezas de la ruta
+    let par = 0;
+    cells.forEach(function (c) {
+      if (!c || !c.onPath) return;
+      const period = c.base === (N | S) ? 2 : (c.base === 15 ? 1 : 4);
+      const cur = c.turns % period, sol = c.solRot % period;
+      par += ((sol - cur) % period + period) % period;
+    });
+
+    return { level: level, w: w, h: h, sx: sx, ex: ex, cells: cells, par: Math.max(1, par) };
+  }
+
+  // ---------- Dibujo de piezas ----------
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function pipeGeometry(base) {
+    if (base === (N | E)) return 'M50 0 L50 22 Q50 50 78 50 L100 50';
+    if (base === (N | S)) return 'M50 0 L50 100';
+    const segs = [];
+    if (base & N) segs.push('M50 50 L50 0');
+    if (base & E) segs.push('M50 50 L100 50');
+    if (base & S) segs.push('M50 50 L50 100');
+    if (base & W) segs.push('M50 50 L0 50');
+    return segs.join(' ');
+  }
+  function flanges(base) {
+    let out = '';
+    const f = { x: 29, w: 42, h: 11 };
+    if (base & N) out += '<rect x="' + f.x + '" y="0" width="' + f.w + '" height="' + f.h + '" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>';
+    if (base & S) out += '<rect x="' + f.x + '" y="' + (100 - f.h) + '" width="' + f.w + '" height="' + f.h + '" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>';
+    if (base & E) out += '<rect x="' + (100 - f.h) + '" y="' + f.x + '" width="' + f.h + '" height="' + f.w + '" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>';
+    if (base & W) out += '<rect x="0" y="' + f.x + '" width="' + f.h + '" height="' + f.w + '" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>';
+    return out;
+  }
+  function pipeSVG(base) {
+    const d = pipeGeometry(base);
+    const joint = bitCount(base) >= 3 ? '<circle cx="50" cy="50" r="20" fill="#3f8a93" stroke="#1b3a3f" stroke-width="3"/><circle cx="50" cy="50" r="9" class="chan-dot" fill="#17292d"/>' : '';
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<path d="' + d + '" fill="none" stroke="#1b3a3f" stroke-width="38" stroke-linecap="butt"/>' +
+      '<path d="' + d + '" fill="none" stroke="#3f8a93" stroke-width="31" stroke-linecap="butt"/>' +
+      '<path d="' + d + '" fill="none" class="shine" stroke-width="5" stroke-linecap="round" transform="translate(-8 -8)" opacity=".55"/>' +
+      '<path d="' + d + '" fill="none" class="chan" stroke-width="13" stroke-linecap="round"/>' +
+      '<path d="' + d + '" fill="none" class="flowline" stroke-width="4" stroke-linecap="round"/>' +
+      joint + flanges(base) + '</svg>';
+  }
+  const VALVE_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+    '<path d="M50 60 L50 100" stroke="#1b3a3f" stroke-width="38"/><path d="M50 60 L50 100" stroke="#3f8a93" stroke-width="31"/>' +
+    '<path d="M50 60 L50 100" class="chan" stroke-width="13" style="stroke:#3cc3ff"/>' +
+    '<rect x="29" y="89" width="42" height="11" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>' +
+    '<rect x="14" y="12" width="72" height="68" rx="12" fill="#2d6970" stroke="#1b3a3f" stroke-width="4"/>' +
+    '<circle cx="50" cy="46" r="26" fill="#1b3a3f"/>' +
+    '<g class="valve-wheel"><circle cx="50" cy="46" r="22" fill="none" stroke="#d8343a" stroke-width="7"/>' +
+    '<path d="M50 24 V68 M28 46 H72" stroke="#d8343a" stroke-width="6"/><circle cx="50" cy="46" r="7" fill="#f2b632" stroke="#7a1418" stroke-width="2"/></g>' +
+    '</svg>';
+  const DRAIN_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+    '<path d="M50 0 L50 40" stroke="#1b3a3f" stroke-width="38"/><path d="M50 0 L50 40" stroke="#3f8a93" stroke-width="31"/>' +
+    '<path d="M50 0 L50 40" class="chan drain-chan" stroke-width="13"/>' +
+    '<rect x="29" y="0" width="42" height="11" rx="3" fill="#2d6970" stroke="#1b3a3f" stroke-width="3"/>' +
+    '<polygon points="30,30 70,30 88,48 88,82 70,98 30,98 12,82 12,48" fill="#3a4650" stroke="#12171b" stroke-width="4"/>' +
+    '<circle cx="50" cy="64" r="24" fill="#12171b"/>' +
+    '<circle class="drain-glow" cx="50" cy="64" r="20" fill="#3cc3ff"/>' +
+    '<path d="M32 56 H68 M30 64 H70 M32 72 H68" stroke="#56656f" stroke-width="3"/>' +
+    '</svg>';
+
+  // ---------- Sonido (Web Audio, sin archivos) ----------
+  let audio = null;
+  function ctx() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; }
+    }
+    return audio;
+  }
+  function tone(freq, dur, type, vol, delay) {
+    if (!progress.sound) return;
+    const a = ctx(); if (!a) return;
+    const t = a.currentTime + (delay || 0);
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol || 0.06, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function clank() { tone(180, 0.07, 'square', 0.05); tone(320, 0.05, 'triangle', 0.04, 0.02); }
+  function splash() { [523, 659, 784, 1046].forEach(function (f, i) { tone(f, 0.25, 'triangle', 0.07, i * 0.09); }); }
+
+  // ---------- Estado del juego ----------
+  let state = null;
+  let cellEls = [];
+  let fixtureEls = { valve: null, drain: null };
+  let overlay = null;
+
+  function starsFor(moves, par) {
+    if (moves <= par) return 3;
+    if (moves <= Math.ceil(par * 1.5) + 2) return 2;
+    return 1;
+  }
+  function renderStars(container, n, cls) {
+    container.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const s = document.createElement('span');
+      s.textContent = '★';
+      if (i >= n) s.className = 'off';
+      if (cls) s.classList.add(cls);
+      container.appendChild(s);
+    }
+  }
+
+  function loadLevel(level) {
+    if (overlay) { overlay.remove(); overlay = null; }
+    state = generate(level);
+    state.moves = 0;
+    state.hints = 3;
+    state.won = false;
+    progress.current = level;
+    saveProgress();
+    buildBoard();
+    updateHud();
+    computeFlow();
+  }
+
+  function buildBoard() {
+    const b = el.board;
+    b.innerHTML = '';
+    b.classList.remove('won');
+    b.style.gridTemplateColumns = 'repeat(' + state.w + ', 1fr)';
+    // Ajuste para que el tablero quepa en altura
+    fitBoard();
+    cellEls = [];
+    fixtureEls = { valve: null, drain: null };
+    const rows = state.h + 2;
+    for (let r = 0; r < rows; r++) {
+      for (let x = 0; x < state.w; x++) {
+        const y = r - 1;
+        if (y === -1 || y === state.h) {
+          const div = document.createElement('div');
+          div.className = 'cell fixture';
+          if (y === -1 && x === state.sx) { div.innerHTML = VALVE_SVG; div.setAttribute('aria-label', 'Válvula de agua'); fixtureEls.valve = div; }
+          if (y === state.h && x === state.ex) { div.innerHTML = DRAIN_SVG; div.setAttribute('aria-label', 'Desagüe'); fixtureEls.drain = div; }
+          b.appendChild(div);
+          continue;
+        }
+        const idx = y * state.w + x;
+        const c = state.cells[idx];
+        if (!c) {
+          const empty = document.createElement('div');
+          empty.className = 'cell';
+          b.appendChild(empty);
+          cellEls.push(null);
+          continue;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cell pipe-cell';
+        btn.dataset.idx = String(idx);
+        btn.setAttribute('aria-label', 'Tubería fila ' + (y + 1) + ', columna ' + (x + 1));
+        btn.innerHTML = pipeSVG(c.base);
+        btn.firstChild.style.transform = 'rotate(' + (c.turns * 90) + 'deg)';
+        b.appendChild(btn);
+        cellEls.push(btn);
+      }
+    }
+  }
+
+  function fitBoard() {
+    const f = el.floor;
+    const availW = f.clientWidth - 20, availH = f.clientHeight - 20;
+    const rows = state.h + 2;
+    const cell = Math.max(24, Math.min(availW / state.w, availH / rows, 86));
+    el.board.style.width = (cell * state.w) + 'px';
+  }
+
+  function currentMask(c) { return rotMask(c.base, c.turns); }
+
+  function computeFlow() {
+    const w = state.w, h = state.h;
+    const wet = new Array(w * h).fill(false);
+    const start = state.sx;
+    const s = state.cells[start];
+    let reached = false;
+    if (s && (currentMask(s) & N)) {
+      const q = [start]; wet[start] = true;
+      while (q.length) {
+        const i = q.shift();
+        const x = i % w, y = Math.floor(i / w);
+        const m = currentMask(state.cells[i]);
+        if (y === h - 1 && x === state.ex && (m & S)) reached = true;
+        DIRS.forEach(function (d) {
+          if (!(m & d.bit)) return;
+          const nx = x + d.dx, ny = y + d.dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+          const ni = ny * w + nx;
+          const nc = state.cells[ni];
+          if (!nc || wet[ni]) return;
+          if (currentMask(nc) & d.opp) { wet[ni] = true; q.push(ni); }
+        });
+      }
+    }
+    cellEls.forEach(function (btn, i) { if (btn) btn.classList.toggle('wet', wet[i]); });
+    const dc = fixtureEls.drain && fixtureEls.drain.querySelector('.drain-chan');
+    if (dc) dc.style.stroke = reached ? 'var(--water)' : '';
+    return reached;
+  }
+
+  function updateHud() {
+    el.levelNum.textContent = String(state.level);
+    el.moves.textContent = String(state.moves);
+    el.par.textContent = 'Objetivo: ' + state.par;
+    renderStars(el.bestStars, progress.stars[state.level] || 0);
+    el.hintCount.textContent = String(state.hints);
+    el.hintBtn.disabled = state.hints <= 0 || state.won;
+    el.prevBtn.disabled = state.level <= 1;
+    el.nextBtn.disabled = state.level >= progress.unlocked;
+  }
+
+  function rotateCell(idx, silent) {
+    const c = state.cells[idx];
+    if (!c || state.won) return;
+    c.turns += 1;
+    cellEls[idx].firstChild.style.transform = 'rotate(' + (c.turns * 90) + 'deg)';
+    if (!silent) { state.moves += 1; clank(); }
+    hideTip();
+    updateHud();
+    if (computeFlow()) win();
+  }
+
+  function hideTip() { if (el.tip) { el.tip.style.opacity = '0'; } }
+
+  function useHint() {
+    if (state.hints <= 0 || state.won) return;
+    // Busca una pieza de la ruta mal orientada, empezando desde la válvula
+    const candidates = [];
+    state.cells.forEach(function (c, i) {
+      if (!c || !c.onPath) return;
+      const period = c.base === (N | S) ? 2 : (c.base === 15 ? 1 : 4);
+      if ((c.turns % period) !== (c.solRot % period)) candidates.push(i);
+    });
+    if (!candidates.length) return;
+    candidates.sort(function (a, b) { return a - b; });
+    const i = candidates[0];
+    const c = state.cells[i];
+    const period = c.base === (N | S) ? 2 : 4;
+    const need = ((c.solRot % period) - (c.turns % period) + period) % period;
+    state.hints -= 1;
+    state.moves += need;
+    c.turns += need;
+    const btn = cellEls[i];
+    btn.firstChild.style.transform = 'rotate(' + (c.turns * 90) + 'deg)';
+    btn.classList.add('hint-flash');
+    setTimeout(function () { btn.classList.remove('hint-flash'); }, 700);
+    tone(880, 0.12, 'sine', 0.06);
+    updateHud();
+    if (computeFlow()) win();
+  }
+
+  function win() {
+    state.won = true;
+    el.board.classList.add('won');
+    const stars = starsFor(state.moves, state.par);
+    const prev = progress.stars[state.level] || 0;
+    if (stars > prev) progress.stars[state.level] = stars;
+    if (progress.unlocked < state.level + 1) progress.unlocked = state.level + 1;
+    saveProgress();
+    updateHud();
+    splash();
+    el.announce.textContent = '¡Conseguido! El agua llega al desagüe. ' + stars + ' estrellas.';
+    setTimeout(function () { showWinPanel(stars); }, 900);
+  }
+
+  function showWinPanel(stars) {
+    const msgs = ['¡Buen trabajo!', '¡Muy bien!', '¡Fontanería perfecta!'];
+    overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const panel = document.createElement('div');
+    panel.className = 'plate panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Nivel superado');
+    const h = document.createElement('h2'); h.textContent = msgs[stars - 1];
+    const st = document.createElement('div'); st.className = 'big-stars'; renderStars(st, stars);
+    const p = document.createElement('p');
+    p.textContent = 'Lo hiciste en ' + state.moves + ' giros (objetivo: ' + state.par + ').';
+    const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px';
+    const again = document.createElement('button'); again.type = 'button'; again.className = 'btn'; again.textContent = 'Repetir';
+    const next = document.createElement('button'); next.type = 'button'; next.className = 'btn btn-brass'; next.textContent = 'Siguiente nivel';
+    again.addEventListener('click', function () { loadLevel(state.level); });
+    next.addEventListener('click', function () { loadLevel(state.level + 1); });
+    row.appendChild(again); row.appendChild(next);
+    panel.appendChild(h); panel.appendChild(st); panel.appendChild(p); panel.appendChild(row);
+    overlay.appendChild(panel);
+    el.floor.appendChild(overlay);
+    next.focus();
+  }
+
+  function updateSoundBtn() {
+    el.soundBtn.setAttribute('aria-pressed', String(progress.sound));
+    el.soundIcon.innerHTML = progress.sound
+      ? '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>'
+      : '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
+  }
+
+  // ---------- Eventos ----------
+  document.addEventListener('DOMContentLoaded', function () {
+    el.board.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('.pipe-cell');
+      if (!btn) return;
+      rotateCell(Number(btn.dataset.idx));
+    });
+    el.resetBtn.addEventListener('click', function () { loadLevel(state.level); });
+    el.hintBtn.addEventListener('click', useHint);
+    el.prevBtn.addEventListener('click', function () { if (state.level > 1) loadLevel(state.level - 1); });
+    el.nextBtn.addEventListener('click', function () { if (state.level < progress.unlocked) loadLevel(state.level + 1); });
+    el.soundBtn.addEventListener('click', function () {
+      progress.sound = !progress.sound; saveProgress(); updateSoundBtn();
+      if (progress.sound) clank();
+    });
+    window.addEventListener('resize', function () { if (state) fitBoard(); });
+    updateSoundBtn();
+    loadLevel(Math.min(progress.current || 1, progress.unlocked));
+  });
+})();
+</script>
