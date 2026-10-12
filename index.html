@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Juegos retro</title>
+  <style>
+    :root{
+      --text:#111827;
+      --border:#e5e7eb;
+      --bg:#ffffff;
+      --link:#0969da;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);color:var(--text);background:var(--bg);line-height:1.45}
+
+    /* FULL WIDTH */
+    .wrap{
+      width:100%;
+      max-width:none;
+      margin:0;
+      padding:22px 16px 40px;
+    }
+
+    h1{margin:0 0 16px;font-size:32px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
+    a{color:var(--link);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* 4 por fila, ocupando todo el ancho */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:12px;
+      width:100%;
+    }
+    @media (max-width: 980px){ .grid{grid-template-columns: repeat(3, 1fr);} }
+    @media (max-width: 720px){ .grid{grid-template-columns: repeat(2, 1fr);} }
+    @media (max-width: 480px){ .grid{grid-template-columns: 1fr;} }
+
+    .gitem{
+      margin:0;
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .thumb{
+      aspect-ratio: 4 / 3;
+      background:#f3f4f6;
+      border-bottom:1px solid var(--border);
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .imglink{
+      display:flex;align-items:center;justify-content:center;width:100%;height:100%;
+    }
+    .cap{
+      padding:10px 10px 12px;
+      font-size:13px;
+      text-align:center;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Juegos retro</h1>
+    <section class="grid">
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/aguacero-wetrix.html" target="_blank" rel="noopener"><img src="Aguacero.png" alt="Aguacero" loading="lazy"></a></div>
+                <figcaption class="cap">Aguacero</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/alas-del-pacifico.html" target="_blank" rel="noopener"><img src="Alas_del_Pacifico.png" alt="Alas del Pacífico" loading="lazy"></a></div>
+                <figcaption class="cap">Alas del Pacífico</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/angulo-muerto.html" target="_blank" rel="noopener"><img src="Angulo_Muerto.png" alt="Ángulo muerto" loading="lazy"></a></div>
+                <figcaption class="cap">Ángulo muerto</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/blockout-3d.html" target="_blank" rel="noopener"><img src="Blockout_3D.png" alt="Blockout 3D" loading="lazy"></a></div>
+                <figcaption class="cap">Blockout 3D</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/cantera-de-pistas.html" target="_blank" rel="noopener"><img src="Cantera_de_Pistas.png" alt="Cantera de pistas" loading="lazy"></a></div>
+                <figcaption class="cap">Cantera de pistas</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/caso-einstein-6pri.html" target="_blank" rel="noopener"><img src="Caso_Einstein.png" alt="Caso Einstein" loading="lazy"></a></div>
+                <figcaption class="cap">Caso Einstein</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/circuito-coen-5-6pri.html" target="_blank" rel="noopener"><img src="Circuito_Coen.png" alt="Circuito Coen" loading="lazy"></a></div>
+                <figcaption class="cap">Circuito Coen</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/costa-turbo-juego.html" target="_blank" rel="noopener"><img src="costa-turbo-juego.png" alt="Costa turbo" loading="lazy"></a></div>
+                <figcaption class="cap">Costa turbo</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/cuarto-de-vuelta.html" target="_blank" rel="noopener"><img src="Cuarto_de_Vuelta.png" alt="Cuarto de vuelta" loading="lazy"></a></div>
+                <figcaption class="cap">Cuarto de vuelta</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/deflektor-juego.html" target="_blank" rel="noopener"><img src="Deflektor.png" alt="Deflektor" loading="lazy"></a></div>
+                <figcaption class="cap">Deflektor</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/estacion-veltri.html" target="_blank" rel="noopener"><img src="estación_veltri_muelle_estelar.png" alt="Estación Veltri" loading="lazy"></a></div>
+                <figcaption class="cap">Estación Veltri</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/ladrillo-estelar.html" target="_blank" rel="noopener"><img src="ladrillo_estelar_arcade_cósmico.png" alt="Ladrillo estelar" loading="lazy"></a></div>
+                <figcaption class="cap">Ladrillo estelar</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/mansion-medianoche.html" target="_blank" rel="noopener"><img src="mansión_medianoche_pinball_encantado.png" alt="Mansión de medianoche" loading="lazy"></a></div>
+                <figcaption class="cap">Mansión de medianoche</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/maquina-disparatada.html" target="_blank" rel="noopener"><img src="máquina_disparatada_en_marcha.png" alt="Máquina disparatada" loading="lazy"></a></div>
+                <figcaption class="cap">Máquina disparatada</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/maquina-disparatada-engranajes.html" target="_blank" rel="noopener"><img src="máquina_disparatada_engranajes.png" alt="Máquina disparatada_engranajes" loading="lazy"></a></div>
+                <figcaption class="cap">Máquina disparatada_engranajes</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/numeros-magicos-2048-problemas-6pri.html" target="_blank" rel="noopener"><img src="números_mágicos_fusión_2048.png" alt="Números mágicos" loading="lazy"></a></div>
+                <figcaption class="cap">Números mágicos</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/pelusines-logica-6pri.html" target="_blank" rel="noopener"><img src="pelusines_puzzle_al_atardecer.png" alt="Pelusines" loading="lazy"></a></div>
+                <figcaption class="cap">Pelusines</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/piezas-y-pistones-6pri.html" target="_blank" rel="noopener"><img src="piezas_y_pistones_garaje_de_carreras.png" alt="Piezas y pistones" loading="lazy"></a></div>
+                <figcaption class="cap">Piezas y pistones</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/pila-a-pila.html" target="_blank" rel="noopener"><img src="pila-a-pila.png" alt="Pila a pila" loading="lazy"></a></div>
+                <figcaption class="cap">Pila a pila</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/sokoban-cajas-al-muelle.html" target="_blank" rel="noopener"><img src="sokoban-cajas-al-muelle-1.png" alt="Cajas al muelle" loading="lazy"></a></div>
+                <figcaption class="cap">Cajas al muelle</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/taller-engranajes.html" target="_blank" rel="noopener"><img src="taller-engranajes-1.png" alt="Taller de engranajes" loading="lazy"></a></div>
+                <figcaption class="cap">Taller de engranajes</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/topo-minero-juego-2.html" target="_blank" rel="noopener"><img src="topo-minero-juego-2.png" alt="Topo minero" loading="lazy"></a></div>
+                <figcaption class="cap">Topo minero</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/tuberias.html" target="_blank" rel="noopener"><img src="tubos_y_válvulas_fábrica_mecánica.png" alt="Tubos y válbulas" loading="lazy"></a></div>
+                <figcaption class="cap">Tubos y válbulas</figcaption>
+              </figure>
+      <figure class="gitem">
+                <div class="thumb"><a class="imglink" href="https://smartint.github.io/game/umbral-pinball.html" target="_blank" rel="noopener"><img src="umbral-pinball-1.png" alt="Umbral pinball" loading="lazy"></a></div>
+                <figcaption class="cap">Umbral pinball</figcaption>
+              </figure>
+    </section>
+  </div>
+</body>
+</html>
